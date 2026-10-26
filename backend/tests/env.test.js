@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('dotenv', () => ({ default: { config: vi.fn() } }));
@@ -21,6 +23,25 @@ afterEach(() => {
 });
 
 describe('environment configuration', () => {
+  it('loads root .env before backend/.env without overriding process variables', async () => {
+    await loadEnv();
+    expect(dotenv.config).toHaveBeenLastCalledWith({
+      path: [
+        fileURLToPath(new URL('../../.env', import.meta.url)),
+        fileURLToPath(new URL('../.env', import.meta.url)),
+      ],
+      override: false,
+      quiet: true,
+    });
+  });
+
+  it.each([
+    'mongodb://user:password@host1:27017,host2:27017/ctf_arena?replicaSet=rs0',
+    'mongodb+srv://user:password@cluster.example.com/ctf_arena',
+  ])('accepts MongoDB URI format %s', async (uri) => {
+    const { env } = await loadEnv({ MONGODB_URI: uri });
+    expect(env.MONGODB_URI).toBe(uri);
+  });
   it('accepts all template variables and converts numeric settings', async () => {
     const { env } = await loadEnv();
     expect(Object.keys(env).sort()).toEqual(Object.keys(example).sort());

@@ -38,8 +38,11 @@ shape. PATCH also upserts the user and refreshes token fields. Invalid bodies
 return 400 `VALIDATION_ERROR`. Both responses use the MongoDB user ID as `id`
 and return `team: null` until teams are implemented.
 
-At P1-02, health returns only `{ "status": "ok", "replica": "<hostname>" }`.
-The `db: "up"` field is added with the MongoDB connection in P1-04.
+Health returns HTTP 200 with `{ "status": "ok", "db": "up|down", "replica": "<hostname>" }`.
+`db` is `up` only when `mongoose.connection.readyState` is 1 (connected),
+and `down` for all other states. It is checked on each request, so a lost
+connection is reflected without restarting. Startup connects to MongoDB before
+opening the HTTP listener; an initial connection failure exits with code 1.
 JSON request bodies are limited to 100 KB. Invalid JSON returns 400
 `VALIDATION_ERROR`; oversized bodies return 413 `VALIDATION_ERROR`.
 Unknown routes return 404 `NOT_FOUND`; unexpected failures return 500
