@@ -38,7 +38,7 @@ submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
 9. `docs/SECURITY.md` - rules that keep the platform safe
 10. `docs/DEMO_AND_REPORT.md` - demo script and report outline
 
-## Backend skeleton (P1-01 through P1-03)
+## Backend foundation (P1-01 through P1-04)
 
 Use Node.js 20 or later. From the repository root:
 
@@ -50,19 +50,29 @@ npm run dev
 ```
 
 On PowerShell use `Copy-Item .env.example .env` instead of `cp`.
-The backend loads the root `.env` regardless of the working directory and
-requires every variable in `.env.example`. Keep real credentials private.
-The template values allow the skeleton to start; they do not configure cloud
-resources. Replace Cognito placeholders and the flag secret before those
-features are implemented. MongoDB and Cognito are not contacted yet.
+The backend loads the root `.env` and then `backend/.env`, regardless of the
+working directory. Existing process variables take precedence; root `.env`
+wins over `backend/.env`, which fills missing values. Every variable in
+`.env.example` is required. Keep real credentials private.
+Set `MONGODB_URI` in the root `.env` to your Atlas URI (see `docs/SETUP.md`)
+or a running local MongoDB. Both `mongodb://` (including multi-host URIs)
+and `mongodb+srv://` are accepted. Startup connects before listening, logs
+`MongoDB connected`, and exits with code 1 and a generic error if connection
+fails. Driver errors, URIs, and passwords are never logged. Initial server
+selection times out after 10 seconds.
+Replace Cognito placeholders and the flag secret before those features are
+implemented. Cognito is not contacted yet.
 
-Visit `http://localhost:4000/api/health` for `{ "status": "ok", "replica": "<hostname>" }`.
-Run `npm test` in `backend/` for API and environment validation tests, or
+Visit `http://localhost:4000/api/health` for
+`{ "status": "ok", "db": "up", "replica": "<hostname>" }`.
+The response stays HTTP 200; `db` becomes `down` whenever Mongoose is not connected.
+Run `npm test` in `backend/` for API, startup, database, and environment tests
+(no real database or `.env` needed), or
 `npm start` to run without nodemon. Removing `MONGODB_URI` from the environment
-and `.env` makes startup exit with code 1 and an error naming the variable.
+and both `.env` files makes startup exit with code 1 and an error naming the variable.
 
 The folder placeholders contain no frontend, challenge, Nginx, or deployment
-implementation. Auth, teams, database connectivity, and seed data are later
+implementation. Auth, models, teams, and seed data are later
 tasks. `npm run seed` currently exits with a P1-14 reminder.
 GitHub branch protection and collaborator access still need verification for P1-01.
 

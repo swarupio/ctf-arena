@@ -19,6 +19,7 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Acceptance:* removing `MONGODB_URI` makes startup fail with a clear message.
 - [ ] **P1-04 MongoDB Atlas.** Create the free cluster, DB user, allow IPs, connect with Mongoose in `config/db.js` (see `SETUP.md`).
   *Acceptance:* backend logs "MongoDB connected"; health route also reports `db: "up"`.
+  *Code complete:* startup connects before listening, fails safely, and health reports live DB state. Mocked tests need no database or `.env`. Atlas provisioning and a live connection remain unverified.
 - [ ] **P1-05 Docker for backend.** `backend/Dockerfile` (node:20-alpine, non-root user) and the starter `docker-compose.yml` with 3 replicas.
   *Acceptance:* `docker compose up --build` starts 3 replicas; hitting `/api/health` shows different replica names.
 

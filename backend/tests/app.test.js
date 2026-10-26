@@ -1,18 +1,33 @@
 import os from 'node:os';
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import mongoose from 'mongoose';
 import app from '../src/app.js';
 import { errorHandler } from '../src/middleware/errorHandler.js';
 import { AppError } from '../src/utils/AppError.js';
 
+vi.mock('mongoose', () => ({ default: { connection: { readyState: 0 } } }));
+
 describe('backend skeleton', () => {
   it('serves health without authentication, with replica and security headers', async () => {
     const response = await request(app).get('/api/health').expect(200);
-    expect(response.body).toEqual({ status: 'ok', replica: os.hostname() });
+    expect(response.body).toEqual({ status: 'ok', db: 'down', replica: os.hostname() });
     expect(response.headers['x-served-by']).toBe(os.hostname());
     expect(response.headers['x-content-type-options']).toBe('nosniff');
     expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it.each([0, 1, 2, 3, 99])('reports current database state %i', async (state) => {
+    mongoose.connection.readyState = state;
+    try {
+      const response = await request(app).get('/api/health').expect(200);
+      expect(response.body).toEqual({
+        status: 'ok', db: state === 1 ? 'up' : 'down', replica: os.hostname(),
+      });
+    } finally {
+      mongoose.connection.readyState = 0;
+    }
   });
 
   it('formats unknown routes as 404 errors', async () => {
