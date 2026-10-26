@@ -71,9 +71,10 @@ Run `npm test` in `backend/` for API, startup, database, and environment tests
 `npm start` to run without nodemon. Removing `MONGODB_URI` from the environment
 and both `.env` files makes startup exit with code 1 and an error naming the variable.
 
-The folder placeholders contain no frontend, challenge, Nginx, or deployment
-implementation. Teams and seed data are later tasks. `npm run seed` currently
-exits with a P1-14 reminder.
+The folder placeholders contain no frontend, challenge, or deployment
+implementation. Nginx currently serves a plain text placeholder and proxies the API.
+Teams and seed data are later tasks. `npm run seed` currently exits with a
+P1-14 reminder.
 GitHub branch protection and collaborator access still need verification for P1-01.
 
 ## Authentication middleware (P1-07 and P1-09)
@@ -98,11 +99,25 @@ Mongoose and aws-jwt-verify are the requested foundations for later database
 and Cognito work. Vitest runs tests, Supertest exercises HTTP, and nodemon
 restarts the development server.
 
-## Whole stack (requires later tasks)
+## Docker backend and placeholder Nginx (P1-05)
+
+Start Docker Desktop with Linux containers. From the repository root, copy
+`.env.example` to `.env` if you have not configured it yet. Keep `PORT=4000`
+for the internal proxy. Compose injects the root `.env` at runtime through
+`env_file`; no environment file is copied into the backend image.
 
 ```bash
-cp .env.example .env        # fill in Atlas + Cognito values
 docker compose up --build   # starts nginx + 3 backend replicas
 ```
 
-Open http://localhost and log in.
+Open http://localhost for `CTF Arena is running`, or
+http://localhost/api/health for the backend health response and `X-Served-By`
+header. Repeated requests should show different replica names:
+
+```powershell
+1..10 | ForEach-Object { (Invoke-WebRequest http://localhost/api/health).Headers['X-Served-By'] }
+```
+
+The backend image uses Node.js 20 Alpine, installs production dependencies
+only, and runs as the non-root `node` user. The frontend mount is disabled
+until P1-11. Stop the stack with `docker compose down`.

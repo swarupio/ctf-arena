@@ -20,8 +20,9 @@ Each task has an **acceptance** line: if it is true, the task is done.
 - [ ] **P1-04 MongoDB Atlas.** Create the free cluster, DB user, allow IPs, connect with Mongoose in `config/db.js` (see `SETUP.md`).
   *Acceptance:* backend logs "MongoDB connected"; health route also reports `db: "up"`.
   *Code complete:* startup connects before listening, fails safely, and health reports live DB state. Mocked tests need no database or `.env`. Atlas provisioning and a live connection remain unverified.
-- [ ] **P1-05 Docker for backend.** `backend/Dockerfile` (node:20-alpine, non-root user) and the starter `docker-compose.yml` with 3 replicas.
+- [x] **P1-05 Docker for backend.** `backend/Dockerfile` (node:20-alpine, non-root user) and the starter `docker-compose.yml` with 3 replicas.
   *Acceptance:* `docker compose up --build` starts 3 replicas; hitting `/api/health` shows different replica names.
+  *Verified:* image built; Compose started 3 backend replicas; health responses and X-Served-By headers reached all 3. Nginx syntax and root placeholder passed. Backend runs as UID 1000 without `.env`, tests, or Vitest in the image. Frontend mount deferred to P1-11.
 
 ### IAM + MFA
 - [ ] **P1-06 Cognito User Pool.** Create pool, app client (no secret), email sign-in, **MFA required, authenticator app only**, groups `player` and `admin` (see `SETUP.md`).
