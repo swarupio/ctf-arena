@@ -12,9 +12,10 @@ Each task has an **acceptance** line: if it is true, the task is done.
 ### Setup
 - [ ] **P1-01 Repo and structure.** Create the GitHub repo, add the folder layout from `AGENTS.md`, add the docs from this package, protect `main`, invite Gururaj and Shubham.
   *Acceptance:* all three can clone and push a branch.
-- [ ] **P1-02 Backend skeleton.** Express app with `app.js` / `server.js`, `helmet`, JSON parsing, CORS off (same origin via Nginx), central error handler returning `{ "error": { "code", "message" } }`.
+  *Local progress:* folder skeleton and docs are present; GitHub protection, invitations, and collaborator access remain unverified.
+- [x] **P1-02 Backend skeleton.** Express app with `app.js` / `server.js`, `helmet`, JSON parsing, CORS off (same origin via Nginx), central error handler returning `{ "error": { "code", "message" } }`.
   *Acceptance:* `GET /api/health` returns `{ "status": "ok", "replica": "<hostname>" }`.
-- [ ] **P1-03 Env config.** `config/env.js` loads and validates all variables with `zod`; app refuses to start if one is missing.
+- [x] **P1-03 Env config.** `config/env.js` loads and validates all variables with `zod`; app refuses to start if one is missing.
   *Acceptance:* removing `MONGODB_URI` makes startup fail with a clear message.
 - [ ] **P1-04 MongoDB Atlas.** Create the free cluster, DB user, allow IPs, connect with Mongoose in `config/db.js` (see `SETUP.md`).
   *Acceptance:* backend logs "MongoDB connected"; health route also reports `db: "up"`.
