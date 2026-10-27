@@ -62,9 +62,24 @@ Run `npm test` in `backend/` for API and environment validation tests, or
 and `.env` makes startup exit with code 1 and an error naming the variable.
 
 The folder placeholders contain no frontend, challenge, Nginx, or deployment
-implementation. Auth, teams, database connectivity, and seed data are later
+implementation. User persistence, teams, database connectivity, and seed data are later
 tasks. `npm run seed` currently exits with a P1-14 reminder.
 GitHub branch protection and collaborator access still need verification for P1-01.
+
+## Authentication middleware (P1-07 and P1-09)
+
+`src/config/cognito.js` exposes `getCognitoVerifier()`, configured for ID tokens
+from `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID`. On protected routes, use
+`auth` from `src/middleware/auth.js`, followed by `requireRole('admin')` where
+needed. Authentication is not installed globally; `/api/health` stays public.
+Successful verification attaches `{ cognitoSub, email, role }` to `req.user`.
+The role comes only from verified Cognito groups. Tokens and verifier errors
+are never logged or returned.
+
+Run `npm test` in `backend/`. Auth tests use a test-only router and injected
+mock verifiers; configuration tests mock environment settings and AWS verifier
+creation, so no real `.env`, credentials, or AWS requests are needed. Production
+routes for users, `/api/me`, and teams are not implemented yet.
 
 Dependency reasons: Express handles HTTP; Helmet adds security headers;
 Zod validates configuration and future requests; dotenv loads local settings;

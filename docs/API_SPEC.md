@@ -2,6 +2,13 @@
 
 Base path: `/api`. JSON in, JSON out.
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
+Authentication middleware is attached per protected route. P1-07 attaches
+`req.user = { cognitoSub, email, role }` from verified ID-token claims;
+`cognitoSub` is the Cognito `sub`, not a database user ID. Exact membership
+in the `admin` Cognito group grants `admin`; other users (including those
+without groups) are `player`. Missing or malformed Bearer credentials and
+invalid/expired tokens return 401 `UNAUTHENTICATED`. Role mismatches return
+403 `FORBIDDEN`. User persistence and `/me` are deferred to P1-08.
 Every response includes the header `X-Served-By: <replica hostname>` (added by `middleware/servedBy.js`).
 
 **Error format (all errors)**
