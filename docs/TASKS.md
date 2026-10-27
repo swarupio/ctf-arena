@@ -35,7 +35,7 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Acceptance:* `npm test` passes.
 
 ### Teams
-- [ ] **P1-10 Team model and routes.** `POST /api/teams`, `POST /api/teams/join`, `GET /api/teams/me`, `POST /api/teams/me/leave`. Invite code is 6 characters, max 3 members, one team per user.
+- [x] **P1-10 Team model and routes.** `POST /api/teams`, `POST /api/teams/join`, `GET /api/teams/me`, `POST /api/teams/me/leave`. Invite code is 6 characters, max 3 members, one team per user.
   *Acceptance:* all rules enforced, with tests (cannot join twice, cannot exceed 3, name unique).
 
 ### Frontend shell

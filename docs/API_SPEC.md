@@ -36,7 +36,7 @@ before `@`; later GET calls preserve it. PATCH `/me` accepts only displayName,
 trims it before checking the 3-30 character limit, and returns the same profile
 shape. PATCH also upserts the user and refreshes token fields. Invalid bodies
 return 400 `VALIDATION_ERROR`. Both responses use the MongoDB user ID as `id`
-and return `team: null` until teams are implemented.
+and return `team: { id, name }` when the user has a team, otherwise `team: null`.
 
 Health returns HTTP 200 with `{ "status": "ok", "db": "up|down", "replica": "<hostname>" }`.
 `db` is `up` only when `mongoose.connection.readyState` is 1 (connected),
@@ -55,7 +55,25 @@ Unknown routes return 404 `NOT_FOUND`; unexpected failures return 500
 | POST | `/teams` | player | S | Body `{ name }` (3-24 chars, unique). Creates team, user becomes captain. Returns team with `inviteCode`. 409 if user already has a team. |
 | POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members. |
 | GET | `/teams/me` | player | S | `{ id, name, inviteCode, members:[{id,displayName}], score }` |
-| POST | `/teams/me/leave` | player | S | Leaves team. If last member, team is deleted. Stops team's running instances. |
+| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted; otherwise the next member becomes captain if the captain leaves. Instance cleanup is deferred to Phase 2. |
+
+Create returns 201; join and GET return 200, all with the GET `/teams/me` shape
+above. `score` is 0 until Phase 2. Banned teams remain readable and include
+`banned: true`; this field is omitted for unbanned teams. `/me` returns only
+the team's `id` and `name`, never its invite code or member list.
+
+Names are trimmed before enforcing the 3-24 character limit and are unique
+case-insensitively. Invite codes have six uppercase letters/digits from
+`ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no I, O, 0, or 1); collisions are retried.
+Join accepts a trimmed code in that alphabet. Create and join accept only the
+documented body fields; leave accepts no body or an empty object. Invalid bodies
+return 400 `VALIDATION_ERROR`. Duplicate names and existing memberships return
+409 `CONFLICT`; unknown codes return 404 `NOT_FOUND`; full teams return
+409 `TEAM_FULL`. GET `/teams/me` and leave return 404 `NO_TEAM` without a team.
+
+Membership changes commit the User and Team documents together using MongoDB
+transactions (Atlas or a replica set is required). Joins conditionally claim an
+available seat and an unassigned user; failed claims roll back both documents.
 
 ## Challenges (players)
 

@@ -7,13 +7,20 @@ import { AppError } from '../utils/AppError.js';
 const router = Router();
 const profileSchema = z.object({ displayName: z.string().trim().min(3).max(30) }).strict();
 
-function profile(user) {
+async function profile(user) {
+  let team = null;
+  // Missing or invalid legacy references are represented as no team.
+  if (user.teamId && /^[a-f\d]{24}$/i.test(String(user.teamId))) {
+    const { default: Team } = await import('../models/Team.js');
+    const currentTeam = await Team.findById(user.teamId);
+    if (currentTeam) { team = { id: String(currentTeam._id), name: currentTeam.name }; }
+  }
   return {
     id: user._id.toString(),
     email: user.email,
     displayName: user.displayName,
     role: user.role,
-    team: null,
+    team,
   };
 }
 
@@ -34,7 +41,7 @@ async function upsertUser({ cognitoSub, email, role }, displayName) {
 
 router.get('/me', auth, async (req, res) => {
   const user = await upsertUser(req.user);
-  res.json(profile(user));
+  res.json(await profile(user));
 });
 
 router.patch('/me', auth, async (req, res) => {
@@ -44,7 +51,7 @@ router.patch('/me', auth, async (req, res) => {
       result.error.issues.map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`).join('; '));
   }
   const user = await upsertUser(req.user, result.data.displayName);
-  res.json(profile(user));
+  res.json(await profile(user));
 });
 
 export default router;
