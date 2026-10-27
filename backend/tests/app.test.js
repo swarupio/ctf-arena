@@ -1,10 +1,12 @@
 import os from 'node:os';
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import app from '../src/app.js';
 import { errorHandler } from '../src/middleware/errorHandler.js';
 import { AppError } from '../src/utils/AppError.js';
+
+vi.mock('../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 
 describe('backend skeleton', () => {
   it('serves health without authentication, with replica and security headers', async () => {
