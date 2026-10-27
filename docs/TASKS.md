@@ -23,6 +23,7 @@ Each task has an **acceptance** line: if it is true, the task is done.
 - [x] **P1-05 Docker for backend.** `backend/Dockerfile` (node:20-alpine, non-root user) and the starter `docker-compose.yml` with 3 replicas.
   *Acceptance:* `docker compose up --build` starts 3 replicas; hitting `/api/health` shows different replica names.
   *Verified:* image built; Compose started 3 backend replicas; health responses and X-Served-By headers reached all 3. Nginx syntax and root placeholder passed. Backend runs as UID 1000 without `.env`, tests, or Vitest in the image. Frontend mount deferred to P1-11.
+  *Catch-up verification (2026-10-27):* P1-04 and P1-05 are integrated with P1-07/P1-08/P1-09; all 88 backend tests pass without a live database. Compose builds, Nginx syntax/root placeholder pass, and the backend runs as UID 1000. Live API verification is blocked: MongoDB server selection fails with network errors and no reachable replica-set primary, so backend replicas restart and `/api/health` returns 502 through Nginx. P1-04 remains unchecked; the previous P1-05 verification above predates this catch-up run.
 
 ### IAM + MFA
 - [ ] **P1-06 Cognito User Pool.** Create pool, app client (no secret), email sign-in, **MFA required, authenticator app only**, groups `player` and `admin` (see `SETUP.md`).
