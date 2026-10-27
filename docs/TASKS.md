@@ -25,11 +25,11 @@ Each task has an **acceptance** line: if it is true, the task is done.
 ### IAM + MFA
 - [ ] **P1-06 Cognito User Pool.** Create pool, app client (no secret), email sign-in, **MFA required, authenticator app only**, groups `player` and `admin` (see `SETUP.md`).
   *Acceptance:* a test user can sign in on the Cognito hosted UI and is asked for a TOTP code.
-- [ ] **P1-07 Auth middleware.** `middleware/auth.js` verifies the ID token with `aws-jwt-verify`; `requireRole('admin')` checks `cognito:groups`.
-  *Acceptance:* no token -> 401, wrong role -> 403, valid token -> `req.user = { id, email, role }`.
+- [x] **P1-07 Auth middleware.** `middleware/auth.js` verifies the ID token with `aws-jwt-verify`; `requireRole('admin')` checks `cognito:groups`.
+  *Acceptance:* no token -> 401, wrong role -> 403, valid token -> `req.user = { cognitoSub, email, role }`.
 - [ ] **P1-08 User model + `GET /api/me`.** On first valid request create the `users` doc (upsert by Cognito `sub`).
   *Acceptance:* returns `{ id, email, displayName, role, team }`.
-- [ ] **P1-09 Auth tests.** Tests for 401 / 403 / success using a mocked verifier.
+- [x] **P1-09 Auth tests.** Tests for 401 / 403 / success using a mocked verifier.
   *Acceptance:* `npm test` passes.
 
 ### Teams
