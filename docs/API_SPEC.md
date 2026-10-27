@@ -8,7 +8,7 @@ Authentication middleware is attached per protected route. P1-07 attaches
 in the `admin` Cognito group grants `admin`; other users (including those
 without groups) are `player`. Missing or malformed Bearer credentials and
 invalid/expired tokens return 401 `UNAUTHENTICATED`. Role mismatches return
-403 `FORBIDDEN`. User persistence and `/me` are deferred to P1-08.
+403 `FORBIDDEN`. P1-08 persists the current user through `/me`.
 Every response includes the header `X-Served-By: <replica hostname>` (added by `middleware/servedBy.js`).
 
 **Error format (all errors)**
@@ -29,6 +29,14 @@ Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2)
 | GET | `/health` | none | S | `{ "status":"ok", "db":"up", "replica":"backend-2" }` |
 | GET | `/me` | any | S | Current user: `{ id, email, displayName, role, team: { id, name } or null }` |
 | PATCH | `/me` | any | S | Body `{ displayName }` (3-30 chars) |
+
+GET `/me` upserts by the verified Cognito `sub`, refreshing email and role from
+the token on every call. On creation, displayName defaults to the email part
+before `@`; later GET calls preserve it. PATCH `/me` accepts only displayName,
+trims it before checking the 3-30 character limit, and returns the same profile
+shape. PATCH also upserts the user and refreshes token fields. Invalid bodies
+return 400 `VALIDATION_ERROR`. Both responses use the MongoDB user ID as `id`
+and return `team: null` until teams are implemented.
 
 At P1-02, health returns only `{ "status": "ok", "replica": "<hostname>" }`.
 The `db: "up"` field is added with the MongoDB connection in P1-04.

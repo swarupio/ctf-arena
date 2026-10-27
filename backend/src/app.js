@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { servedBy } from './middleware/servedBy.js';
 import healthRouter from './routes/health.js';
+import authRouter from './routes/auth.js';
 
 const app = express();
 
@@ -11,6 +12,7 @@ app.use(servedBy);
 app.use(helmet());
 app.use(express.json({ limit: '100kb' }));
 app.use('/api/health', healthRouter);
+app.use('/api', authRouter);
 app.use(notFound);
 app.use(errorHandler);
 
