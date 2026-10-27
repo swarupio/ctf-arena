@@ -3,7 +3,15 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 
 // Resolve from this module so npm commands work from backend/ or the repo root.
-dotenv.config({ path: fileURLToPath(new URL('../../../.env', import.meta.url)), quiet: true });
+// Existing process variables win, followed by root .env, then backend/.env.
+dotenv.config({
+  path: [
+    fileURLToPath(new URL('../../../.env', import.meta.url)),
+    fileURLToPath(new URL('../../.env', import.meta.url)),
+  ],
+  override: false,
+  quiet: true,
+});
 
 const text = z.string().trim().min(1, 'is required');
 const positiveInteger = text.pipe(z.coerce.number().int().positive());
@@ -11,7 +19,7 @@ const port = positiveInteger.pipe(z.number().max(65535));
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']),
   PORT: port,
-  MONGODB_URI: text.regex(/^mongodb(?:\+srv)?:\/\/\S+$/, 'must be a MongoDB URI'),
+  MONGODB_URI: text.regex(/^mongodb(?:\+srv)?:\/\//, 'must start with mongodb:// or mongodb+srv://'),
   COGNITO_REGION: text,
   COGNITO_USER_POOL_ID: text,
   COGNITO_CLIENT_ID: text,
