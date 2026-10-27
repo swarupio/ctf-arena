@@ -71,9 +71,8 @@ Run `npm test` in `backend/` for API, startup, database, and environment tests
 `npm start` to run without nodemon. Removing `MONGODB_URI` from the environment
 and both `.env` files makes startup exit with code 1 and an error naming the variable.
 
-The folder placeholders contain no frontend, challenge, or deployment
-implementation. Nginx currently serves a plain text placeholder and proxies the API.
-Teams and seed data are later tasks. `npm run seed` currently exits with a
+The frontend shell provides navigation and a public connection check. Challenge
+and deployment features are later tasks. `npm run seed` currently exits with a
 P1-14 reminder.
 GitHub branch protection and collaborator access still need verification for P1-01.
 
@@ -89,9 +88,9 @@ are never logged or returned.
 
 Run `npm test` in `backend/`. Auth tests use a test-only router and injected
 mock verifiers; configuration tests mock environment settings and AWS verifier
-creation, so no real `.env`, credentials, or AWS requests are needed. Production
-routes for teams are not implemented yet. P1-08 provides authenticated GET/PATCH
-`/api/me`, with user persistence and display-name validation.
+creation, so no real `.env`, credentials, or AWS requests are needed. P1-08 provides
+authenticated GET/PATCH `/api/me`; P1-10 adds team membership routes. The frontend
+does not yet provide login, MFA, or team management.
 
 Dependency reasons: Express handles HTTP; Helmet adds security headers;
 Zod validates configuration and future requests; dotenv loads local settings;
@@ -99,7 +98,33 @@ Mongoose and aws-jwt-verify are the requested foundations for later database
 and Cognito work. Vitest runs tests, Supertest exercises HTTP, and nodemon
 restarts the development server.
 
-## Docker backend and placeholder Nginx (P1-05)
+## Frontend shell (P1-11)
+
+Use Node.js 20.19+ or 22.12+. Start the backend in one terminal with
+`cd backend` then `npm run dev`. In another terminal:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open http://localhost:5173. Vite proxies `/api` to `http://localhost:4000`;
+override this with `API_PROXY_TARGET` in the process environment or
+`frontend/.env.local`. The browser API base is `VITE_API_URL`, default `/api`.
+Only `VITE_` settings are exposed to the browser; never put secrets in them.
+On PowerShell, for example, `$env:API_PROXY_TARGET = 'http://localhost:4000'`.
+
+`npm test` in `frontend/` checks the API wrapper and replica store without a
+backend. `npm run build` produces ignored `frontend/dist`; `npm run preview`
+previews that build on port 4173 (the dev API proxy is not used in preview).
+The token provider is a null-returning stub for P1-12. Challenges, Leaderboard,
+Team and Login are placeholder routes. No component library is used.
+
+Dependency reasons: React and React DOM render the UI; react-router-dom provides
+page navigation; Vite and its React plugin provide local development and builds.
+
+## Docker backend and Nginx
 
 Start Docker Desktop with Linux containers. From the repository root, copy
 `.env.example` to `.env` if you have not configured it yet. Keep `PORT=4000`
@@ -107,10 +132,14 @@ for the internal proxy. Compose injects the root `.env` at runtime through
 `env_file`; no environment file is copied into the backend image.
 
 ```bash
+cd frontend
+npm ci
+npm run build
+cd ..
 docker compose up --build   # starts nginx + 3 backend replicas
 ```
 
-Open http://localhost for `CTF Arena is running`, or
+Open http://localhost for the frontend shell, or
 http://localhost/api/health for the backend health response and `X-Served-By`
 header. Repeated requests should show different replica names:
 
@@ -119,5 +148,7 @@ header. Repeated requests should show different replica names:
 ```
 
 The backend image uses Node.js 20 Alpine, installs production dependencies
-only, and runs as the non-root `node` user. The frontend mount is disabled
-until P1-11. Stop the stack with `docker compose down`.
+only, and runs as the non-root `node` user. Nginx serves the built frontend,
+supports direct navigation to client routes, and proxies `/api` to backend
+replicas while preserving `X-Served-By`. Rebuild the frontend after editing it.
+Stop the stack with `docker compose down`.

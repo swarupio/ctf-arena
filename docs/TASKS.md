@@ -39,7 +39,7 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Acceptance:* all rules enforced, with tests (cannot join twice, cannot exceed 3, name unique).
 
 ### Frontend shell
-- [ ] **P1-11 Vite React app.** Router, layout with navbar and footer, `api/client.js` that adds the token and shows the `X-Served-By` header in the footer.
+- [x] **P1-11 Vite React app.** Router, layout with navbar and footer, `api/client.js` that adds the token and shows the `X-Served-By` header in the footer.
   *Acceptance:* footer shows the replica name after any API call.
 - [ ] **P1-12 Auth pages.** Sign up, confirm email, login, **MFA setup (QR code)**, **MFA code entry**, logout, protected route wrapper, auth context.
   *Acceptance:* complete flow works end to end on a phone authenticator app.
