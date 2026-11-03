@@ -1,9 +1,9 @@
 # API Specification (the contract)
 
 Base path: `/api`. JSON in, JSON out.
-Implementation status (Phase 2): Health, identity, Teams, Challenges, Instances and
-`/admin/challenges` are implemented. Leaderboard and the other Admin sections are Phase 3
-contracts; their routes are not mounted yet and currently return 404 `NOT_FOUND`.
+Implementation status: Health, identity, Teams, Challenges, Instances and `/admin/challenges`
+(Phase 2) plus `/admin/stats`, `/admin/instances` and `/admin/teams` (Phase 3) are implemented.
+Leaderboard is still a Phase 3 contract; its routes are not mounted yet and return 404 `NOT_FOUND`.
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
@@ -143,6 +143,53 @@ Admin responses never contain a flag or hash. They return the challenge fields p
 `visible`, `solveCount` and `createdAt`. `PUT` takes the same body as create; for static challenges
 omitting `flag` keeps the stored hash. `image` must start with `ctf/`. Duplicate slugs return 409 `CONFLICT`.
 Deleting a challenge stops its instances; existing solves are kept.
+
+**Phase 3 implementation notes (stats, instances, teams)**
+- All five routes need the exact `admin` role: no token 401 `UNAUTHENTICATED`, players 403 `FORBIDDEN`.
+  Ids in paths are validated like the challenge routes: a malformed id is 404 `NOT_FOUND`.
+- Nothing here ever returns a flag, flag hash, container id, invite code or email.
+
+`GET /admin/stats` returns 200:
+```json
+{ "users": 12, "teams": 5, "solves": 9, "submissions": 8, "wrongRate": 0.25,
+  "activeInstances": 3, "requestsByReplica": { "backend-1": 120, "backend-2": 80 } }
+```
+`users` counts every user (players and admins). `submissions` is the number of stored attempts, which
+expire after 30 days (see `DATABASE_SCHEMA.md`). `wrongRate` is wrong submissions / total submissions as a
+fraction between 0 and 1, and `0` when there are no submissions. `activeInstances` counts instances whose
+status is `starting`, `running` or `stopping`. `requestsByReplica` maps each replica hostname (the value of
+`X-Served-By`) to the number of `/api/*` requests it has served, not counting `/api/health`. The counter
+lives in MongoDB (`replicastats`): each replica buffers counts in memory and adds them with one atomic `$inc`
+upsert about every 5 s and on SIGTERM, so the numbers lag by a few seconds and a hard crash can lose up to
+that window. A replica that has served nothing for 30 days drops out of the map.
+
+`GET /admin/instances` returns 200 with the active instances, oldest first:
+```json
+[{ "id": "...", "status": "running", "port": 30001, "url": "http://<PUBLIC_HOST>:30001",
+   "expiresAt": "2026-11-04T12:00:00.000Z", "extended": false,
+   "team": { "id": "...", "name": "Rustaceans" },
+   "challenge": { "id": "...", "slug": "cookie-monster", "title": "Cookie Monster" } }]
+```
+If the team or challenge was deleted, its `name` (or `slug` and `title`) is `null` and the id is kept.
+
+`POST /admin/instances/:id/kill` stops and removes the container through the same atomic claim the player
+`DELETE /instances/:id` uses and returns 204 with no body. 404 `NOT_FOUND` if the instance does not exist or is
+not stoppable any more (already stopped, stopping or failed). A Docker failure returns the generic 500
+`SERVER_ERROR`, leaves the instance `running`, and the call can be repeated.
+
+`GET /admin/teams` returns 200, highest score first (ties by name):
+```json
+[{ "id": "...", "name": "Rustaceans", "members": 3, "score": 210, "banned": false, "solves": 2 }]
+```
+`members` is the member count (0 to 3), `score` is the sum of the team's `solves.points` and `solves` is the
+number of solves; both are 0 for a team without solves.
+
+`PATCH /admin/teams/:id/ban` takes the strict body `{ "banned": true }` or `{ "banned": false }` (anything else,
+including strings, numbers or extra fields, is 400 `VALIDATION_ERROR`) and returns 200 `{ "id", "name", "banned" }`;
+an unknown team is 404 `NOT_FOUND`. Banning sets the flag first and then stops every running instance of the team
+(`instanceService.stopTeamInstances`). It is idempotent: if stopping fails the response is 500 `SERVER_ERROR`, the
+team stays banned, and repeating the call finishes the cleanup. Unbanning only clears the flag and never restarts
+anything. A banned team already gets 403 `TEAM_BANNED` on the submit and instance routes.
 
 **Challenge body (create / update)**
 ```json

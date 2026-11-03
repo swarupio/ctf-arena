@@ -113,9 +113,12 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Verified (2026-11-04):* 18 new Vitest tests (ranking, tie-breaks, banned hidden, zero-solve teams last, timeline math, 401/403, no secret fields) with the full backend suite at 221 passing; the real pipeline also ran read-only on Atlas via `$documents` and matched expected ranks.
 - [x] **P3-02 Leaderboard UI.** Table with rank, team, points, solves, polling every 10 s, score-over-time chart, highlight "my team".
   *Verified (2026-11-04):* 16 new node:test tests (chart scaling, polling/visibility pause, my-team match) with 34 frontend tests and the Vite build passing; headless-Chrome check with mocked API showed no horizontal overflow at 1100/390/320px in light and dark. A real two-account browser check against the live API is still pending.
-- [ ] **P3-03 Admin stats API.** `GET /api/admin/stats`: users, teams, solves, submissions, wrong-flag rate, active instances, requests served per replica (counter kept in Mongo or from logs).
-- [ ] **P3-04 Admin instance and team tools.** `GET /api/admin/instances`, `POST /api/admin/instances/:id/kill`, `PATCH /api/admin/teams/:id/ban`.
-- [ ] **P3-05 Admin dashboard UI.** Stats cards, active instances table with Kill button, teams table with Ban button. Route guarded for `admin`.
+- [x] **P3-03 Admin stats API.** `GET /api/admin/stats`: users, teams, solves, submissions, wrong-flag rate, active instances, requests served per replica (counter kept in Mongo or from logs).
+  *Verified:* backend vitest with mocked models covers 401/403, the stats math, the zero-submission wrong rate, and the per-replica counter (buffered `$inc` upsert every ~5 s and on SIGTERM, health skipped, failures never break a request); not yet run against live Atlas.
+- [x] **P3-04 Admin instance and team tools.** `GET /api/admin/instances`, `POST /api/admin/instances/:id/kill`, `PATCH /api/admin/teams/:id/ban` (plus `GET /api/admin/teams`).
+  *Verified:* vitest with mocked models and instance service covers 401/403, the list shape with deleted refs, kill 204/404, ban stopping the team's instances, unban restarting nothing, strict body validation and no secret fields; a live Docker kill is not yet exercised.
+- [x] **P3-05 Admin dashboard UI.** Stats cards, active instances table with Kill button, teams table with Ban button. Route guarded for `admin`.
+  *Verified:* node:test helper tests and `npm run build` pass; a headless-Chrome run against a stubbed API checked the cards, Kill and Ban flows with confirm dialogs, the 10 s refresh pausing while hidden, empty/error states and no page overflow at 390 px. Not yet tried with a real `admin` Cognito user.
 
 ### Scaling
 - [ ] **P3-06 Nginx.** Final `nginx.conf`: serves the built frontend, proxies `/api` to the `backend` service with Docker DNS (`resolver 127.0.0.11`), round-robin, `limit_req` for the API, gzip, adds nothing that hides `X-Served-By`.

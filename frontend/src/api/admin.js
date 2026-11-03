@@ -1,15 +1,18 @@
 import { apiRequest } from './client.js';
+import { ADMIN_PATHS } from '../pages/adminHelpers.js';
 
-export const getStats = () => apiRequest('/admin/stats');
+const send = (path, method, body) => apiRequest(path, {
+  method,
+  ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+});
 
-export const getInstances = () => apiRequest('/admin/instances');
-export const killInstance = (id) =>
-  apiRequest(`/admin/instances/${id}/kill`, { method: 'POST' });
+export const getStats = () => apiRequest(ADMIN_PATHS.stats);
+export const listInstances = () => apiRequest(ADMIN_PATHS.instances);
+export const killInstance = (instanceId) => send(ADMIN_PATHS.kill(instanceId), 'POST');
+export const listTeams = () => apiRequest(ADMIN_PATHS.teams);
+export const setTeamBanned = (teamId, banned) => send(ADMIN_PATHS.ban(teamId), 'PATCH', { banned });
 
-export const getTeams = () => apiRequest('/admin/teams');
-export const banTeam = (id, banned) =>
-  apiRequest(`/admin/teams/${id}/ban`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ banned }),
-  });
+export async function fetchDashboard() {
+  const [stats, instances, teams] = await Promise.all([getStats(), listInstances(), listTeams()]);
+  return { stats, instances, teams };
+}
