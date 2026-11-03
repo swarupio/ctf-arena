@@ -11,7 +11,8 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "seed": "node src/scripts/seed.js",
-    "seed:challenges": "node src/scripts/seedChallenges.js"
+    "seed:challenges": "node src/scripts/seedChallenges.js",
+    "seed:demo": "node src/scripts/seedDemo.js"
   },
   "dependencies": {
     "aws-jwt-verify": "^5.1.0",

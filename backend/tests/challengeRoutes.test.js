@@ -95,9 +95,14 @@ describe('player challenge routes', () => {
     await api('get', '/challenges/not-an-id').expect(404);
   });
 
-  it('is player-only and requires authentication', async () => {
-    await api('get', '/challenges', 'admin').expect(403);
+  it('requires authentication; admins may browse but not play', async () => {
     await request(app).get('/api/challenges').expect(401);
+    Challenge.find.mockReturnValue({ sort: vi.fn().mockResolvedValue([staticChallenge]) });
+    User.findOne.mockResolvedValue(null); // admins have no team and may have no user record yet
+    const { body } = await api('get', '/challenges', 'admin').expect(200);
+    expect(body[0].solvedByMyTeam).toBe(false);
+    await api('post', `/challenges/${staticChallenge._id}/submit`, 'admin', { flag: 'x' }).expect(403);
+    await api('post', `/challenges/${dockerChallenge._id}/instance`, 'admin').expect(403);
   });
 
   it('starts an instance for the caller\'s team', async () => {

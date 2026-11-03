@@ -182,9 +182,8 @@ describe('leaderboard access rules', () => {
     expect(Solve.aggregate).not.toHaveBeenCalled();
   });
 
-  it.each(['', '/timeline'])('is player-only: admins get 403 for %s', async (path) => {
-    await api(path, 'admin').expect(403).expect((r) => expect(r.body.error.code).toBe('FORBIDDEN'));
-    expect(Solve.aggregate).not.toHaveBeenCalled();
+  it.each(['', '/timeline'])('admins may view the leaderboard (%s)', async (path) => {
+    await api(path, 'admin').expect(200);
   });
 
   it('only exposes GET', async () => {
