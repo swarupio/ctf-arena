@@ -7,6 +7,7 @@ import Team from './pages/Team.jsx';
 import ChallengeList from './pages/ChallengeList.jsx';
 import ChallengeDetail from './pages/ChallengeDetail.jsx';
 import ChallengeAdmin from './pages/ChallengeAdmin.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 
 function Placeholder({ title }) {
   return <section><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
@@ -24,7 +25,7 @@ export default function App() {
         <Route path="team" element={<Team />} />
       </Route>
       <Route element={<ProtectedRoute admin />}>
-        <Route path="admin" element={<Placeholder title="Admin" />} />
+        <Route path="admin" element={<AdminDashboard />} />
         <Route path="admin/challenges" element={<ChallengeAdmin />} />
       </Route>
       <Route path="*" element={<Placeholder title="Page not found" />} />
