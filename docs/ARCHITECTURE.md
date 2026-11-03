@@ -92,7 +92,22 @@ All of the above runs on one Azure Virtual Machine (Deployment). Only Cognito st
 
 ### 3.4 Leaderboard
 `GET /api/leaderboard` runs an aggregation on `solves`: group by team, sum points, take the latest
-solve time, sort by points descending then latest solve time ascending. Frontend polls every 10 s.
+solve time, sort by points descending then latest solve time ascending (further ties: team name, then id, so every
+replica returns the same order). Banned teams are hidden and teams without solves are listed last. The Leaderboard page
+polls every 10 s (paused while the tab is hidden), highlights the player's own team and draws the score-over-time chart
+from `GET /api/leaderboard/timeline` as an inline SVG (no chart library).
+
+### 3.5 Admin dashboard and the per-replica request counter
+1. Admin routes (`/api/admin/*`) require the exact `admin` role from the verified token; the React route `/admin`
+   is guarded for the same role (a player is redirected to Home, the server still returns 403 on the API).
+2. `GET /api/admin/stats` returns counts (users, teams, solves, submissions, wrong-flag rate, active instances) and
+   `requestsByReplica`. Each replica counts its `/api/*` requests (health checks excluded) in memory and adds them to
+   its own `replicastats` document with one atomic `$inc` upsert about every 5 s and on SIGTERM. The data lives in MongoDB,
+   so replicas stay stateless and any replica can answer the dashboard.
+3. **Kill** (`POST /api/admin/instances/:id/kill`) stops the container through the same atomic claim as players, but
+   forced, so an instance stuck in `stopping` after a crash can be cleaned up. **Ban** (`PATCH /api/admin/teams/:id/ban`)
+   sets `teams.banned` first, then stops the team's instances; a banned team gets `403 TEAM_BANNED` on submit and
+   instance routes and disappears from the leaderboard.
 
 ## 4. Why this design scales (explain this in the demo)
 - Backend replicas are **stateless**. All state is in MongoDB Atlas or in Docker itself, so any

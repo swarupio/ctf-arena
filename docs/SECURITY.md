@@ -15,6 +15,7 @@ We are running other people's puzzle containers on a real server. These rules pr
 | Resource abuse (fork bombs, many containers) | Limits per container, max 2 instances per team, TTL with reaper |
 | Players attacking the host or each other | Challenge containers on their own network, no access to Mongo or backend |
 | Secrets leaking | `.env` ignored by git, secrets only in env, rotate `FLAG_SECRET` if exposed |
+| Misbehaving team | Admin dashboard: Ban (exact `admin` role, flips `teams.banned` then stops the team's containers; a banned team gets 403 on submit and instance routes and is hidden from the leaderboard) and Kill (forced stop, also for an instance stuck in `stopping`) |
 | API abuse | `limit_req` in Nginx (20 requests/s per IP, burst 60, JSON 429), `helmet`, 128 KB request bodies at Nginx and 100 KB in the backend |
 
 ## 2. The Docker socket risk (read this)

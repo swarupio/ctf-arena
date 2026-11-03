@@ -166,7 +166,8 @@ Change at least these (never paste real values into git, issues or chat):
 | `CHALLENGE_PORT_MIN`, `CHALLENGE_PORT_MAX` | keep `30000` and `30100` (they match the NSG rule) |
 | `INSTANCE_TTL_MINUTES`, `MAX_INSTANCES_PER_TEAM`, `CHALLENGE_MEMORY_MB`, `CHALLENGE_CPU_LIMIT`, `CHALLENGE_PIDS_LIMIT` | keep the defaults unless you size the VM for more |
 
-Add these two extra lines (used by `docker-compose.yml`, not by the backend):
+`.env.example` ends with two commented lines that are used by `docker-compose.yml`, not by the backend. Uncomment
+`DOCKER_GID` and set it; leave `NGINX_HOST_PORT` commented unless host port 80 is taken:
 
 ```
 DOCKER_GID=<number printed by the setup script, or: getent group docker | cut -d: -f3>
@@ -280,6 +281,8 @@ VM > Auto-shutdown. After the project: `az group delete --name $RG --yes` remove
 | `curl /api/health` shows `"db":"down"`, or backends keep restarting with "MongoDB connection failed" | The VM's public IP is not in Atlas Network Access, or `MONGODB_URI` is wrong. Add the IP and `docker compose restart backend` |
 | Backend log: `permission denied` on `/var/run/docker.sock`, or starting an instance fails | `DOCKER_GID` missing or wrong in `.env`. Run `getent group docker \| cut -d: -f3`, put the number in `.env`, then `docker compose up -d --force-recreate backend` |
 | Site unreachable from outside, works with `curl localhost` on the VM | NSG rule for 80 missing, or the VM has another firewall. Check the NSG, `sudo ufw status`, and `docker compose ps` |
+| The challenge list is empty | Challenges are registered only on request: run `SEED_CHALLENGES=1 bash deploy/deploy.sh` once. It prints `Challenges seeded: N created, M updated.` (the same as `npm run seed:challenges` in `backend/`) |
+| An instance is stuck in the admin dashboard and Kill did nothing | Kill is forced and also takes over an instance stuck in `stopping`; if it still fails, check `docker ps --filter label=ctf.instance` and `docker compose logs backend` |
 | Instance starts but the link does not open | NSG rule for 30000-30100 missing, or `PUBLIC_HOST` is wrong (still `localhost`). Fix `.env`, `docker compose up -d --force-recreate backend` |
 | Login page loads but sign-in says the pool or client is invalid | `VITE_COGNITO_*` was wrong or empty when the frontend was built. Fix `.env`, run `bash deploy/deploy.sh` (rebuilds the frontend) |
 | Everything slows down or containers get killed | Out of memory. Check `free -h`, `docker stats --no-stream`. Confirm swap is on (`swapon --show`), lower `MAX_INSTANCES_PER_TEAM`, or resize the VM |

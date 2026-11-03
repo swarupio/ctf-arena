@@ -1,9 +1,9 @@
 # API Specification (the contract)
 
 Base path: `/api`. JSON in, JSON out.
-Implementation status: Health, identity, Teams, Challenges, Instances and `/admin/challenges`
-(Phase 2) plus `/admin/stats`, `/admin/instances` and `/admin/teams` (Phase 3) are implemented.
-Leaderboard is still a Phase 3 contract; its routes are not mounted yet and return 404 `NOT_FOUND`.
+Implementation status: every endpoint in this file is implemented and mounted: Health, identity and Teams
+(Phase 1), Challenges, Instances and `/admin/challenges` (Phase 2), Leaderboard and `/admin/stats`,
+`/admin/instances`, `/admin/teams` (Phase 3). Paths that are not listed here return 404 `NOT_FOUND`.
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
@@ -62,10 +62,10 @@ Unknown routes return 404 `NOT_FOUND`; unexpected failures return 500
 | POST | `/teams` | player | S | Body `{ name }` (3-24 chars, unique). Creates team, user becomes captain. Returns team with `inviteCode`. 409 if user already has a team. |
 | POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members. |
 | GET | `/teams/me` | player | S | `{ id, name, inviteCode, members:[{id,displayName}], score }` |
-| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted; otherwise the next member becomes captain if the captain leaves. Instance cleanup is deferred to Phase 2. |
+| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted and its instances are stopped; otherwise the next member becomes captain if the captain leaves. |
 
 Create returns 201; join and GET return 200, all with the GET `/teams/me` shape
-above. `score` is 0 until Phase 2. Banned teams remain readable and include
+above. `score` is the sum of the team's `solves.points` (0 without solves). Banned teams remain readable and include
 `banned: true`; this field is omitted for unbanned teams. `/me` returns only
 the team's `id` and `name`, never its invite code or member list.
 
@@ -163,6 +163,15 @@ lives in MongoDB (`replicastats`): each replica buffers counts in memory and add
 upsert about every 5 s and on SIGTERM, so the numbers lag by a few seconds and a hard crash can lose up to
 that window. A replica that has served nothing for 30 days drops out of the map.
 
+**Replica names.** The keys are the exact `X-Served-By` values, i.e. the container hostnames. In Docker Compose
+that is the 12-character container id (for example `3f2a9c1b7d4e`), the same text the website footer shows as
+"Served by", so a dashboard row can be matched to what a page view reported. They are not friendly names on
+purpose: a fixed `hostname:` in `docker-compose.yml` would give every scaled replica the same name and defeat the
+load-balancing demo, and a derived label (`backend-1`) would shift whenever a replica is replaced. To map an id to
+a Compose container run `docker ps --filter name=backend --format '{{.ID}}  {{.Names}}'`. Replicas that a deploy
+replaced keep their row until the 30-day expiry, so after several deploys the map also lists ids of containers that
+no longer exist (their counts no longer grow).
+
 `GET /admin/instances` returns 200 with the active instances, oldest first:
 ```json
 [{ "id": "...", "status": "running", "port": 30001, "url": "http://<PUBLIC_HOST>:30001",
@@ -174,8 +183,10 @@ If the team or challenge was deleted, its `name` (or `slug` and `title`) is `nul
 
 `POST /admin/instances/:id/kill` stops and removes the container through the same atomic claim the player
 `DELETE /instances/:id` uses and returns 204 with no body. 404 `NOT_FOUND` if the instance does not exist or is
-not stoppable any more (already stopped, stopping or failed). A Docker failure returns the generic 500
-`SERVER_ERROR`, leaves the instance `running`, and the call can be repeated.
+not stoppable any more (already stopped or failed). Unlike the player route and the reaper, the kill is forced
+(`instanceService.stop(id, { force: true })`): it also takes over an instance stuck in `stopping` after a crashed
+replica, so such an instance can be cleaned up from the dashboard instead of returning 404. A Docker failure
+returns the generic 500 `SERVER_ERROR`, puts the instance back to `running`, and the call can be repeated.
 
 `GET /admin/teams` returns 200, highest score first (ties by name):
 ```json
