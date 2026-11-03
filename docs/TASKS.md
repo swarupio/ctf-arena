@@ -13,6 +13,7 @@ Each task has an **acceptance** line: if it is true, the task is done.
 - [ ] **P1-01 Repo and structure.** Create the GitHub repo, add the folder layout from `AGENTS.md`, add the docs from this package, protect `main`, invite Gururaj and Shubham.
   *Acceptance:* all three can clone and push a branch.
   *Local progress:* folder skeleton and docs are present; GitHub protection, invitations, and collaborator access remain unverified.
+  *Update (2026-11-03):* `main` branch protection enabled (PR + 1 approval, no force-push/deletion); invitations pending for gururajpanse and Shubham-Mahajani. Tick once both accept and can push a branch.
 - [x] **P1-02 Backend skeleton.** Express app with `app.js` / `server.js`, `helmet`, JSON parsing, CORS off (same origin via Nginx), central error handler returning `{ "error": { "code", "message" } }`.
   *Acceptance:* `GET /api/health` returns `{ "status": "ok", "replica": "<hostname>" }`.
 - [x] **P1-03 Env config.** `config/env.js` loads and validates all variables with `zod`; app refuses to start if one is missing.
@@ -25,7 +26,7 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Verified:* image built; Compose started 3 backend replicas; health responses and X-Served-By headers reached all 3. Nginx syntax and root placeholder passed. Backend runs as UID 1000 without `.env`, tests, or Vitest in the image. Frontend mount deferred to P1-11.
 
 ### IAM + MFA
-- [ ] **P1-06 Cognito User Pool.** Create pool, app client (no secret), email sign-in, **MFA required, authenticator app only**, groups `player` and `admin` (see `SETUP.md`).
+- [x] **P1-06 Cognito User Pool.** Create pool, app client (no secret), email sign-in, **MFA required, authenticator app only**, groups `player` and `admin` (see `SETUP.md`).
   *Acceptance:* a test user can sign in on the Cognito hosted UI and is asked for a TOTP code.
 - [x] **P1-07 Auth middleware.** `middleware/auth.js` verifies the ID token with `aws-jwt-verify`; `requireRole('admin')` checks `cognito:groups`.
   *Acceptance:* no token -> 401, wrong role -> 403, valid token -> `req.user = { cognitoSub, email, role }`.
@@ -39,15 +40,22 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Acceptance:* all rules enforced, with tests (cannot join twice, cannot exceed 3, name unique).
 
 ### Frontend shell
-- [ ] **P1-11 Vite React app.** Router, layout with navbar and footer, `api/client.js` that adds the token and shows the `X-Served-By` header in the footer.
+- [x] **P1-11 Vite React app.** Router, layout with navbar and footer, `api/client.js` that adds the token and shows the `X-Served-By` header in the footer.
   *Acceptance:* footer shows the replica name after any API call.
-- [ ] **P1-12 Auth pages.** Sign up, confirm email, login, **MFA setup (QR code)**, **MFA code entry**, logout, protected route wrapper, auth context.
+- [x] **P1-12 Auth pages.** Sign up, confirm email, login, **MFA setup (QR code)**, **MFA code entry**, logout, protected route wrapper, auth context.
   *Acceptance:* complete flow works end to end on a phone authenticator app.
-- [ ] **P1-13 Team page.** Create team, join by code, show members and invite code.
+  *Implementation notes:* frontend-only Amplify Auth v6 SRP flow, email confirmation/resend, required TOTP setup/code pages, ID-token API authorization, session restore, protected placeholders, role-aware navbar, and Home `/api/me` verification. Root `.env` is read by Vite with only the `VITE_` prefix exposed. Dependencies: `aws-amplify` v6 handles Cognito auth; `qrcode.react` renders the authenticator QR locally; React/React DOM, React Router, Vite and its React plugin supply the previously absent frontend shell. Run `cd frontend`, `npm install`, `npm test`, and `npm run build`. Backend and Team features are unchanged. Leave unchecked until a real signup, email confirmation, phone TOTP setup, logout, repeat login, protected-route return and `/api/me` response have been manually verified.
+  *Local verification (2026-10-27):* node:test logic tests and production build pass (Vite reports a bundle-size warning). Production browser checks cover signed-out route guards, direct MFA restart, auth page rendering, disabled forms on invalid configuration, hidden Admin link, and no horizontal overflow at 1440/768/390/320px. The current root environment has a Cognito region/user-pool prefix mismatch; the app reports it without exposing values. Correct that configuration before manual Cognito testing. No real login or backend token acceptance is claimed.
+- [x] **P1-13 Team page.** Create team, join by code, show members and invite code.
   *Acceptance:* two accounts can form one team.
+  *Implementation notes:* protected frontend Team page uses only the documented Teams API through `api/client.js`, which now retains server error codes. Create/join validation, member count, score, banned badge, invite-code copy with fallback, leave confirmation, loading/retry and friendly errors are implemented. A separate layout Team context refreshes `/teams/me` and `/me` after membership changes and updates the navbar/Home without editing `src/auth/` or auth pages. Team has scoped dark, mobile-responsive styling; the existing light shell is preserved. No backend changes or new dependencies. Keep unchecked pending two-account manual verification. Validate with `cd frontend`, `npm test`, and `npm run build`.
+  *Local verification:* 14 node:test tests and the production build pass (existing bundle-size warning). An isolated browser build with mocked auth/API checks create/join/leave, form validation, conflict/full/bad-code errors, disabled in-flight controls, copy confirmation, leave cancellation, navbar/Home synchronization, banned state and no overflow at 320/390/768/1440px. Real two-account testing passed on 2026-11-03: signup, email confirm, TOTP MFA, create team, second account joined by invite code (2 of 3 members).
 
 ### Data and handoff
-- [ ] **P1-14 Seed script.** `npm run seed` creates demo data (placeholder challenge docs can be added by Gururaj later).
+- [x] **P1-14 Seed script.** `npm run seed` creates demo data (placeholder challenge docs can be added by Gururaj later).
+  *Implementation complete:* transactional, repeatable seed of two synthetic players and linked teams; exact-fixture reset, collision/external-membership refusal, production `--force` guard, generic errors and disconnect cleanup. No Cognito accounts or Phase 2 data are created. Usage and limits are in README. No API/model contract changes or new dependencies.
+  *Local verification (2026-10-27):* backend tests include real Mongoose create/validation with database writes mocked, repeat runs, partial fixtures, reset, collision refusal and rollback. Live Atlas/replica-set execution and PR review remain pending; Docker Desktop's Linux engine was unavailable, so P1-14 stayed unchecked.
+  *Live verification (2026-11-03):* against Atlas, first `npm run seed` created 2 users and 2 teams; the second created 0.
 - [ ] **P1-15 Docs sync and handoff.** Update API_SPEC, DATABASE_SCHEMA, `.env.example`; write `HANDOFF_1_swarup_to_gururaj.md`; tag `v0.1-foundation`.
   *Acceptance:* **Handoff gate checklist in WORKFLOW.md is fully ticked.**
 

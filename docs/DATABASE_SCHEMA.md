@@ -2,28 +2,41 @@
 
 Models are written with Mongoose. Field types: S = string, N = number, D = date, B = boolean, OID = ObjectId.
 Owner: **S** Swarup, **G** Gururaj.
+Implementation status (P1-15 audit): only `User` and `Team` models exist.
+Challenges, instances, submissions, solves and the leaderboard query below are
+planned Phase 2/3 contracts, not existing collections/indexes guaranteed by this code.
+Mongoose also adds its default `__v` version key to User and Team documents.
 
 ## users (S)
 | Field | Type | Notes |
 |-------|------|-------|
 | _id | OID | |
-| cognitoSub | S | **unique index**, from the token `sub` |
-| email | S | |
+| cognitoSub | S | required, **unique index**, from the token `sub` |
+| email | S | required; token email validated by auth middleware, no schema email-format validator or unique index |
 | displayName | S | default = part before `@` |
-| role | S | `player` or `admin`, copied from the token on each login |
-| teamId | OID or null | ref `teams` |
+| role | S | required, `player` or `admin`; refreshed from verified token on GET/PATCH `/me` and team create/join, not by login itself |
+| teamId | OID or null | Mongoose ref `Team`, default null (collection `teams`) |
 | createdAt, updatedAt | D | |
 
 ## teams (S)
 | Field | Type | Notes |
 |-------|------|-------|
 | _id | OID | |
-| name | S | **unique index** (case-insensitive collation) |
-| inviteCode | S | **unique index**, 6 uppercase characters |
-| captainId | OID | ref `users` |
-| memberIds | [OID] | max 3 |
+| name | S | required, trimmed, 3-24 chars; **unique index** with `{ locale: 'en', strength: 2 }` collation |
+| inviteCode | S | required, **unique index**, exactly 6 from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` |
+| captainId | OID | required, Mongoose ref `User` (collection `users`) |
+| memberIds | [OID] | ref `User`, default empty array, schema max 3; route transactions maintain membership and captain consistency |
 | banned | B | default false |
 | createdAt | D | |
+
+`User.displayName` defaults from email on creation; the 3-30 character constraint
+is enforced by PATCH `/me`, not by the User schema. GET may create shorter or
+longer defaults. Neither schema enforces foreign-key existence. Team uniqueness
+depends on indexes being installed; membership routes initialize models before
+transactions. Transactions require Atlas or a MongoDB replica set.
+
+Demo fixtures are described in `handoffs/HANDOFF_1_swarup_to_gururaj.md`.
+They use the existing schemas; no seed-marker field or new model was added.
 
 ## challenges (G)
 | Field | Type | Notes |

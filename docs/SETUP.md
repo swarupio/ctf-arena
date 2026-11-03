@@ -23,7 +23,8 @@ Fill `.env` using sections 3 and 4. Never commit it.
 ## 3. MongoDB Atlas (DBaaS) - Swarup
 1. Create an Atlas account and a **free (M0) cluster**.
 2. **Database Access:** add a user with a strong password and read/write on any database.
-3. **Network Access:** add your IP for local work. On the EC2 server, add the Elastic IP later
+3. **Network Access:** each developer must add their own current IP or approved
+   range for local work. On the EC2 server, add the Elastic IP later
    (avoid `0.0.0.0/0` outside quick tests).
 4. **Connect -> Drivers:** copy the connection string and put it in `MONGODB_URI`, with the database name `ctf_arena`.
 5. Run the backend; it should log `MongoDB connected`.
@@ -31,6 +32,9 @@ Fill `.env` using sections 3 and 4. Never commit it.
 ## 4. AWS Cognito (IAM + MFA) - Swarup
 1. AWS Console -> **Cognito -> User pools -> Create user pool**.
 2. Application type: **Single-page application** (no client secret).
+   Enable SRP (`ALLOW_USER_SRP_AUTH`) for the frontend's `USER_SRP_AUTH` flow.
+   The template region is `ap-south-1`; use the actual pool region consistently
+   in backend/frontend settings and match it to the pool ID prefix.
 3. Sign-in identifier: **Email**. Self-registration: **enabled**. Email verification: **enabled**.
 4. **Multi-factor authentication: Required.** MFA methods: **Authenticator apps only** (turn SMS off, it costs money).
 5. Create the pool, then note:
@@ -48,6 +52,10 @@ encrypted in `users`, and sign our own JWT. Tell the team before switching.
 ## 5. Run locally
 ```bash
 # whole stack
+cd frontend
+npm ci
+npm run build
+cd ..
 docker compose up --build
 
 # or develop separately
@@ -55,9 +63,12 @@ cd backend && npm install && npm run dev
 cd frontend && npm install && npm run dev
 ```
 
+Compose mounts `frontend/dist` into Nginx (with SPA fallback), so run
+`npm run build` first. Teams and seed require Atlas or a local MongoDB replica set, not standalone MongoDB.
+
 ## 6. Docker notes
 - The backend needs `/var/run/docker.sock` to start challenge containers. On Docker Desktop (Windows/Mac) this works through the mounted socket path in `docker-compose.yml`.
-- First run creates the `ctf-challenges` network automatically.
+- Creating `ctf-challenges` belongs to Phase 2 and is not implemented yet.
 - Build challenge images before testing instances: `docker build -t ctf/<slug> challenges/<slug>`.
 
 ## 7. Create an admin
