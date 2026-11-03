@@ -1,7 +1,11 @@
 # API Specification (the contract)
 
 Base path: `/api`. JSON in, JSON out.
+Implementation status (P1-15 audit): Health, identity and Teams below are implemented.
+Challenges, Instances, Leaderboard and Admin sections are Phase 2/3 contracts;
+their routes are not mounted yet and currently return 404 `NOT_FOUND`.
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
+This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
 `req.user = { cognitoSub, email, role }` from verified ID-token claims;
 `cognitoSub` is the Cognito `sub`, not a database user ID. Exact membership
@@ -9,6 +13,9 @@ in the `admin` Cognito group grants `admin`; other users (including those
 without groups) are `player`. Missing or malformed Bearer credentials and
 invalid/expired tokens return 401 `UNAUTHENTICATED`. Role mismatches return
 403 `FORBIDDEN`. P1-08 persists the current user through `/me`.
+Team create/join also upsert the user and refresh token email/role. Team read/leave
+require an existing persisted membership. Roles are exact: `admin` does not
+implicitly satisfy a `player` guard, so admins receive 403 on current team routes.
 Every response includes the header `X-Served-By: <replica hostname>` (added by `middleware/servedBy.js`).
 
 **Error format (all errors)**
@@ -138,6 +145,7 @@ available seat and an unassigned user; failed claims roll back both documents.
 
 ## Rules every endpoint follows
 - Validate with `zod`; return `VALIDATION_ERROR` with details.
+- Validation details are carried in `error.message`; there is no separate `details` field.
 - Players never receive `flag`, `flagHash`, or other teams' data except the leaderboard fields above.
 - A banned team gets `403 TEAM_BANNED` on submit and instance routes.
 - Changing this file is a contract change: tell the group.

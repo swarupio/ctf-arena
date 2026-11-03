@@ -71,11 +71,39 @@ Run `npm test` in `backend/` for API, startup, database, and environment tests
 `npm start` to run without nodemon. Removing `MONGODB_URI` from the environment
 and both `.env` files makes startup exit with code 1 and an error naming the variable.
 
-The folder placeholders contain no frontend, challenge, or deployment
-implementation. Nginx currently serves a plain text placeholder and proxies the API.
-Teams and seed data are later tasks. `npm run seed` currently exits with a
-P1-14 reminder.
+Frontend auth/team screens and backend teams are implemented locally. Challenge
+and deployment features remain future work. Nginx serves the built
+frontend (`frontend/dist`, SPA fallback) and proxies the API.
 GitHub branch protection and collaborator access still need verification for P1-01.
+
+## Demo seed data (P1-14)
+
+With the root `.env` configured, run from `backend/`:
+
+```bash
+npm run seed
+npm run seed -- --reset
+```
+
+The first command creates two demo players and two linked teams, Demo Alpha
+and Demo Beta, with invite codes `SEEDAA` and `SEEDBB`. Repeating it preserves
+existing fixtures and creates only missing ones. `--reset` removes only these
+exact fixtures; run the first command again to recreate them. A collision,
+modified fixture, or another account referencing a fixture makes either command
+refuse without changing documents. Writes and removal use a single transaction,
+so Atlas or a MongoDB replica set is required. Standalone MongoDB is unsupported.
+
+These are database fixtures with synthetic Cognito subjects and `.invalid`
+emails, not login accounts. The script creates no Cognito users, passwords,
+admin roles, challenges, flags, scores, or containers. Real accounts still use
+the normal Cognito signup and required MFA flow. Gururaj adds challenge seed
+data in Phase 2.
+
+Production runs refuse unless explicitly passed `--force` (including resets).
+Success prints document counts and exits 0; failures exit 1 without database
+credentials or driver details. No new environment variables or dependencies
+are needed. Run `npm test` in `backend/` for fixture, collision, transaction
+rollback, command guard, and Mongoose validation coverage without a live database.
 
 ## Authentication middleware (P1-07 and P1-09)
 
@@ -90,7 +118,7 @@ are never logged or returned.
 Run `npm test` in `backend/`. Auth tests use a test-only router and injected
 mock verifiers; configuration tests mock environment settings and AWS verifier
 creation, so no real `.env`, credentials, or AWS requests are needed. Production
-routes for teams are not implemented yet. P1-08 provides authenticated GET/PATCH
+routes for teams are implemented with transactions. P1-08 provides GET/PATCH
 `/api/me`, with user persistence and display-name validation.
 
 Dependency reasons: Express handles HTTP; Helmet adds security headers;
@@ -107,10 +135,22 @@ for the internal proxy. Compose injects the root `.env` at runtime through
 `env_file`; no environment file is copied into the backend image.
 
 ```bash
+cd frontend
+npm ci
+npm run build
+cd ..
 docker compose up --build   # starts nginx + 3 backend replicas
 ```
 
-Open http://localhost for `CTF Arena is running`, or
+Build the frontend before Compose: Nginx mounts `frontend/dist`. For hot reload,
+start `npm run dev` in `backend/` and, in a second terminal, `npm run dev` in
+`frontend/`. Open Vite's printed URL; it proxies `/api` to port 4000. Rebuild or
+restart Vite after changing public Cognito settings in the root `.env`.
+
+See [the Phase 1 handoff](docs/handoffs/HANDOFF_1_swarup_to_gururaj.md) for
+remaining checks and [the audit](docs/handoffs/P1_DOCS_AUDIT.md) for mismatches.
+
+Open http://localhost for the web app, or
 http://localhost/api/health for the backend health response and `X-Served-By`
 header. Repeated requests should show different replica names:
 
@@ -119,5 +159,5 @@ header. Repeated requests should show different replica names:
 ```
 
 The backend image uses Node.js 20 Alpine, installs production dependencies
-only, and runs as the non-root `node` user. The frontend mount is disabled
-until P1-11. Stop the stack with `docker compose down`.
+only, and runs as the non-root `node` user. The built frontend is mounted
+into Nginx. Stop the stack with `docker compose down`.
