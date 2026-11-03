@@ -1,7 +1,7 @@
 # Database Schema (MongoDB Atlas, database `ctf_arena`)
 
 Models are written with Mongoose. Field types: S = string, N = number, D = date, B = boolean, OID = ObjectId.
-Owner: **S** Swarup, **G** Gururaj.
+Owner: **S** Swarup, **G** Gururaj, **H** Shubham.
 Implementation status (Phase 2): `User`, `Team`, `Challenge`, `Instance`, `Submission` and `Solve`
 exist with the indexes below (verified live on Atlas). The leaderboard query is a Phase 3 contract.
 Mongoose also adds its default `__v` version key to documents.
@@ -95,6 +95,18 @@ Indexes: `{ teamId: 1, challengeId: 1, createdAt: -1 }`. TTL index deletes rows 
 | solvedAt | D | |
 
 Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline.
+
+## replicastats (H)
+Per-replica request counter for the admin dashboard (`GET /admin/stats` -> `requestsByReplica`).
+One document per backend replica; written by `middleware/requestCounter.js`.
+| Field | Type | Notes |
+|-------|------|-------|
+| replica | S | required, **unique index**, the replica hostname (same value as `X-Served-By`) |
+| requests | N | `/api/*` requests served (not `/api/health`), default 0 |
+| updatedAt | D | set on every write |
+
+Each replica buffers counts in memory and flushes with one `updateOne({ replica }, { $inc: { requests: n } }, { upsert: true })`
+about every 5 s and on SIGTERM. Indexes: TTL on `{ updatedAt: 1 }` deletes a replica's document after 30 days without traffic.
 
 ## Leaderboard query (H)
 ```js
