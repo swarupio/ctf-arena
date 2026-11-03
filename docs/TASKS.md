@@ -93,10 +93,13 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Acceptance:* tests for first blood vs second solve.
 
 ### Frontend
-- [ ] **P2-12 Challenges page.** Cards grouped by category, points, solved badge, solve count.
-- [ ] **P2-13 Challenge detail.** Description, attachments, **Start / Stop / Extend** with countdown timer and connection URL, flag input with clear success/error messages.
+- [x] **P2-12 Challenges page.** Cards grouped by category, points, solved badge, solve count.
+  *Verified (2026-11-04):* by an automated headless-browser run with locally signed test tokens against the real backend, Atlas and Docker (41 scenarios, all passing); not with a real Cognito login.
+- [x] **P2-13 Challenge detail.** Description, attachments, **Start / Stop / Extend** with countdown timer and connection URL, flag input with clear success/error messages.
   *Acceptance:* complete play-through in the browser.
-- [ ] **P2-14 Admin challenge manager UI** (simple form + table; Shubham extends the admin area later).
+  *Verified (2026-11-04):* by an automated headless-browser run with locally signed test tokens against the real backend, Atlas and Docker (41 scenarios, all passing); not with a real Cognito login.
+- [x] **P2-14 Admin challenge manager UI** (simple form + table; Shubham extends the admin area later).
+  *Verified (2026-11-04):* by an automated headless-browser run with locally signed test tokens against the real backend, Atlas and Docker (41 scenarios, all passing); not with a real Cognito login.
 
 ### Handoff
 - [ ] **P2-15 Docs sync and handoff.** Update docs, write `HANDOFF_2_gururaj_to_shubham.md`, tag `v0.2-engine`.
