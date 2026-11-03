@@ -71,6 +71,7 @@ The site is then on http://localhost (set `NGINX_HOST_PORT` in `.env` if port 80
 First-time data and challenge images (once per database / per machine):
 ```bash
 cd backend && npm run seed:challenges      # registers challenges/*/challenge.json in MongoDB (repeatable)
+cd backend && npm run seed && npm run seed:demo   # optional demo teams with a few solves so the leaderboard is not empty (`-- --reset` removes the solves)
 cd ..
 for d in challenges/*/; do s=$(basename "$d"); [ -f "$d/Dockerfile" ] && [ "${s#_}" = "$s" ] && docker build -t "ctf/$s" "$d"; done
 ```

@@ -56,9 +56,11 @@ async function visibleChallenge(id) {
   return challenge;
 }
 
-router.use(auth, requireRole('player'));
+// Browsing is read-only, so admins can view challenges; starting instances and submitting need a player team.
+const playerOnly = requireRole('player');
+router.use(auth);
 
-router.get('/', async (req, res) => {
+router.get('/', requireRole('player', 'admin'), async (req, res) => {
   const { team } = await getTeamContext(req.user, { requireTeam: false, blockBanned: false });
   const challenges = await Challenge.find({ visible: true }).sort({ points: 1, title: 1 });
   const solves = team ? await Solve.find({ teamId: team._id }, 'challengeId') : [];
@@ -66,7 +68,7 @@ router.get('/', async (req, res) => {
   res.json(challenges.map((challenge) => playerSummary(challenge, solvedIds)));
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireRole('player', 'admin'), async (req, res) => {
   const challenge = await visibleChallenge(req.params.id);
   const { team } = await getTeamContext(req.user, { requireTeam: false, blockBanned: false });
   const solved = team ? await Solve.exists({ teamId: team._id, challengeId: challenge._id }) : null;
@@ -82,14 +84,14 @@ router.get('/:id', async (req, res) => {
   });
 });
 
-router.post('/:id/instance', async (req, res) => {
+router.post('/:id/instance', playerOnly, async (req, res) => {
   const challenge = await visibleChallenge(req.params.id);
   const { user, team } = await getTeamContext(req.user);
   const instance = await instanceService.start({ challenge, team, user });
   res.status(201).json(serializeInstance(instance));
 });
 
-router.post('/:id/submit', async (req, res) => {
+router.post('/:id/submit', playerOnly, async (req, res) => {
   const { flag } = validate(submitSchema, req.body);
   const challenge = await visibleChallenge(req.params.id);
   const { user, team } = await getTeamContext(req.user);

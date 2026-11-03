@@ -8,7 +8,8 @@ import { validate } from './challenges.js';
 const router = Router();
 const listQuery = z.object({ limit: z.coerce.number().int().min(1).max(500).optional() });
 
-router.use(auth, requireRole('player'));
+// Read-only and contains no secrets, so admins (who run the demo) may view it too.
+router.use(auth, requireRole('player', 'admin'));
 
 router.get('/', async (req, res) => {
   const { limit } = validate(listQuery, req.query);
