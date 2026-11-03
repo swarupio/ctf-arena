@@ -6,7 +6,7 @@ current AWS / MongoDB docs. Do the cloud setup once (Swarup) and share values pr
 ## 1. Prerequisites (everyone)
 - Git, Node.js 20+, Docker Desktop (or Docker Engine on Linux) with Compose v2
 - A phone with Google Authenticator or Microsoft Authenticator
-- GitHub account added to the repo, an AWS account, a MongoDB Atlas account
+- GitHub account added to the repo, an AWS account (Cognito only), an Azure subscription for deployment (a friend provides it), a MongoDB Atlas account
 
 Check:
 ```bash
@@ -24,7 +24,7 @@ Fill `.env` using sections 3 and 4. Never commit it.
 1. Create an Atlas account and a **free (M0) cluster**.
 2. **Database Access:** add a user with a strong password and read/write on any database.
 3. **Network Access:** each developer must add their own current IP or approved
-   range for local work. On the EC2 server, add the Elastic IP later
+   range for local work. On the Azure VM, add its static public IP later
    (avoid `0.0.0.0/0` outside quick tests).
 4. **Connect -> Drivers:** copy the connection string and put it in `MONGODB_URI`, with the database name `ctf_arena`.
 5. Run the backend; it should log `MongoDB connected`.
@@ -83,6 +83,6 @@ Compose mounts `frontend/dist` into Nginx (with SPA fallback), so run
 | `MongoNetworkError` | Your IP is not in Atlas Network Access |
 | 401 on every call | Wrong user pool ID / client ID, or you sent the access token instead of the ID token |
 | User is `player` but should be `admin` | Log out and in after adding to the group |
-| Container starts but URL does not open | Security group / firewall does not allow 30000-30100; wrong `PUBLIC_HOST` |
+| Container starts but URL does not open | Azure network security group / firewall does not allow 30000-30100; wrong `PUBLIC_HOST` |
 | `permission denied` on docker.sock | Run the backend container as root or add the socket's group in compose |
 | Nginx 502 after scaling | Nginx cached old replica IPs; use the `resolver` + variable `proxy_pass` pattern |

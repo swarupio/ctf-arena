@@ -23,9 +23,9 @@ agent on Swarup's request while Gururaj's own work was in flight. **Gururaj: rev
 - Tag `v0.2-engine` and the handoff gate in `WORKFLOW.md`.
 
 ## Things Shubham must know
-1. **Docker socket group.** The backend image runs as non-root `node`. `docker-compose.yml` now has `group_add: ["${DOCKER_GID:-0}"]`. On EC2 set `DOCKER_GID=$(getent group docker | cut -d: -f3)` in `.env`; on Docker Desktop the default `0` works.
-2. **Ports.** Instances bind host ports `CHALLENGE_PORT_MIN..MAX` (default 30000-30100). Open them in the EC2 security group. `PUBLIC_HOST` must be the public address players can reach, or instance URLs will point at `localhost`.
-3. **Images must exist on the host.** Build them on EC2 before play: `docker build -t ctf/<slug> challenges/<slug>` for each challenge folder.
+1. **Docker socket group.** The backend image runs as non-root `node`. `docker-compose.yml` now has `group_add: ["${DOCKER_GID:-0}"]`. On the Azure VM set `DOCKER_GID=$(getent group docker | cut -d: -f3)` in `.env`; on Docker Desktop the default `0` works.
+2. **Ports.** Instances bind host ports `CHALLENGE_PORT_MIN..MAX` (default 30000-30100). Open them in the Azure network security group (inbound rule). `PUBLIC_HOST` must be the public address players can reach, or instance URLs will point at `localhost`.
+3. **Images must exist on the host.** Build them on the Azure VM before play: `docker build -t ctf/<slug> challenges/<slug>` for each challenge folder.
 4. **Reaper runs on every replica** every 60 s. Each stop is an atomic `findOneAndUpdate` claim, so replicas never fight; no extra config.
 5. **Rate limit** (5 submits/min/team/challenge) is stored in MongoDB (`submissions`), not in memory, so scaling replicas is safe.
 6. **Leaderboard:** `GET /leaderboard` can aggregate `solves` as in `DATABASE_SCHEMA.md`. Team score is also `scoringService.teamScore(teamId)`. `GET /teams/me` still returns `score: 0` (Swarup's file); switch it to `teamScore` when wiring the leaderboard.

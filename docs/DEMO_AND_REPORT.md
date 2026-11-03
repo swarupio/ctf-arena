@@ -48,7 +48,7 @@
 8. **Database design:** collections and indexes from `DATABASE_SCHEMA.md`
 9. **Security design:** table from `SECURITY.md`
 10. **Testing and results:** unit tests, end-to-end checklist, load-test table
-11. **Screenshots:** login + MFA, team page, challenge page, running container, leaderboard, admin, GitHub Actions, EC2 console
+11. **Screenshots:** login + MFA, team page, challenge page, running container, leaderboard, admin, GitHub Actions, Azure portal VM page
 12. **Challenges faced and lessons learned**
 13. **Future scope:** Kubernetes, per-challenge subdomains, dynamic scoring, hints, scoreboard freeze, SSE live updates
 14. **Conclusion**
@@ -64,4 +64,4 @@
 
 ## 6. Screenshot checklist
 Take these while building, not on the last night: Cognito pool settings, MFA QR screen, Atlas collections,
-`docker ps` with challenge containers, Nginx footer showing replicas, EC2 instance page, GitHub Actions run.
+`docker ps` with challenge containers, Nginx footer showing replicas, Azure VM overview page, GitHub Actions run.

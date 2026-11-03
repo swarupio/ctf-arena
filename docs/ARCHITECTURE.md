@@ -28,7 +28,7 @@
                               [teamA-cookie] [teamB-cookie] ...  one container per team per challenge
                               port 30001     port 30002          (limits, TTL, own flag)
 
-All of the above runs on one AWS EC2 instance (Deployment).
+All of the above runs on one Azure Virtual Machine (Deployment). Only Cognito stays on AWS.
 ```
 
 ## 2. Components
@@ -46,7 +46,7 @@ All of the above runs on one AWS EC2 instance (Deployment).
 | Leaderboard module + UI | Aggregation, timeline chart, live polling | Shubham |
 | Admin dashboard | Stats, instance table, ban team | Shubham |
 | Nginx + scaling | Load balancer config, replica header, load test | Shubham |
-| Deployment | EC2 setup, GitHub Actions deploy, domain/HTTPS (optional) | Shubham |
+| Deployment | Azure VM setup, GitHub Actions deploy, domain/HTTPS (optional) | Shubham |
 
 ## 3. Key flows
 
@@ -108,7 +108,7 @@ solve time, sort by points descending then latest solve time ascending. Frontend
 |------|---------|---------|
 | 80 (and 443 if HTTPS) | Nginx: website + API | Yes |
 | 4000 | Backend replicas (inside Docker network) | No |
-| 30000-30100 | Player challenge instances | Yes (EC2 security group rule) |
+| 30000-30100 | Player challenge instances | Yes (Azure network security group rule) |
 | 22 | SSH for deployment | Only our IPs / GitHub Actions |
 
 ## 6. Decisions and fallbacks

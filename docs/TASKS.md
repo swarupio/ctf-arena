@@ -122,8 +122,8 @@ Each task has an **acceptance** line: if it is true, the task is done.
 - [ ] **P3-08 Scale demo.** Verify `docker compose up -d --scale backend=5` works with no code change; document it.
 
 ### Deployment
-- [ ] **P3-09 EC2 setup.** Ubuntu instance, Docker + Compose installed, Elastic IP, security group (80, 443 optional, 22 restricted, 30000-30100 open), swap file if the instance is small.
-- [ ] **P3-10 CI/CD.** `.github/workflows/deploy.yml`: on push to `main` run tests, SSH to EC2, `git pull`, build frontend, `docker compose up -d --build`.
+- [ ] **P3-09 Azure VM setup.** Ubuntu VM (a friend helps with the Azure account), Docker + Compose installed, static public IP, network security group inbound rules (80, 443 optional, 22 restricted to known IPs, 30000-30100 open), swap file if the VM size is small. Add the VM public IP to Atlas Network Access.
+- [ ] **P3-10 CI/CD.** `.github/workflows/deploy.yml`: on push to `main` run tests, SSH to the Azure VM, `git pull`, build frontend, `docker compose up -d --build`.
   *Acceptance:* merging a PR updates the live site within a few minutes.
 - [ ] **P3-11 Production hardening.** Real `FLAG_SECRET`, no debug logs, challenge limits confirmed, optional HTTPS (Caddy or Certbot) and optional docker-socket-proxy.
 
