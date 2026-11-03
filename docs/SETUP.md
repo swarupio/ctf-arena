@@ -65,11 +65,25 @@ cd frontend && npm install && npm run dev
 
 Compose mounts `frontend/dist` into Nginx (with SPA fallback), so run
 `npm run build` first. Teams and seed require Atlas or a local MongoDB replica set, not standalone MongoDB.
+The site is then on http://localhost (set `NGINX_HOST_PORT` in `.env` if port 80 is taken) and the backend runs as
+3 replicas (`docker compose up -d --scale backend=5` for more).
+
+First-time data and challenge images (once per database / per machine):
+```bash
+cd backend && npm run seed:challenges      # registers challenges/*/challenge.json in MongoDB (repeatable)
+cd ..
+for d in challenges/*/; do s=$(basename "$d"); [ -f "$d/Dockerfile" ] && [ "${s#_}" = "$s" ] && docker build -t "ctf/$s" "$d"; done
+```
+Optional demo teams: `cd backend && npm run seed` (see the README). To check everything before a demo, run the
+backend tests (`cd backend && npm test`) and the frontend tests and build (`cd frontend && npm test && npm run build`).
+Unit tests need no database but do need the variables of `.env.example` to be set (a copy of it is enough; CI sets
+placeholder values the same way).
 
 ## 6. Docker notes
-- The backend needs `/var/run/docker.sock` to start challenge containers. On Docker Desktop (Windows/Mac) this works through the mounted socket path in `docker-compose.yml`.
-- Creating `ctf-challenges` belongs to Phase 2 and is not implemented yet.
-- Build challenge images before testing instances: `docker build -t ctf/<slug> challenges/<slug>`.
+- The backend needs `/var/run/docker.sock` to start challenge containers. On Docker Desktop (Windows/Mac) this works through the mounted socket path in `docker-compose.yml` (default `DOCKER_GID=0`). On a Linux host set `DOCKER_GID=$(getent group docker | cut -d: -f3)` in `.env` so the non-root backend can use the socket.
+- The backend creates the `ctf-challenges` network on startup (`dockerService.ensureNetwork`); challenge containers join it and publish host ports `CHALLENGE_PORT_MIN..MAX`.
+- Build challenge images before testing instances: `docker build -t ctf/<slug> challenges/<slug>` (the loop above builds all of them).
+- Replica names in the footer and on the admin dashboard are container ids; `docker ps --filter name=backend --format '{{.ID}}  {{.Names}}'` maps them to Compose names.
 
 ## 7. Create an admin
 1. Sign up normally.
@@ -84,5 +98,6 @@ Compose mounts `frontend/dist` into Nginx (with SPA fallback), so run
 | 401 on every call | Wrong user pool ID / client ID, or you sent the access token instead of the ID token |
 | User is `player` but should be `admin` | Log out and in after adding to the group |
 | Container starts but URL does not open | Azure network security group / firewall does not allow 30000-30100; wrong `PUBLIC_HOST` |
-| `permission denied` on docker.sock | Run the backend container as root or add the socket's group in compose |
+| `permission denied` on docker.sock | Set `DOCKER_GID` in `.env` to the socket's group id (Linux: `getent group docker \| cut -d: -f3`), then `docker compose up -d --force-recreate backend`. Do not run the backend as root |
+| The challenge list is empty | Run `npm run seed:challenges` in `backend/` (or `SEED_CHALLENGES=1 bash deploy/deploy.sh` on the VM) |
 | Nginx 502 after scaling | Nginx cached old replica IPs; use the `resolver` + variable `proxy_pass` pattern |

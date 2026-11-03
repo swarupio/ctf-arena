@@ -1,35 +1,105 @@
-# Starter compose file. Swarup creates it (Phase 1), Shubham finishes it (Phase 3).
+# Mini CTF Arena stack: Nginx + N stateless backend replicas (P1-05, finished in P3-06/P3-11).
+#   docker compose up -d --build                  # 3 replicas (deploy.replicas)
+#   docker compose up -d --scale backend=5        # scale without any code change
+#
+# Optional variables (put them in .env or the shell; both have safe defaults):
+#   DOCKER_GID       group id of /var/run/docker.sock. Linux/Azure VM: getent group docker | cut -d: -f3
+#   NGINX_HOST_PORT  host port for the website. Default 80. Use another value if 80 is taken
+#                    (for example behind Caddy for HTTPS, see docs/SECURITY.md).
+
+# Keep container logs from filling the VM disk: 3 files of 10 MB per container.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   backend:
     build: ./backend
     env_file: .env
+    # Not published to the host: only Nginx (same network) can reach the backend on 4000.
     expose:
       - "4000"
     volumes:
-      # Lets the backend start challenge containers. See docs/SECURITY.md.
+      # Lets the backend start challenge containers. See docs/SECURITY.md section 2.
       - /var/run/docker.sock:/var/run/docker.sock
     # The backend runs as the non-root 'node' user; it needs the docker socket's group
     # to start challenge containers. Linux/Azure VM: DOCKER_GID=$(getent group docker | cut -d: -f3).
     group_add:
       - "${DOCKER_GID:-0}"
     deploy:
-      replicas: 3            # Phase 3: scale with `docker compose up --scale backend=5`
+      replicas: 3            # override with: docker compose up -d --scale backend=5
+      resources:
+        limits:
+          memory: 512M       # a leaking replica cannot take the whole VM down
     networks:
       - ctf-net
     restart: unless-stopped
+    init: true               # tini as PID 1 so `docker stop` is immediate (the app has no SIGTERM handler)
+    # Hardening: nothing in the app writes to its own filesystem or needs a Linux capability.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Node 20 has a global fetch, so no curl is needed in the image. Lets depends_on wait.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 4000) + '/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
 
   nginx:
     image: nginx:1.27-alpine
     ports:
-      - "80:80"
+      - "${NGINX_HOST_PORT:-80}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./frontend/dist:/usr/share/nginx/html:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - ctf-net
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    # Nginx opens a new TCP connection to a backend replica for every API request (upstream
+    # keep-alive is not possible with the dynamic "backend" DNS lookup). Closed sockets sit in
+    # TIME_WAIT for 60 s, and with the default 28k ephemeral ports a single replica would start
+    # returning 502 at about 450 requests/second. These per-container settings remove that ceiling.
+    sysctls:
+      net.ipv4.ip_local_port_range: "1024 65535"
+      net.ipv4.tcp_tw_reuse: "1"
+    # Hardening: read-only root filesystem; Nginx only needs scratch space in /tmp and its cache dir,
+    # and just the four capabilities its master process uses to bind port 80 and drop to user 'nginx'.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging: *default-logging
 
 networks:
   ctf-net:

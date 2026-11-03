@@ -1,9 +1,9 @@
 # API Specification (the contract)
 
 Base path: `/api`. JSON in, JSON out.
-Implementation status (Phase 2): Health, identity, Teams, Challenges, Instances and
-`/admin/challenges` are implemented. Leaderboard and the other Admin sections are Phase 3
-contracts; their routes are not mounted yet and currently return 404 `NOT_FOUND`.
+Implementation status: every endpoint in this file is implemented and mounted: Health, identity and Teams
+(Phase 1), Challenges, Instances and `/admin/challenges` (Phase 2), Leaderboard and `/admin/stats`,
+`/admin/instances`, `/admin/teams` (Phase 3). Paths that are not listed here return 404 `NOT_FOUND`.
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
@@ -62,10 +62,10 @@ Unknown routes return 404 `NOT_FOUND`; unexpected failures return 500
 | POST | `/teams` | player | S | Body `{ name }` (3-24 chars, unique). Creates team, user becomes captain. Returns team with `inviteCode`. 409 if user already has a team. |
 | POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members. |
 | GET | `/teams/me` | player | S | `{ id, name, inviteCode, members:[{id,displayName}], score }` |
-| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted; otherwise the next member becomes captain if the captain leaves. Instance cleanup is deferred to Phase 2. |
+| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted and its instances are stopped; otherwise the next member becomes captain if the captain leaves. |
 
 Create returns 201; join and GET return 200, all with the GET `/teams/me` shape
-above. `score` is 0 until Phase 2. Banned teams remain readable and include
+above. `score` is the sum of the team's `solves.points` (0 without solves). Banned teams remain readable and include
 `banned: true`; this field is omitted for unbanned teams. `/me` returns only
 the team's `id` and `name`, never its invite code or member list.
 
@@ -118,6 +118,13 @@ Leaving a team as its last member stops that team's instances.
 | GET | `/leaderboard` | player | H | `[{ rank, teamId, teamName, points, solves, lastSolveAt }]`, banned teams hidden |
 | GET | `/leaderboard/timeline` | player | H | `{ teams:[{ teamId, teamName, points:[{ t, score }] }] }` (top 10 teams) |
 
+Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderboard.js`):
+- Both endpoints are `player` only (admins get 403, no token 401) and need no team, so team-less and banned-team players can read them. Banned and deleted teams are hidden.
+- `rank` is the 1-based position. Order: points desc, then earliest `lastSolveAt`, then team name (case-insensitive), then team id, so ties are deterministic on every replica. Teams with no solves are appended with `points: 0`, `solves: 0`, `lastSolveAt: null`. `lastSolveAt` is an ISO string.
+- Optional query `?limit=1..500` truncates the list after ranking (default: all teams). Anything else in the query string is ignored; an invalid `limit` is 400 `VALIDATION_ERROR`.
+- Timeline: teams are in rank order (top 10 including zero-solve teams). Each `points` array starts with `{ t, score: 0 }` at the time of the earliest solve shown (the current time if there are no solves yet), then one entry per solve in `solvedAt` order with the running total (`solves.points`, bonus included). A chart should hold a score flat until the next entry.
+- Responses contain only the fields above: no invite codes, member lists, emails, user ids or flag material. Nothing is cached in the process, so any replica returns the same data.
+
 ## Admin (role `admin`)
 
 | Method | Path | Owner | Description |
@@ -136,6 +143,64 @@ Admin responses never contain a flag or hash. They return the challenge fields p
 `visible`, `solveCount` and `createdAt`. `PUT` takes the same body as create; for static challenges
 omitting `flag` keeps the stored hash. `image` must start with `ctf/`. Duplicate slugs return 409 `CONFLICT`.
 Deleting a challenge stops its instances; existing solves are kept.
+
+**Phase 3 implementation notes (stats, instances, teams)**
+- All five routes need the exact `admin` role: no token 401 `UNAUTHENTICATED`, players 403 `FORBIDDEN`.
+  Ids in paths are validated like the challenge routes: a malformed id is 404 `NOT_FOUND`.
+- Nothing here ever returns a flag, flag hash, container id, invite code or email.
+
+`GET /admin/stats` returns 200:
+```json
+{ "users": 12, "teams": 5, "solves": 9, "submissions": 8, "wrongRate": 0.25,
+  "activeInstances": 3, "requestsByReplica": { "backend-1": 120, "backend-2": 80 } }
+```
+`users` counts every user (players and admins). `submissions` is the number of stored attempts, which
+expire after 30 days (see `DATABASE_SCHEMA.md`). `wrongRate` is wrong submissions / total submissions as a
+fraction between 0 and 1, and `0` when there are no submissions. `activeInstances` counts instances whose
+status is `starting`, `running` or `stopping`. `requestsByReplica` maps each replica hostname (the value of
+`X-Served-By`) to the number of `/api/*` requests it has served, not counting `/api/health`. The counter
+lives in MongoDB (`replicastats`): each replica buffers counts in memory and adds them with one atomic `$inc`
+upsert about every 5 s and on SIGTERM, so the numbers lag by a few seconds and a hard crash can lose up to
+that window. A replica that has served nothing for 30 days drops out of the map.
+
+**Replica names.** The keys are the exact `X-Served-By` values, i.e. the container hostnames. In Docker Compose
+that is the 12-character container id (for example `3f2a9c1b7d4e`), the same text the website footer shows as
+"Served by", so a dashboard row can be matched to what a page view reported. They are not friendly names on
+purpose: a fixed `hostname:` in `docker-compose.yml` would give every scaled replica the same name and defeat the
+load-balancing demo, and a derived label (`backend-1`) would shift whenever a replica is replaced. To map an id to
+a Compose container run `docker ps --filter name=backend --format '{{.ID}}  {{.Names}}'`. Replicas that a deploy
+replaced keep their row until the 30-day expiry, so after several deploys the map also lists ids of containers that
+no longer exist (their counts no longer grow).
+
+`GET /admin/instances` returns 200 with the active instances, oldest first:
+```json
+[{ "id": "...", "status": "running", "port": 30001, "url": "http://<PUBLIC_HOST>:30001",
+   "expiresAt": "2026-11-04T12:00:00.000Z", "extended": false,
+   "team": { "id": "...", "name": "Rustaceans" },
+   "challenge": { "id": "...", "slug": "cookie-monster", "title": "Cookie Monster" } }]
+```
+If the team or challenge was deleted, its `name` (or `slug` and `title`) is `null` and the id is kept.
+
+`POST /admin/instances/:id/kill` stops and removes the container through the same atomic claim the player
+`DELETE /instances/:id` uses and returns 204 with no body. 404 `NOT_FOUND` if the instance does not exist or is
+not stoppable any more (already stopped or failed). Unlike the player route and the reaper, the kill is forced
+(`instanceService.stop(id, { force: true })`): it also takes over an instance stuck in `stopping` after a crashed
+replica, so such an instance can be cleaned up from the dashboard instead of returning 404. A Docker failure
+returns the generic 500 `SERVER_ERROR`, puts the instance back to `running`, and the call can be repeated.
+
+`GET /admin/teams` returns 200, highest score first (ties by name):
+```json
+[{ "id": "...", "name": "Rustaceans", "members": 3, "score": 210, "banned": false, "solves": 2 }]
+```
+`members` is the member count (0 to 3), `score` is the sum of the team's `solves.points` and `solves` is the
+number of solves; both are 0 for a team without solves.
+
+`PATCH /admin/teams/:id/ban` takes the strict body `{ "banned": true }` or `{ "banned": false }` (anything else,
+including strings, numbers or extra fields, is 400 `VALIDATION_ERROR`) and returns 200 `{ "id", "name", "banned" }`;
+an unknown team is 404 `NOT_FOUND`. Banning sets the flag first and then stops every running instance of the team
+(`instanceService.stopTeamInstances`). It is idempotent: if stopping fails the response is 500 `SERVER_ERROR`, the
+team stays banned, and repeating the call finishes the cleanup. Unbanning only clears the flag and never restarts
+anything. A banned team already gets 403 `TEAM_BANNED` on the submit and instance routes.
 
 **Challenge body (create / update)**
 ```json

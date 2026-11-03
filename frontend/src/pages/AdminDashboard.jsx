@@ -1,296 +1,169 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { fetchDashboard, killInstance, setTeamBanned } from '../api/admin.js';
 import {
-  getStats,
-  getInstances,
-  killInstance,
-  getTeams,
-  banTeam,
-} from '../api/admin.js';
-
-const POLL_MS = 15_000;
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, accent }) {
-  return (
-    <div style={{
-      background: '#1a1a2e',
-      borderRadius: 8,
-      padding: '16px 20px',
-      minWidth: 140,
-      flex: '1 1 140px',
-      borderLeft: `4px solid ${accent || '#4f8ef7'}`,
-    }}>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, margin: '4px 0' }}>{value ?? '—'}</div>
-      {sub && <div style={{ fontSize: 11, color: '#666' }}>{sub}</div>}
-    </div>
-  );
-}
-
-// ─── Confirm-action button (requires double-click) ────────────────────────────
-
-function ActionButton({ label, confirmLabel, onClick, danger }) {
-  const [confirming, setConfirming] = useState(false);
-  const timerRef = useRef(null);
-
-  const handleClick = () => {
-    if (!confirming) {
-      setConfirming(true);
-      timerRef.current = setTimeout(() => setConfirming(false), 3000);
-    } else {
-      clearTimeout(timerRef.current);
-      setConfirming(false);
-      onClick();
-    }
-  };
-
-  useEffect(() => () => clearTimeout(timerRef.current), []);
-
-  return (
-    <button
-      onClick={handleClick}
-      style={{
-        padding: '3px 10px',
-        fontSize: 12,
-        borderRadius: 4,
-        border: 'none',
-        cursor: 'pointer',
-        background: confirming ? '#c0392b' : danger ? '#7b2c2c' : '#2c4a7b',
-        color: '#fff',
-        transition: 'background 0.2s',
-      }}
-    >
-      {confirming ? (confirmLabel ?? 'Confirm?') : label}
-    </button>
-  );
-}
-
-// ─── Main Admin Dashboard ─────────────────────────────────────────────────────
+  REFRESH_MS, adminErrorMessage, banPrompt, challengeLabel, formatNumber, formatPercent, formatTimeLeft,
+  killPrompt, nameOrDeleted, replicaRows, requestTotal, startPolling,
+} from './adminHelpers.js';
+import './AdminDashboard.css';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null);
-  const [instances, setInstances] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [busyIds, setBusyIds] = useState(new Set());
-  const intervalRef = useRef(null);
-
-  const fetchAll = useCallback(async () => {
-    try {
-      const [s, inst, t] = await Promise.all([getStats(), getInstances(), getTeams()]);
-      setStats(s);
-      setInstances(inst);
-      setTeams(t);
-      setLastUpdated(new Date());
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    }
-  }, []);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busyKey, setBusyKey] = useState(null);
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const refreshRef = useRef(async () => {});
+  const actionLock = useRef(false);
 
   useEffect(() => {
-    fetchAll();
-    intervalRef.current = setInterval(fetchAll, POLL_MS);
-    return () => clearInterval(intervalRef.current);
-  }, [fetchAll]);
-
-  // ── Kill instance ──
-  const handleKill = async (id) => {
-    setBusyIds((prev) => new Set(prev).add(id));
-    try {
-      await killInstance(id);
-      setInstances((prev) => prev.filter((i) => i.id !== id));
-    } catch (err) {
-      alert(`Kill failed: ${err.message}`);
-    } finally {
-      setBusyIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    let alive = true;
+    let inflight = false;
+    let again = false;
+    // Overlapping calls (a poll plus a Kill click) collapse into one extra fetch after the current one.
+    async function refresh() {
+      if (inflight) { again = true; return; }
+      inflight = true;
+      try {
+        do {
+          again = false;
+          try {
+            const next = await fetchDashboard();
+            if (!alive) return;
+            setData(next);
+            setError('');
+            setUpdatedAt(Date.now());
+          } catch (failure) {
+            if (alive) setError(adminErrorMessage(failure, 'Could not load the dashboard.'));
+          }
+        } while (again && alive);
+      } finally { inflight = false; }
     }
-  };
+    refreshRef.current = refresh;
+    refresh();
+    const stopPolling = startPolling(refresh, { intervalMs: REFRESH_MS });
+    return () => { alive = false; stopPolling(); };
+  }, []);
 
-  // ── Ban / unban team ──
-  const handleBan = async (id, currentlyBanned) => {
-    setBusyIds((prev) => new Set(prev).add(id));
+  async function act(key, action, success, notFoundMessage) {
+    if (actionLock.current) return;
+    actionLock.current = true;
+    setBusyKey(key);
+    setError('');
+    setNotice('');
     try {
-      await banTeam(id, !currentlyBanned);
-      setTeams((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, banned: !currentlyBanned } : t))
-      );
-    } catch (err) {
-      alert(`Ban action failed: ${err.message}`);
+      await action();
+      setNotice(success);
+    } catch (failure) {
+      setError(failure?.code === 'NOT_FOUND' ? notFoundMessage : adminErrorMessage(failure));
     } finally {
-      setBusyIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+      actionLock.current = false;
+      setBusyKey(null);
+      refreshRef.current();
     }
-  };
+  }
 
-  const wrongRate = stats
-    ? stats.submissions > 0
-      ? ((stats.wrongRate ?? ((stats.submissions - stats.solves) / stats.submissions)) * 100).toFixed(1)
-      : '0.0'
-    : null;
+  function kill(instance) {
+    if (!window.confirm(killPrompt(instance))) return;
+    act(`kill:${instance.id}`, () => killInstance(instance.id), 'Instance stopped.', 'That instance is already stopped.');
+  }
 
-  return (
-    <section style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 16 }}>
-        <h1 style={{ margin: 0 }}>⚙️ Admin Dashboard</h1>
-        {lastUpdated && (
-          <span style={{ fontSize: 12, color: '#888' }}>
-            Updated {lastUpdated.toLocaleTimeString()} · auto-refreshes every 15s
-          </span>
-        )}
+  function toggleBan(team) {
+    const banned = !team.banned;
+    if (banned && !window.confirm(banPrompt(team))) return;
+    act(
+      `ban:${team.id}`, () => setTeamBanned(team.id, banned),
+      banned ? `Team "${team.name}" banned and its instances stopped.` : `Team "${team.name}" unbanned.`,
+      'That team no longer exists.',
+    );
+  }
+
+  if (!data) {
+    return <section className="adm">
+      <h1>Admin dashboard</h1>
+      {error
+        ? <><p role="alert" className="error">{error}</p><button onClick={() => refreshRef.current()}>Try again</button></>
+        : <p role="status">Loading dashboard…</p>}
+    </section>;
+  }
+
+  const { stats, instances, teams } = data;
+  const replicas = replicaRows(stats.requestsByReplica);
+  const now = Date.now();
+  const cards = [
+    ['Users', formatNumber(stats.users)],
+    ['Teams', formatNumber(stats.teams)],
+    ['Solves', formatNumber(stats.solves)],
+    ['Submissions', formatNumber(stats.submissions)],
+    ['Wrong flags', formatPercent(stats.wrongRate)],
+    ['Active instances', formatNumber(stats.activeInstances)],
+  ];
+
+  return <section className="adm">
+    <div className="adm-head">
+      <h1>Admin dashboard</h1>
+      <div className="adm-meta">
+        <span>{updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString()}` : 'Not updated yet'} · refreshes every {REFRESH_MS / 1000} s</span>
+        <button className="secondary" onClick={() => refreshRef.current()}>Refresh now</button>
       </div>
+    </div>
 
-      {error && <p className="error">{error}</p>}
+    {error && <p role="alert" className="error">{error}</p>}
+    {notice && <p role="status" className="notice">{notice}</p>}
 
-      {/* ── Stats Cards ── */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 28 }}>
-        <StatCard label="Users" value={stats?.users} accent="#4f8ef7" />
-        <StatCard label="Teams" value={stats?.teams} accent="#4fc98e" />
-        <StatCard label="Solves" value={stats?.solves} accent="#f7c84f" />
-        <StatCard label="Submissions" value={stats?.submissions} accent="#c44ff7" />
-        <StatCard
-          label="Wrong Flag Rate"
-          value={wrongRate != null ? `${wrongRate}%` : '—'}
-          accent="#f76f4f"
-        />
-        <StatCard label="Active Instances" value={stats?.activeInstances} accent="#4ff7f1" />
-      </div>
+    <ul className="adm-cards" aria-label="Platform statistics">
+      {cards.map(([label, value]) => <li key={label} className="adm-card">
+        <span className="adm-card-value">{value}</span>
+        <span className="adm-card-label">{label}</span>
+      </li>)}
+    </ul>
 
-      {/* ── Per-Replica Requests ── */}
-      {stats?.requestsByReplica && Object.keys(stats.requestsByReplica).length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 8 }}>Requests by Replica</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #333', textAlign: 'left' }}>
-                <th style={thS}>Replica ID</th>
-                <th style={thS}>Requests Handled</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(stats.requestsByReplica).map(([replica, count]) => (
-                <tr key={replica} style={{ borderBottom: '1px solid #222' }}>
-                  <td style={tdS}><code style={{ fontSize: 12 }}>{replica}</code></td>
-                  <td style={tdS}>{count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <h2>Requests by replica</h2>
+    {replicas.length === 0
+      ? <p className="adm-empty">No requests counted yet. Totals appear a few seconds after the first API call.</p>
+      : <ul className="adm-replicas">
+        {replicas.map((row) => <li key={row.replica}>
+          <span className="adm-replica-name">{row.replica}</span>
+          <span className="adm-replica-count">{formatNumber(row.requests)} · {formatPercent(row.share)}</span>
+          <span className="adm-bar" aria-hidden="true"><span style={{ width: `${Math.round(row.share * 100)}%` }} /></span>
+        </li>)}
+        <li className="adm-replica-total">{formatNumber(requestTotal(replicas))} requests in total</li>
+      </ul>}
 
-      {/* ── Active Instances ── */}
-      <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 8 }}>
-          Active Instances ({instances.length})
-        </h2>
-        {instances.length === 0 ? (
-          <p className="notice">No active instances.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #333', textAlign: 'left' }}>
-                  <th style={thS}>Team</th>
-                  <th style={thS}>Challenge</th>
-                  <th style={thS}>Port</th>
-                  <th style={thS}>Status</th>
-                  <th style={thS}>Expires</th>
-                  <th style={thS}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {instances.map((inst) => (
-                  <tr key={inst.id} style={{ borderBottom: '1px solid #222', opacity: busyIds.has(inst.id) ? 0.5 : 1 }}>
-                    <td style={tdS}>{inst.teamName ?? inst.teamId}</td>
-                    <td style={tdS}>{inst.challengeName ?? inst.challengeId}</td>
-                    <td style={tdS}>{inst.port}</td>
-                    <td style={tdS}>
-                      <span style={{
-                        padding: '2px 8px',
-                        borderRadius: 10,
-                        fontSize: 11,
-                        background: inst.status === 'running' ? '#1a4a1a' : '#4a1a1a',
-                        color: inst.status === 'running' ? '#4fc98e' : '#f76f4f',
-                      }}>
-                        {inst.status}
-                      </span>
-                    </td>
-                    <td style={{ ...tdS, fontSize: 12, color: '#888' }}>
-                      {inst.expiresAt ? new Date(inst.expiresAt).toLocaleString() : '—'}
-                    </td>
-                    <td style={tdS}>
-                      <ActionButton
-                        label="Kill"
-                        confirmLabel="Kill!"
-                        danger
-                        onClick={() => handleKill(inst.id)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+    <h2>Active instances</h2>
+    {instances.length === 0
+      ? <p className="adm-empty">No instances are running right now.</p>
+      : <div className="adm-scroll" role="region" aria-label="Active instances" tabIndex={0}>
+        <table className="adm-table">
+          <thead><tr><th>Team</th><th>Challenge</th><th>Status</th><th>Port</th><th>Time left</th><th>Extended</th><th><span className="adm-sr">Actions</span></th></tr></thead>
+          <tbody>{instances.map((instance) => <tr key={instance.id}>
+            <td className="adm-name" data-label="Team">{nameOrDeleted(instance.team?.name)}</td>
+            <td className="adm-name" data-label="Challenge">{challengeLabel(instance.challenge)}</td>
+            <td data-label="Status">{instance.status}</td>
+            <td data-label="Port"><a href={instance.url} target="_blank" rel="noreferrer">{instance.port}</a></td>
+            <td data-label="Time left">{formatTimeLeft(instance.expiresAt, now)}</td>
+            <td data-label="Extended">{instance.extended ? 'yes' : 'no'}</td>
+            <td className="adm-actions"><button className="secondary" disabled={busyKey !== null} onClick={() => kill(instance)}>{busyKey === `kill:${instance.id}` ? 'Killing…' : 'Kill'}</button></td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
 
-      {/* ── Teams ── */}
-      <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 8 }}>Teams ({teams.length})</h2>
-        {teams.length === 0 ? (
-          <p className="notice">No teams yet.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #333', textAlign: 'left' }}>
-                  <th style={thS}>Name</th>
-                  <th style={thS}>Members</th>
-                  <th style={thS}>Score</th>
-                  <th style={thS}>Status</th>
-                  <th style={thS}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teams.map((team) => (
-                  <tr
-                    key={team.id}
-                    style={{
-                      borderBottom: '1px solid #222',
-                      opacity: busyIds.has(team.id) ? 0.5 : 1,
-                      background: team.banned ? '#2a1a1a' : 'transparent',
-                    }}
-                  >
-                    <td style={{ ...tdS, fontWeight: 600 }}>{team.name}</td>
-                    <td style={tdS}>{team.memberCount ?? team.members?.length ?? '—'}</td>
-                    <td style={tdS}>{team.score ?? 0}</td>
-                    <td style={tdS}>
-                      {team.banned ? (
-                        <span style={{ color: '#f76f4f', fontSize: 12 }}>🚫 Banned</span>
-                      ) : (
-                        <span style={{ color: '#4fc98e', fontSize: 12 }}>✓ Active</span>
-                      )}
-                    </td>
-                    <td style={tdS}>
-                      <ActionButton
-                        label={team.banned ? 'Unban' : 'Ban'}
-                        confirmLabel={team.banned ? 'Unban?' : 'Ban?'}
-                        danger={!team.banned}
-                        onClick={() => handleBan(team.id, team.banned)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </section>
-  );
+    <h2>Teams</h2>
+    {teams.length === 0
+      ? <p className="adm-empty">No teams have been created yet.</p>
+      : <div className="adm-scroll" role="region" aria-label="Teams" tabIndex={0}>
+        <table className="adm-table">
+          <thead><tr><th>Team</th><th>Members</th><th>Solves</th><th>Score</th><th>Status</th><th><span className="adm-sr">Actions</span></th></tr></thead>
+          <tbody>{teams.map((team) => <tr key={team.id}>
+            <td className="adm-name" data-label="Team">{team.name}</td>
+            <td data-label="Members">{team.members}/3</td>
+            <td data-label="Solves">{formatNumber(team.solves)}</td>
+            <td data-label="Score">{formatNumber(team.score)}</td>
+            <td data-label="Status">{team.banned ? <span className="adm-badge adm-banned">Banned</span> : 'Active'}</td>
+            <td className="adm-actions"><button className="secondary" disabled={busyKey !== null} onClick={() => toggleBan(team)}>
+              {busyKey === `ban:${team.id}` ? 'Saving…' : team.banned ? 'Unban' : 'Ban'}
+            </button></td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+  </section>;
 }
-
-const thS = { padding: '8px 12px', color: '#aaa', fontWeight: 600, fontSize: 13 };
-const tdS = { padding: '10px 12px', fontSize: 14 };

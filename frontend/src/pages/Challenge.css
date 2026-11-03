@@ -1,25 +1,99 @@
-.challenges, .challenge-detail, .challenge-admin { background: #fff; padding: 32px; border-radius: 8px; }
-.challenges h1, .challenge-detail h1, .challenge-admin h1 { margin-top: 0; }
-.challenge-group h2 { text-transform: capitalize; margin: 24px 0 12px; }
-.challenge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.challenge-card { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid #cfd4d6; border-radius: 8px; color: inherit; text-decoration: none; background: #fafafa; }
-.challenge-card:hover { border-color: #1f2a30; }
-.challenge-card.solved { background: #eaf6ee; border-color: #8cc9a0; }
-.challenge-title { font-weight: 700; overflow-wrap: anywhere; }
-.challenge-meta { color: #55626a; font-size: 14px; text-transform: capitalize; }
-.badge { align-self: flex-start; padding: 2px 8px; border-radius: 4px; background: #2e7d4f; color: #fff; font-size: 12px; font-weight: 600; }
-.challenge-description { white-space: pre-wrap; margin: 16px 0; overflow-wrap: anywhere; }
-.instance-panel, .flag-form { margin-top: 24px; padding: 20px; border: 1px solid #cfd4d6; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
-.instance-panel h2, .flag-form h2 { margin: 0; font-size: 20px; }
-.actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.attachments { padding-left: 20px; }
-.admin-form { display: grid; gap: 12px; max-width: 640px; margin-bottom: 32px; }
-.admin-form label { display: flex; flex-direction: column; gap: 4px; }
-.admin-form label.check { flex-direction: row; align-items: center; gap: 8px; }
+/* Challenge list, challenge detail and the admin challenge manager. Tokens come from styles.css. */
+
+/* Shared window panels with a title strip */
+.instance-panel, .flag-form, .admin-form {
+  --panel-pad: var(--space-5);
+  background: var(--color-surface); border: var(--border); padding: var(--panel-pad);
+}
+.instance-panel h2, .flag-form h2, .admin-form h2 {
+  margin: calc(var(--panel-pad) * -1) calc(var(--panel-pad) * -1) var(--space-2);
+  padding: 6px var(--panel-pad); font-size: 1.5rem;
+  background: var(--color-surface-2); border-bottom: var(--border);
+}
+.instance-panel h2::before, .flag-form h2::before, .admin-form h2::before { content: '> '; content: '> ' / ''; }
+
+/* List */
+.challenge-group + .challenge-group { margin-top: var(--space-7); }
+.challenge-group h2 { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); text-transform: capitalize; }
+.challenge-group h2::before { content: '>'; content: '>' / ''; }
+.challenge-group h2::after { content: ''; flex: 1; border-top: var(--border); }
+.challenge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-5); }
+.challenge-card {
+  display: flex; flex-direction: column; gap: var(--space-3); min-height: 168px; padding: var(--space-5);
+  color: inherit; text-decoration: none; background: var(--color-surface); border: var(--border);
+  transition: transform 0.12s, box-shadow 0.12s, background-color 0.12s;
+}
+.challenge-card:hover { background: var(--color-surface); transform: translate(-3px, -3px); box-shadow: var(--shadow-hard); }
+.challenge-card:focus-visible { box-shadow: var(--shadow-hard); }
+.challenge-card.solved { background: var(--color-accent-tint); }
+.challenge-card.solved:hover { background: var(--color-accent-tint); }
+.challenge-title { font-family: var(--font-display); font-size: 1.75rem; font-weight: 400; letter-spacing: 0.02em; line-height: 1.1; overflow-wrap: anywhere; }
+.challenge-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: auto; }
+.challenge-meta { color: var(--color-muted); font-size: 0.875rem; }
+
+/* Detail */
+.challenge-detail { display: grid; gap: var(--space-5); }
+.back-link { justify-self: start; font-size: 0.9375rem; }
+.challenge-detail h1 { margin-bottom: var(--space-3); overflow-wrap: anywhere; }
+.challenge-detail > .tags { margin-bottom: var(--space-2); }
+.challenge-body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.challenge-main, .challenge-side { display: grid; gap: var(--space-5); min-width: 0; }
+.challenge-description { margin: 0; padding: var(--space-5); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--color-surface); border: var(--border); }
+.attachments { margin: 0; padding: 0; list-style: none; border: var(--border); background: var(--color-surface); }
+.attachments li { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-line-soft); overflow-wrap: anywhere; }
+.attachments li:first-child { border-top: 0; }
+.attachments a::before { content: '\2193 '; content: '\2193 ' / ''; }
+
+.instance-panel { display: flex; flex-direction: column; gap: var(--space-3); }
+.instance-panel p { margin: 0; overflow-wrap: anywhere; }
+.instance-panel > button { align-self: flex-start; }
+.instance-panel strong { font-weight: 700; }
+.instance-panel .countdown { display: inline-block; padding: 0 var(--space-2); font-size: 1.375rem; line-height: 1.4; font-variant-numeric: tabular-nums; background: var(--color-accent); border: var(--border); }
+.instance-panel a { font-weight: 700; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+.flag-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3); align-items: stretch; }
+.flag-form h2, .flag-form label { grid-column: 1 / -1; }
+.flag-form label { margin-top: var(--space-2); }
+.flag-form input { font-size: 1rem; }
+.challenge-side .notice, .challenge-side .error { margin: 0; }
+
+/* Admin */
+.challenge-admin h1 { margin-bottom: var(--space-5); }
+.admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-5); margin-bottom: var(--space-6); }
+.admin-form h2, .admin-form .wide, .admin-form .check, .admin-form .actions { grid-column: 1 / -1; }
+.admin-form h2 { margin-bottom: var(--space-2); }
+.admin-form label.check { display: flex; align-items: center; gap: var(--space-3); font-weight: 400; }
+.challenge-admin > .notice, .challenge-admin > .error { margin-top: 0; }
+
+.table-wrap { overflow-x: auto; background: var(--color-surface); border: var(--border); }
 .admin-table { width: 100%; border-collapse: collapse; }
-.admin-table th, .admin-table td { text-align: left; padding: 8px; border-top: 1px solid #dde1e3; }
-.admin-table td.actions { justify-content: flex-end; }
+.admin-table th, .admin-table td { padding: var(--space-3) var(--space-4); text-align: left; border-top: 1px solid var(--color-line-soft); vertical-align: middle; }
+.admin-table thead th { border-top: 0; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: var(--color-surface-2); border-bottom: var(--border); }
+.admin-table tbody tr:hover { background: var(--color-accent-tint); }
+.admin-table td:first-child { font-weight: 700; overflow-wrap: anywhere; }
+.admin-table td.actions { display: table-cell; text-align: right; white-space: nowrap; }
+.admin-table td.actions button { min-height: 36px; padding: 2px var(--space-3); font-size: 0.875rem; }
+.admin-table td.actions button + button { margin-left: var(--space-2); }
+
+@media (max-width: 960px) {
+  .challenge-body { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+}
+
 @media (max-width: 760px) {
-  .challenges, .challenge-detail, .challenge-admin { padding: 20px 16px; }
-  .admin-table { display: block; overflow-x: auto; }
+  .challenge-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .challenge-card { min-height: 0; padding: var(--space-4); }
+  .instance-panel, .flag-form, .admin-form { --panel-pad: var(--space-4); }
+  .flag-form { grid-template-columns: minmax(0, 1fr); }
+  .admin-form { grid-template-columns: minmax(0, 1fr); }
+  /* Table rows become stacked cards using each cell's data-label. */
+  .table-wrap { border: 0; background: transparent; }
+  .admin-table, .admin-table tbody, .admin-table tr, .admin-table td { display: block; }
+  .admin-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .admin-table tr { margin-bottom: var(--space-4); background: var(--color-surface); border: var(--border); }
+  .admin-table td { display: flex; justify-content: space-between; gap: var(--space-4); text-align: right; overflow-wrap: anywhere; }
+  .admin-table td::before { content: attr(data-label); flex: none; color: var(--color-muted); text-align: left; }
+  .admin-table td:first-child { border-top: 0; }
+  .admin-table td.actions { display: flex; justify-content: flex-end; }
+  .admin-table td.actions::before { content: none; }
 }

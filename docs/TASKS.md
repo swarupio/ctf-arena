@@ -93,10 +93,13 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Acceptance:* tests for first blood vs second solve.
 
 ### Frontend
-- [ ] **P2-12 Challenges page.** Cards grouped by category, points, solved badge, solve count.
-- [ ] **P2-13 Challenge detail.** Description, attachments, **Start / Stop / Extend** with countdown timer and connection URL, flag input with clear success/error messages.
+- [x] **P2-12 Challenges page.** Cards grouped by category, points, solved badge, solve count.
+  *Verified (2026-11-04):* by an automated headless-browser run with locally signed test tokens against the real backend, Atlas and Docker (41 scenarios, all passing); not with a real Cognito login.
+- [x] **P2-13 Challenge detail.** Description, attachments, **Start / Stop / Extend** with countdown timer and connection URL, flag input with clear success/error messages.
   *Acceptance:* complete play-through in the browser.
-- [ ] **P2-14 Admin challenge manager UI** (simple form + table; Shubham extends the admin area later).
+  *Verified (2026-11-04):* by an automated headless-browser run with locally signed test tokens against the real backend, Atlas and Docker (41 scenarios, all passing); not with a real Cognito login.
+- [x] **P2-14 Admin challenge manager UI** (simple form + table; Shubham extends the admin area later).
+  *Verified (2026-11-04):* by an automated headless-browser run with locally signed test tokens against the real backend, Atlas and Docker (41 scenarios, all passing); not with a real Cognito login.
 
 ### Handoff
 - [ ] **P2-15 Docs sync and handoff.** Update docs, write `HANDOFF_2_gururaj_to_shubham.md`, tag `v0.2-engine`.
@@ -109,23 +112,39 @@ Each task has an **acceptance** line: if it is true, the task is done.
 **Goal:** the platform is public, scalable, observable, and ready to demo and submit.
 
 ### Leaderboard and admin
-- [ ] **P3-01 Leaderboard API.** `GET /api/leaderboard` (aggregation: points desc, latest solve asc) and `GET /api/leaderboard/timeline` (cumulative score per team over time for the chart).
-- [ ] **P3-02 Leaderboard UI.** Table with rank, team, points, solves, polling every 10 s, score-over-time chart, highlight "my team".
-- [ ] **P3-03 Admin stats API.** `GET /api/admin/stats`: users, teams, solves, submissions, wrong-flag rate, active instances, requests served per replica (counter kept in Mongo or from logs).
-- [ ] **P3-04 Admin instance and team tools.** `GET /api/admin/instances`, `POST /api/admin/instances/:id/kill`, `PATCH /api/admin/teams/:id/ban`.
-- [ ] **P3-05 Admin dashboard UI.** Stats cards, active instances table with Kill button, teams table with Ban button. Route guarded for `admin`.
+> **Provenance (Phase 3):** Shubham first built Phase 3 and merged it as PR #12. The release branch integrates that
+> work with four separately built parts (theme, leaderboard, admin, infra) and hardens it. Where both existed the more
+> complete, tested version was kept (service-layer leaderboard with deterministic tie-breaks, `adminService` with strict
+> validation and the `ReplicaStat` counter, the hardened Nginx, the Azure workflows); his EC2 script was replaced by
+> `deploy/azure-setup.sh`, and his zero-dependency and k6 load-test scripts were kept. Details are in the PR description.
+- [x] **P3-01 Leaderboard API.** `GET /api/leaderboard` (aggregation: points desc, latest solve asc) and `GET /api/leaderboard/timeline` (cumulative score per team over time for the chart).
+  *Verified (2026-11-04):* 18 new Vitest tests (ranking, tie-breaks, banned hidden, zero-solve teams last, timeline math, 401/403, no secret fields) with the full backend suite at 221 passing; the real pipeline also ran read-only on Atlas via `$documents` and matched expected ranks.
+- [x] **P3-02 Leaderboard UI.** Table with rank, team, points, solves, polling every 10 s, score-over-time chart, highlight "my team".
+  *Verified (2026-11-04):* 16 new node:test tests (chart scaling, polling/visibility pause, my-team match) with 34 frontend tests and the Vite build passing; headless-Chrome check with mocked API showed no horizontal overflow at 1100/390/320px in light and dark. A real two-account browser check against the live API is still pending.
+- [x] **P3-03 Admin stats API.** `GET /api/admin/stats`: users, teams, solves, submissions, wrong-flag rate, active instances, requests served per replica (counter kept in Mongo or from logs).
+  *Verified:* backend vitest with mocked models covers 401/403, the stats math, the zero-submission wrong rate, and the per-replica counter (buffered `$inc` upsert every ~5 s and on SIGTERM, health skipped, failures never break a request); not yet run against live Atlas.
+- [x] **P3-04 Admin instance and team tools.** `GET /api/admin/instances`, `POST /api/admin/instances/:id/kill`, `PATCH /api/admin/teams/:id/ban` (plus `GET /api/admin/teams`).
+  *Verified:* vitest with mocked models and instance service covers 401/403, the list shape with deleted refs, kill 204/404, ban stopping the team's instances, unban restarting nothing, strict body validation and no secret fields; a live Docker kill is not yet exercised.
+- [x] **P3-05 Admin dashboard UI.** Stats cards, active instances table with Kill button, teams table with Ban button. Route guarded for `admin`.
+  *Verified:* node:test helper tests and `npm run build` pass; a headless-Chrome run against a stubbed API checked the cards, Kill and Ban flows with confirm dialogs, the 10 s refresh pausing while hidden, empty/error states and no page overflow at 390 px. Not yet tried with a real `admin` Cognito user.
 
 ### Scaling
-- [ ] **P3-06 Nginx.** Final `nginx.conf`: serves the built frontend, proxies `/api` to the `backend` service with Docker DNS (`resolver 127.0.0.11`), round-robin, `limit_req` for the API, gzip, adds nothing that hides `X-Served-By`.
+- [x] **P3-06 Nginx.** Final `nginx.conf`: serves the built frontend, proxies `/api` to the `backend` service with Docker DNS (`resolver 127.0.0.11`), round-robin, `limit_req` for the API, gzip, adds nothing that hides `X-Served-By`.
   *Acceptance:* refreshing the page shows different replica names in the footer.
-- [ ] **P3-07 Load test.** `k6` or Apache Bench script in `deploy/loadtest/`; record results at 1, 3, and 5 replicas (requests/second, p95 latency) in a table.
-- [ ] **P3-08 Scale demo.** Verify `docker compose up -d --scale backend=5` works with no code change; document it.
+  *Verified (2026-11-04):* `nginx -t` passes on `nginx:1.27-alpine`. Live Compose stack (own project name, read-only root filesystem, `cap_drop: ALL`): SPA and `/assets` served with fallback, `/api` proxied through `resolver 127.0.0.11 valid=10s` + variable `proxy_pass`, and `X-Served-By` showed 1, 3 and 5 different replicas at 1, 3 and 5 replicas without restarting Nginx. `limit_req` (20 r/s per IP, burst 60) from a non-exempt source: 100 concurrent requests gave 61 OK and 39 JSON `429` with `Retry-After`; a sustained 15 r/s was never throttled. Added `sysctls` (port range, `tcp_tw_reuse`) after a 1-replica test exhausted ephemeral ports (502). The footer was not checked in a browser (headers only); the CSP was not exercised in a browser either.
+- [x] **P3-07 Load test.** `k6` or Apache Bench script in `deploy/loadtest/`; record results at 1, 3, and 5 replicas (requests/second, p95 latency) in a table.
+  *Done (2026-11-04):* `deploy/loadtest/` (autocannon, own `package.json`, README with commands). Real run on a laptop, not the VM (mean of 2 runs, 50 connections, 20 s): 1 replica 1,893 req/s p95 43.9 ms; 3 replicas 3,016 req/s p95 45.2 ms; 5 replicas 3,626 req/s p95 45.4 ms; 0 non-2xx responses. Full table, machine description and caveats in `deploy/loadtest/README.md`. Azure VM numbers still to be added after P3-09.
+- [x] **P3-08 Scale demo.** Verify `docker compose up -d --scale backend=5` works with no code change; document it.
+  *Verified (2026-11-04):* scaled 1 -> 3 -> 5 with that exact command and no code change; 5 replicas became healthy and the probe saw 5 different `X-Served-By` names. Documented in `deploy/loadtest/README.md` (Scale demo) and the root README.
 
 ### Deployment
 - [ ] **P3-09 Azure VM setup.** Ubuntu VM (a friend helps with the Azure account), Docker + Compose installed, static public IP, network security group inbound rules (80, 443 optional, 22 restricted to known IPs, 30000-30100 open), swap file if the VM size is small. Add the VM public IP to Atlas Network Access.
-- [ ] **P3-10 CI/CD.** `.github/workflows/deploy.yml`: on push to `main` run tests, SSH to the Azure VM, `git pull`, build frontend, `docker compose up -d --build`.
+  *Prepared, not done:* `deploy/azure-setup.sh` (idempotent: Docker + Compose, docker group, swap, ufw, prints `DOCKER_GID`; shellcheck clean, not run on a real VM) and the runbook `docs/AZURE_SETUP.md` are ready. **The VM itself must still be created by the friend who owns the Azure account**, then the IP added to Atlas; tick this box after `curl http://<ip>/api/health` works from outside.
+- [x] **P3-10 CI/CD.** `.github/workflows/deploy.yml`: on push to `main` run tests, SSH to the Azure VM, `git pull`, build frontend, `docker compose up -d --build`.
   *Acceptance:* merging a PR updates the live site within a few minutes.
-- [ ] **P3-11 Production hardening.** Real `FLAG_SECRET`, no debug logs, challenge limits confirmed, optional HTTPS (Caddy or Certbot) and optional docker-socket-proxy.
+  *Verified (2026-11-04):* `actionlint` clean on `deploy.yml`, `ci.yml` and the shared `tests.yml`; backend and frontend test/build commands run on Node 20; the VM-side script `deploy/deploy.sh` (frontend build in a Node container, `ctf/*` image build, `docker compose up -d --build`, Nginx config check, health check with retries) was run end to end locally. **Not verified:** the actual SSH deploy and "merge updates the live site" need the VM (P3-09) and the secrets `AZURE_VM_HOST`, `AZURE_VM_USER`, `AZURE_VM_SSH_KEY` (+ optional `AZURE_VM_HOST_KEY`); see `docs/AZURE_SETUP.md` section 11.
+- [x] **P3-11 Production hardening.** Real `FLAG_SECRET`, no debug logs, challenge limits confirmed, optional HTTPS (Caddy or Certbot) and optional docker-socket-proxy.
+  *Verified (2026-11-04) in the repo:* `docker-compose.yml` now has restart policy, backend `healthcheck` that gates Nginx via `depends_on`, no published backend port, log rotation, memory limits, `read_only` + `tmpfs`, `cap_drop: ALL` and `no-new-privileges` on backend and Nginx (all started and served traffic live; the `group_add` DOCKER_GID line and socket mount are kept). `git grep console.log` in `backend/src` and `frontend/src` is empty. `docs/SECURITY.md` section 6 is the production checklist with the Caddy HTTPS and docker-socket-proxy how-tos (documented, not executed). **Still to do on the VM** by whoever deploys: set the real `FLAG_SECRET` and `NODE_ENV=production`, inspect one running challenge container for the limits, narrow the Atlas allowlist (checklist boxes).
 
 ### Quality, demo, report
 - [ ] **P3-12 End-to-end QA.** Run the full checklist in `DEMO_AND_REPORT.md` with 2 teams on 2 devices; log bugs; coordinate fixes with Swarup and Gururaj.

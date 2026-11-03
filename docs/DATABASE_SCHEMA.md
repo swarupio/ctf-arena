@@ -1,9 +1,10 @@
 # Database Schema (MongoDB Atlas, database `ctf_arena`)
 
 Models are written with Mongoose. Field types: S = string, N = number, D = date, B = boolean, OID = ObjectId.
-Owner: **S** Swarup, **G** Gururaj.
-Implementation status (Phase 2): `User`, `Team`, `Challenge`, `Instance`, `Submission` and `Solve`
-exist with the indexes below (verified live on Atlas). The leaderboard query is a Phase 3 contract.
+Owner: **S** Swarup, **G** Gururaj, **H** Shubham.
+Implementation status: `User`, `Team`, `Challenge`, `Instance`, `Submission`, `Solve` and `ReplicaStat`
+exist with the indexes below (the first six were verified live on Atlas; `ReplicaStat` was also exercised live by the
+end-to-end browser run). The leaderboard query is implemented in `services/leaderboardService.js`.
 Mongoose also adds its default `__v` version key to documents.
 Phase 2 detail: `instances` has no `updatedAt`; a failed start sets `status: 'failed'`, which sits outside the
 partial unique indexes and so frees the port. `solves.points` starts as the base points and is raised to include
@@ -75,6 +76,10 @@ Indexes:
 - **Partial unique** on `{ teamId: 1, challengeId: 1 }` where status is active -> one live instance per team per challenge.
 - `{ status: 1, expiresAt: 1 }` for the reaper.
 
+`stopping` is the short claim state while a replica removes the container. If that replica crashes mid-stop the
+instance stays `stopping` (still holding its port); the reaper and the player routes only claim `starting|running`,
+so the admin kill route claims it with `{ force: true }` and finishes the cleanup (see `API_SPEC.md`).
+
 ## submissions (G)
 Every attempt, right or wrong. Used for rate limiting and admin stats.
 | Field | Type | Notes |
@@ -96,6 +101,20 @@ Indexes: `{ teamId: 1, challengeId: 1, createdAt: -1 }`. TTL index deletes rows 
 
 Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline.
 
+## replicastats (H)
+Per-replica request counter for the admin dashboard (`GET /admin/stats` -> `requestsByReplica`).
+One document per backend replica; written by `middleware/requestCounter.js`.
+| Field | Type | Notes |
+|-------|------|-------|
+| replica | S | required, **unique index**, the replica hostname (same value as `X-Served-By`) |
+| requests | N | `/api/*` requests served (not `/api/health`), default 0 |
+| updatedAt | D | set on every write |
+
+Each replica buffers counts in memory and flushes with one `updateOne({ replica }, { $inc: { requests: n } }, { upsert: true })`
+about every 5 s and on SIGTERM. Indexes: TTL on `{ updatedAt: 1 }` deletes a replica's document after 30 days without traffic.
+`replica` is the container hostname (a 12-character container id under Docker Compose), so a replica replaced by a
+deploy leaves a stale document until that expiry (see "Replica names" in `API_SPEC.md`).
+
 ## Leaderboard query (H)
 ```js
 Solve.aggregate([
@@ -103,10 +122,13 @@ Solve.aggregate([
   { $sort: { points: -1, lastSolveAt: 1 } },
   { $lookup: { from: 'teams', localField: '_id', foreignField: '_id', as: 'team' } },
   { $unwind: '$team' },
-  { $match: { 'team.banned': false } }
+  { $match: { 'team.banned': { $ne: true } } },
+  { $project: { points: 1, solves: 1, lastSolveAt: 1, teamName: '$team.name' } }
 ]);
 ```
-Teams with zero solves are appended at the bottom with 0 points.
+Teams with zero solves (and not banned) are appended at the bottom with 0 points. The service then sorts the whole list
+in memory with the tie-breaks points desc, earliest `lastSolveAt`, team name, team id, so every replica returns the same
+order. The timeline reads the `solves` of the top 10 teams in `solvedAt` order (the `{ solvedAt: 1 }` index).
 
 ## Relationships
 ```

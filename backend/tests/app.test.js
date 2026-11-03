@@ -15,6 +15,7 @@ vi.mock('../src/models/Instance.js', () => ({ default: {}, ACTIVE_STATUSES: ['st
 vi.mock('../src/models/Solve.js', () => ({ default: {} }));
 vi.mock('../src/models/Submission.js', () => ({ default: {} }));
 vi.mock('../src/models/Team.js', () => ({ default: {} }));
+vi.mock('../src/models/ReplicaStat.js', () => ({ default: {} }));
 vi.mock('mongoose', () => ({ default: { connection: { readyState: 0 } } }));
 
 describe('backend skeleton', () => {

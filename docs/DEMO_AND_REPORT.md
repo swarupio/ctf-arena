@@ -19,9 +19,9 @@
 | 3:30 | Start the Cookie Monster instance, show the countdown, open its URL | **Docker** |
 | 4:30 | Run `docker ps` to show the labeled container with limits | **Docker** |
 | 5:00 | Solve the challenge, submit the flag, leaderboard moves on the other device | **DBaaS** |
-| 5:45 | Refresh several times, point at "Served by backend-1/2/3" in the footer | **Scaling** |
+| 5:45 | Refresh several times, point at the footer "Served by <replica id>" changing between three ids | **Scaling** |
 | 6:15 | Run the load test, then `docker compose up -d --scale backend=5`, show new replicas serving | **Scaling** |
-| 7:00 | Admin kills a live instance, container disappears | **Docker + IAM** |
+| 7:00 | Admin dashboard: kill a live instance (`docker ps` shows it gone), ban a team and show its next submit is refused | **Docker + IAM** |
 | 7:30 | Show GitHub Actions deploying a small change to the live site | **Deployment** |
 | 8:00 | Summary slide: four services, who built what | |
 
@@ -54,13 +54,30 @@
 14. **Conclusion**
 15. **References**
 
-## 5. Load-test results table (fill in)
+## 5. Load-test results table
 
-| Replicas | Requests/sec | p95 latency (ms) | Error rate |
-|----------|--------------|------------------|------------|
-| 1 | | | |
-| 3 | | | |
-| 5 | | | |
+Tool and commands: `deploy/loadtest/README.md` (autocannon against `GET /api/health` through Nginx, 50 connections,
+20 s measured after a 3 s warm-up, mean of two runs per setting).
+
+**Laptop numbers** (Intel Core i5-13420H, 12 threads, Docker Desktop on Windows 11, load generator on the same machine,
+measured 2026-11-03/04; indicative only):
+
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+|----------|--------------|------------------|------------------|------------|
+| 1 | 1,893 | 43.9 | 55.6 | 0.00 % |
+| 3 | 3,016 | 45.2 | 62.6 | 0.04 % |
+| 5 | 3,626 | 45.4 | 66.1 | 0.06 % |
+
+Throughput grows about 1.6x at 3 replicas and 1.9x at 5 (not linearly: the laptop runs out of CPU first). Every run
+had 0 non-2xx responses; the small error rate is client-side connection errors from the Docker Desktop network path.
+
+**Azure VM numbers: pending** (run the same commands on the VM after P3-09, then fill in):
+
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+|----------|--------------|------------------|------------------|------------|
+| 1 | | | | |
+| 3 | | | | |
+| 5 | | | | |
 
 ## 6. Screenshot checklist
 Take these while building, not on the last night: Cognito pool settings, MFA QR screen, Atlas collections,

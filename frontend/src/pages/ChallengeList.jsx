@@ -26,9 +26,15 @@ export default function ChallengeList() {
       <div className="challenge-grid">
         {items.map((challenge) => <Link key={challenge.id} to={`/challenges/${challenge.id}`} className={`challenge-card${challenge.solvedByMyTeam ? ' solved' : ''}`}>
           <span className="challenge-title">{challenge.title}</span>
-          <span className="challenge-meta">{challenge.points} pts · {challenge.difficulty}{challenge.type === 'docker' ? ' · instance' : ''}</span>
-          <span className="challenge-meta">{challenge.solveCount} {challenge.solveCount === 1 ? 'solve' : 'solves'}</span>
-          {challenge.solvedByMyTeam && <span className="badge">Solved</span>}
+          <span className="tags">
+            <span className="tag tag-points">{challenge.points} pts</span>
+            <span className={`tag tag-${challenge.difficulty}`}>{challenge.difficulty}</span>
+            {challenge.type === 'docker' && <span className="tag">instance</span>}
+          </span>
+          <span className="challenge-foot">
+            <span className="challenge-meta">{challenge.solveCount} {challenge.solveCount === 1 ? 'solve' : 'solves'}</span>
+            {challenge.solvedByMyTeam && <span className="badge">Solved</span>}
+          </span>
         </Link>)}
       </div>
     </div>)}

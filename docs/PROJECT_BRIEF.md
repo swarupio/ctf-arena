@@ -60,7 +60,7 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 - [ ] Log in on a phone with the authenticator code
 - [ ] Start a challenge, open its URL, solve it, submit the flag, score appears
 - [ ] Leaderboard updates for a second team on another device
-- [ ] Footer shows `Served by backend-1/2/3` and changes between refreshes
+- [ ] Footer shows `Served by <replica>` (the container id of one of the 3 replicas) and changes between refreshes
 - [ ] Run a load test, then `docker compose up --scale backend=5` and show the change
 - [ ] Admin kills a running instance and the container disappears
 - [ ] Site opens from a public URL

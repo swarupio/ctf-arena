@@ -90,9 +90,16 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
 
   // Atomically claims an active instance, removes its container, then marks it stopped.
   // Two replicas (or the reaper and a player) can race; only one proceeds.
-  async function stop(instanceId) {
+  //
+  // `force` also takes over an instance stuck in 'stopping': a replica that crashed after claiming it never
+  // finishes, and the normal claim (starting|running) can no longer see it. Only the admin kill route passes
+  // it. The player routes and the reaper keep the exclusive claim, so they never touch another caller's
+  // stop in progress. Removing a container is idempotent (an already removed one is ignored), so a forced
+  // stop overlapping a slow normal one is harmless.
+  async function stop(instanceId, { force = false } = {}) {
+    const claimable = force ? ['starting', 'running', 'stopping'] : ['starting', 'running'];
     const claimed = await Instance.findOneAndUpdate(
-      { _id: instanceId, status: { $in: ['starting', 'running'] } },
+      { _id: instanceId, status: { $in: claimable } },
       { $set: { status: 'stopping' } },
       { new: true },
     );

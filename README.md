@@ -25,6 +25,36 @@ submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
 | 2 | **Gururaj** | Challenges, Docker engine, flag submission, scoring | `v0.2-engine` |
 | 3 | **Shubham** | Leaderboard, admin dashboard, scaling, deployment, demo, report | `v1.0-release` |
 
+## Status
+
+All three phases are in the code base: login with MFA and teams, challenges with one Docker container per team,
+flags and scoring, the live leaderboard, the admin dashboard, Nginx load balancing across backend replicas, a load
+test, and the Azure VM deployment scripts with CI/CD. What is still open (see `docs/TASKS.md`): creating the real Azure
+VM (P3-09), the live end-to-end check with two teams on two devices (P3-12), demo data and script (P3-13), report
+and slides (P3-14) and the final tag `v1.0-release` (P3-15). Handoffs: `docs/handoffs/`.
+
+## Quick start (whole stack on your machine)
+
+```bash
+cp .env.example .env                      # then fill in Atlas + Cognito values (docs/SETUP.md); never commit .env
+cd backend && npm ci && npm run seed:challenges && cd ..          # register the starter challenges once
+for d in challenges/*/; do s=$(basename "$d"); [ -f "$d/Dockerfile" ] && [ "${s#_}" = "$s" ] && docker build -t "ctf/$s" "$d"; done
+cd frontend && npm ci && npm run build && cd ..                   # Nginx serves frontend/dist
+docker compose up -d --build              # Nginx + 3 backend replicas on http://localhost
+```
+
+| Page | Who | What |
+|------|-----|------|
+| `/challenges`, `/challenges/:id` | players | list by category, start/stop/extend an instance, submit a flag |
+| `/leaderboard` | players | standings, score-over-time chart, your team highlighted, refreshes every 10 s |
+| `/team` | players | create or join a team, invite code, members, score |
+| `/admin` | admins | stats cards, requests per replica, active instances (Kill), teams (Ban/Unban) |
+| `/admin/challenges` | admins | create, edit, hide and delete challenges |
+
+Roles are exact: `admin` and `player` do not imply each other (an admin gets 403 on player routes such as the
+leaderboard, and a player is redirected away from `/admin`). Tests: `cd backend && npm test`, `cd frontend && npm test`.
+Unit tests need no database, but the variables of `.env.example` must be set (a copy of it as `.env` is enough).
+
 ## Read the docs in this order
 
 1. `docs/PROJECT_BRIEF.md` - what we are building and why
@@ -35,8 +65,9 @@ submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
 6. `docs/API_SPEC.md` and `docs/DATABASE_SCHEMA.md` - the contracts everyone codes against
 7. `docs/CHALLENGES.md` - the starter challenges and the container template
 8. `docs/SETUP.md` - local setup, Atlas, Cognito
-9. `docs/SECURITY.md` - rules that keep the platform safe
+9. `docs/SECURITY.md` - rules that keep the platform safe, plus the production checklist
 10. `docs/DEMO_AND_REPORT.md` - demo script and report outline
+11. `docs/AZURE_SETUP.md` - create the Azure VM and deploy (runbook for whoever owns the Azure account)
 
 ## Backend foundation (P1-01 through P1-04)
 
@@ -67,14 +98,13 @@ Visit `http://localhost:4000/api/health` for
 `{ "status": "ok", "db": "up", "replica": "<hostname>" }`.
 The response stays HTTP 200; `db` becomes `down` whenever Mongoose is not connected.
 Run `npm test` in `backend/` for API, startup, database, and environment tests
-(no real database or `.env` needed), or
+(no real database or real credentials needed; the placeholder values of `.env.example`
+in a root `.env` or in the environment are enough, which is how CI runs them), or
 `npm start` to run without nodemon. Removing `MONGODB_URI` from the environment
 and both `.env` files makes startup exit with code 1 and an error naming the variable.
 
-Frontend auth/team screens and backend teams are implemented locally. Challenge
-and deployment features remain future work. Nginx serves the built
-frontend (`frontend/dist`, SPA fallback) and proxies the API.
-GitHub branch protection and collaborator access still need verification for P1-01.
+Nginx serves the built frontend (`frontend/dist`, SPA fallback) and load-balances the API
+across the backend replicas.
 
 ## Demo seed data (P1-14)
 
@@ -127,7 +157,7 @@ Mongoose and aws-jwt-verify are the requested foundations for later database
 and Cognito work. Vitest runs tests, Supertest exercises HTTP, and nodemon
 restarts the development server.
 
-## Docker backend and placeholder Nginx (P1-05)
+## Docker backend and Nginx (P1-05)
 
 Start Docker Desktop with Linux containers. From the repository root, copy
 `.env.example` to `.env` if you have not configured it yet. Keep `PORT=4000`
@@ -161,3 +191,23 @@ header. Repeated requests should show different replica names:
 The backend image uses Node.js 20 Alpine, installs production dependencies
 only, and runs as the non-root `node` user. The built frontend is mounted
 into Nginx. Stop the stack with `docker compose down`.
+
+## Scaling, load test and deployment (Phase 3)
+
+Scale the backend without any code change (Nginx re-resolves the `backend` service every 10 seconds):
+
+```bash
+docker compose up -d --scale backend=5
+```
+
+Set `NGINX_HOST_PORT` (for example in `.env`) if host port 80 is taken, and on a Linux host `DOCKER_GID` (the group id
+of `/var/run/docker.sock`; both are explained at the end of `.env.example`). Replica names in the footer and on the
+admin dashboard are container ids. A free load test with results at
+1, 3 and 5 replicas is in [`deploy/loadtest/`](deploy/loadtest/README.md).
+
+Deployment is one Ubuntu VM on Azure. [`docs/AZURE_SETUP.md`](docs/AZURE_SETUP.md) is the step-by-step runbook
+(VM, network rules, `deploy/azure-setup.sh`, `.env` for production, first deploy, troubleshooting).
+On the VM, `bash deploy/deploy.sh` builds the frontend and challenge images and restarts the stack; the GitHub
+Actions workflow `.github/workflows/deploy.yml` runs the same script after the tests on every push to `main`
+(pull requests run only the tests, `.github/workflows/ci.yml`). Before real players arrive, tick the production
+checklist in [`docs/SECURITY.md`](docs/SECURITY.md).

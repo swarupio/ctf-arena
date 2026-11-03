@@ -1,6 +1,6 @@
 # Handoff: Phase 2 -> Phase 3 (engine)
 
-Status: backend engine, challenge images and challenge UI implemented. Written by the Foundation
+Status (updated on the release branch): backend engine, challenge images and challenge UI implemented, **browser-verified**, and the Phase 3 code (leaderboard, admin, Nginx, deploy) is integrated. Written by the Foundation
 agent on Swarup's request while Gururaj's own work was in flight. **Gururaj: review this before tagging `v0.2-engine`.**
 
 ## What now exists
@@ -17,8 +17,11 @@ agent on Swarup's request while Gururaj's own work was in flight. **Gururaj: rev
 - Challenge images built and solved by hand under the production flags (read-only rootfs, cap-drop ALL, no-new-privileges).
 - Compose: 3 replicas start, reach Atlas and Docker, and the reaper reconciles at startup.
 
+## Browser verification (release branch)
+- P2-12/13/14 are ticked: an automated headless-Chrome run (41 scenarios: play-through, start/extend/stop, flags, rate limit, admin challenge CRUD, leaderboard, admin dashboard, kill, ban/unban) passed against the real backend routes, Atlas and Docker, using locally signed test tokens. It was **not** a real Cognito login.
+- Phase 3 (leaderboard, admin dashboard, replica counter, Nginx, Azure scripts) is integrated; see `HANDOFF_3_shubham_to_release.md`.
+
 ## Not verified yet (needs a human)
-- **P2-12/13/14:** a full browser play-through (sign in, join team, start instance, solve, see score) and the admin form with a real `admin` Cognito user. Tests and builds pass; boxes left unticked.
 - Two replicas racing for the same port on a real second process (covered by the unique partial index and unit tests, not by a concurrent live run).
 - Tag `v0.2-engine` and the handoff gate in `WORKFLOW.md`.
 
@@ -28,7 +31,7 @@ agent on Swarup's request while Gururaj's own work was in flight. **Gururaj: rev
 3. **Images must exist on the host.** Build them on the Azure VM before play: `docker build -t ctf/<slug> challenges/<slug>` for each challenge folder.
 4. **Reaper runs on every replica** every 60 s. Each stop is an atomic `findOneAndUpdate` claim, so replicas never fight; no extra config.
 5. **Rate limit** (5 submits/min/team/challenge) is stored in MongoDB (`submissions`), not in memory, so scaling replicas is safe.
-6. **Leaderboard:** `GET /leaderboard` can aggregate `solves` as in `DATABASE_SCHEMA.md`. Team score is also `scoringService.teamScore(teamId)`. `GET /teams/me` still returns `score: 0` (Swarup's file); switch it to `teamScore` when wiring the leaderboard.
+6. **Leaderboard (done):** `GET /leaderboard` aggregates `solves` as in `DATABASE_SCHEMA.md`. Team score is also `scoringService.teamScore(teamId)`. `GET /teams/me` still returns `score: 0` (Swarup's file); switch it to `teamScore` when wiring the leaderboard.
 7. **Admin team ban** (P3-04) should also stop that team's instances: `instanceService.stopTeamInstances(teamId)`.
 8. Deleting a challenge keeps its solves (points are kept); admins can hide a challenge with `visible: false` instead.
 

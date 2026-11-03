@@ -1,0 +1,66 @@
+/* Admin dashboard. Scoped with the adm- prefix; every colour, space and font comes from the tokens in styles.css.
+   Cards, section headings and tables follow the patterns of the challenge list and the admin challenge manager. */
+.adm { min-width: 0; }
+.adm-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-5); margin-bottom: var(--space-5); }
+.adm-head h1 { margin: 0; }
+.adm-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); font-size: 0.8125rem; color: var(--color-muted); }
+.adm > .error, .adm > .notice { margin-top: 0; }
+.adm > p[role='status']:not(.notice) { color: var(--color-muted); }
+.adm > p[role='status']:not(.notice)::before { content: '> '; content: '> ' / ''; color: var(--color-ink); }
+
+/* Section headings: "> Title ------" like the challenge categories */
+.adm > h2 { display: flex; align-items: center; gap: var(--space-4); margin: var(--space-7) 0 var(--space-4); }
+.adm > h2::before { content: '>'; content: '>' / ''; }
+.adm > h2::after { content: ''; flex: 1; border-top: var(--border); }
+
+/* Stat cards */
+.adm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.adm-card { min-width: 0; padding: var(--space-4); background: var(--color-surface); border: var(--border); }
+.adm-card:hover { background: var(--color-accent-tint); }
+.adm-card-value { display: block; font-family: var(--font-display); font-size: 2.75rem; line-height: 1; overflow-wrap: anywhere; }
+.adm-card-label { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+.adm-card-label::before { content: ''; flex: none; width: 8px; height: 8px; background: var(--color-accent); border: var(--border); }
+
+/* Requests per replica */
+.adm-replicas { margin: 0; padding: var(--space-5); list-style: none; display: grid; gap: var(--space-4); background: var(--color-surface); border: var(--border); }
+.adm-replicas li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-4); align-items: baseline; }
+.adm-replica-name { font-weight: 700; overflow-wrap: anywhere; }
+.adm-replica-count { font-variant-numeric: tabular-nums; }
+.adm-bar { grid-column: 1 / -1; display: block; height: 12px; overflow: hidden; background: var(--color-surface-2); border: var(--border); }
+.adm-bar > span { display: block; height: 100%; background: var(--color-accent); box-shadow: inset -1px 0 0 var(--color-ink); }
+.adm-replicas li.adm-replica-total { display: block; padding-top: var(--space-3); font-size: 0.8125rem; color: var(--color-muted); border-top: 1px solid var(--color-line-soft); }
+
+.adm-empty { margin: 0; padding: var(--space-4); color: var(--color-muted); background: var(--color-surface); border: var(--border); }
+.adm-empty::before { content: '> '; content: '> ' / ''; color: var(--color-ink); }
+
+/* Tables scroll inside their own container on small screens, so the page never grows wider than the screen. */
+.adm-scroll { position: relative; max-width: 100%; overflow-x: auto; background: var(--color-surface); border: var(--border); }
+.adm-table { width: 100%; border-collapse: collapse; }
+.adm-table th, .adm-table td { padding: var(--space-3) var(--space-4); text-align: left; border-top: 1px solid var(--color-line-soft); vertical-align: middle; white-space: nowrap; }
+.adm-table thead th { border-top: 0; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: var(--color-surface-2); border-bottom: var(--border); }
+.adm-table tbody tr:hover { background: var(--color-accent-tint); }
+.adm-table td.adm-name { min-width: 9rem; font-weight: 700; white-space: normal; overflow-wrap: anywhere; }
+.adm-table td:last-child { text-align: right; }
+.adm-table td.adm-actions button { min-height: 36px; padding: 2px var(--space-3); font-size: 0.875rem; }
+.adm-badge { display: inline-block; padding: 0 var(--space-2); font-size: 0.8125rem; font-weight: 700; line-height: 1.7; background: var(--color-surface); border: var(--border); }
+.adm-banned { color: var(--color-danger); background: var(--color-danger-tint); border-color: var(--color-danger); }
+
+.adm-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 760px) {
+  .adm > h2 { margin-top: var(--space-6); }
+  .adm-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .adm-card-value { font-size: 2.25rem; }
+  .adm-replicas { padding: var(--space-4); }
+  /* Table rows become stacked cards using each cell's data-label (same pattern as the admin challenge table). */
+  .adm-scroll { overflow: visible; background: transparent; border: 0; }
+  .adm-table, .adm-table tbody, .adm-table tr, .adm-table td { display: block; }
+  .adm-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .adm-table tr { margin-bottom: var(--space-4); background: var(--color-surface); border: var(--border); }
+  .adm-table td { display: flex; justify-content: space-between; gap: var(--space-4); text-align: right; white-space: normal; overflow-wrap: anywhere; }
+  .adm-table td::before { content: attr(data-label); flex: none; color: var(--color-muted); text-align: left; }
+  .adm-table td:first-child { border-top: 0; }
+  .adm-table td.adm-name { min-width: 0; }
+  .adm-table td.adm-actions { justify-content: flex-end; }
+  .adm-table td.adm-actions::before { content: none; }
+}

@@ -7,3 +7,6 @@ coverage/
 *.log
 
 .vite/
+
+# Local assistant/agent scratch data
+.claude/
