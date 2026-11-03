@@ -31,8 +31,6 @@ const MESSAGES = {
   ALREADY_RUNNING: 'Your team already has an instance of this challenge.',
   NO_FREE_PORT: 'No free ports right now. Try again in a moment.',
   RATE_LIMITED: 'Too many attempts. Wait a minute before trying again.',
-  CONFLICT: 'This was already done for your team.',
-  NOT_FOUND: 'That challenge or instance no longer exists.',
 };
 
 export function challengeErrorMessage(error) {
