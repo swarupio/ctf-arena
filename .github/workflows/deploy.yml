@@ -1,0 +1,116 @@
+name: CI/CD Pipeline - CTF Arena
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Backend & Frontend Tests
+    runs-on: ubuntu-latest
+
+    # Fake-but-valid env vars so backend/src/config/env.js does not call
+    # process.exit(1) during module load. No real secrets here — the backend
+    # never connects to MongoDB or Cognito while running unit tests because
+    # those services are mocked. Values must only pass Zod schema validation.
+    env:
+      NODE_ENV: test
+      PORT: "4000"
+      MONGODB_URI: mongodb://localhost:27017/ctf-test
+      COGNITO_REGION: us-east-1
+      COGNITO_USER_POOL_ID: us-east-1_TESTPOOL
+      COGNITO_CLIENT_ID: testclientid12345678
+      VITE_COGNITO_REGION: us-east-1
+      VITE_COGNITO_USER_POOL_ID: us-east-1_TESTPOOL
+      VITE_COGNITO_CLIENT_ID: testclientid12345678
+      PUBLIC_HOST: http://localhost:4000
+      FLAG_SECRET: "ci-test-secret-at-least-32-characters-long"
+      CHALLENGE_PORT_MIN: "30000"
+      CHALLENGE_PORT_MAX: "30100"
+      INSTANCE_TTL_MINUTES: "30"
+      MAX_INSTANCES_PER_TEAM: "2"
+      CHALLENGE_MEMORY_MB: "128"
+      CHALLENGE_CPU_LIMIT: "0.5"
+      CHALLENGE_PIDS_LIMIT: "50"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run Backend Tests
+        working-directory: backend
+        run: npm test
+
+      - name: Install Frontend Dependencies
+        run: |
+          if [ -f "frontend/package.json" ]; then
+            cd frontend && npm ci
+          else
+            echo "No frontend/package.json — skipping."
+          fi
+
+      - name: Build Frontend
+        run: |
+          if [ -f "frontend/package.json" ]; then
+            cd frontend && npm run build
+          else
+            echo "No frontend/package.json — skipping."
+          fi
+
+  deploy:
+    name: Continuous Deployment to Azure VM
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Azure VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_HOST }}
+          username: ${{ secrets.AZURE_USER }}
+          key: ${{ secrets.AZURE_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            APP_DIR="/home/${{ secrets.AZURE_USER }}/ctf-arena"
+
+            if [ ! -d "$APP_DIR" ]; then
+              echo "[-] Target directory $APP_DIR does not exist. Cloning..."
+              git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            echo "[+] Fetching latest updates from origin/main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            if [ -f "frontend/package.json" ]; then
+              echo "[+] Building frontend..."
+              cd frontend
+              npm ci
+              npm run build
+              cd ..
+            fi
+
+            echo "[+] Deploying containers with Docker Compose..."
+            docker compose down --remove-orphans || true
+            docker compose up -d --build --scale backend=3
+
+            echo "[+] Verifying health endpoint..."
+            sleep 5
+            curl -f http://localhost/api/health || (echo "[-] Health check failed" && exit 1)
+            echo "[+] Deployment completed successfully!"
