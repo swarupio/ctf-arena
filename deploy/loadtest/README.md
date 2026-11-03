@@ -8,6 +8,10 @@ replica, which reports its database connection state), first sends 40 paced prob
 then runs a warm-up and a measured run, and prints requests/second, p50/p95/p99 latency, the error rate and a
 Markdown table row to paste into `docs/DEMO_AND_REPORT.md`.
 
+Two more tools from PR #12 live in this folder and do not conflict with the above: `loadtest.js` (zero-dependency
+Node script: `node deploy/loadtest/loadtest.js http://localhost/api/health 20 20`) and `k6-loadtest.js`
+(`k6 run deploy/loadtest/k6-loadtest.js`, needs k6). The results below were measured with autocannon.
+
 ## Run it
 
 Needs Node 20+ and the stack running (`docker compose up -d --build`, frontend built first, see the root README).

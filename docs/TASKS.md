@@ -109,6 +109,11 @@ Each task has an **acceptance** line: if it is true, the task is done.
 **Goal:** the platform is public, scalable, observable, and ready to demo and submit.
 
 ### Leaderboard and admin
+> **Provenance (Phase 3):** Shubham first built Phase 3 and merged it as PR #12. The release branch integrates that
+> work with four separately built parts (theme, leaderboard, admin, infra) and hardens it. Where both existed the more
+> complete, tested version was kept (service-layer leaderboard with deterministic tie-breaks, `adminService` with strict
+> validation and the `ReplicaStat` counter, the hardened Nginx, the Azure workflows); his EC2 script was replaced by
+> `deploy/azure-setup.sh`, and his zero-dependency and k6 load-test scripts were kept. Details are in the PR description.
 - [x] **P3-01 Leaderboard API.** `GET /api/leaderboard` (aggregation: points desc, latest solve asc) and `GET /api/leaderboard/timeline` (cumulative score per team over time for the chart).
   *Verified (2026-11-04):* 18 new Vitest tests (ranking, tie-breaks, banned hidden, zero-solve teams last, timeline math, 401/403, no secret fields) with the full backend suite at 221 passing; the real pipeline also ran read-only on Atlas via `$documents` and matched expected ranks.
 - [x] **P3-02 Leaderboard UI.** Table with rank, team, points, solves, polling every 10 s, score-over-time chart, highlight "my team".
