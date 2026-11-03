@@ -109,8 +109,10 @@ Each task has an **acceptance** line: if it is true, the task is done.
 **Goal:** the platform is public, scalable, observable, and ready to demo and submit.
 
 ### Leaderboard and admin
-- [ ] **P3-01 Leaderboard API.** `GET /api/leaderboard` (aggregation: points desc, latest solve asc) and `GET /api/leaderboard/timeline` (cumulative score per team over time for the chart).
-- [ ] **P3-02 Leaderboard UI.** Table with rank, team, points, solves, polling every 10 s, score-over-time chart, highlight "my team".
+- [x] **P3-01 Leaderboard API.** `GET /api/leaderboard` (aggregation: points desc, latest solve asc) and `GET /api/leaderboard/timeline` (cumulative score per team over time for the chart).
+  *Verified (2026-11-04):* 18 new Vitest tests (ranking, tie-breaks, banned hidden, zero-solve teams last, timeline math, 401/403, no secret fields) with the full backend suite at 221 passing; the real pipeline also ran read-only on Atlas via `$documents` and matched expected ranks.
+- [x] **P3-02 Leaderboard UI.** Table with rank, team, points, solves, polling every 10 s, score-over-time chart, highlight "my team".
+  *Verified (2026-11-04):* 16 new node:test tests (chart scaling, polling/visibility pause, my-team match) with 34 frontend tests and the Vite build passing; headless-Chrome check with mocked API showed no horizontal overflow at 1100/390/320px in light and dark. A real two-account browser check against the live API is still pending.
 - [ ] **P3-03 Admin stats API.** `GET /api/admin/stats`: users, teams, solves, submissions, wrong-flag rate, active instances, requests served per replica (counter kept in Mongo or from logs).
 - [ ] **P3-04 Admin instance and team tools.** `GET /api/admin/instances`, `POST /api/admin/instances/:id/kill`, `PATCH /api/admin/teams/:id/ban`.
 - [ ] **P3-05 Admin dashboard UI.** Stats cards, active instances table with Kill button, teams table with Ban button. Route guarded for `admin`.
