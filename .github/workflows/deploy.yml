@@ -1,0 +1,88 @@
+name: CI/CD Pipeline - CTF Arena
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Backend & Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run Backend Tests
+        working-directory: backend
+        run: npm test
+
+      - name: Build Frontend (if present)
+        run: |
+          if [ -f "frontend/package.json" ]; then
+            cd frontend
+            npm ci
+            npm run build
+          else
+            echo "Frontend package.json not yet created. Skipping frontend build."
+          fi
+
+  deploy:
+    name: Continuous Deployment to AWS EC2
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            APP_DIR="/home/ubuntu/ctf-arena"
+
+            if [ ! -d "$APP_DIR" ]; then
+              echo "[-] Target directory $APP_DIR does not exist. Creating..."
+              git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            echo "[+] Fetching latest updates from origin/main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Build frontend distribution if frontend exists
+            if [ -f "frontend/package.json" ]; then
+              echo "[+] Building frontend application..."
+              cd frontend
+              npm ci
+              npm run build
+              cd ..
+            fi
+
+            echo "[+] Deploying containers with Docker Compose..."
+            docker compose down --remove-orphans || true
+            docker compose up -d --build --scale backend=3
+
+            echo "[+] Verifying health endpoint..."
+            sleep 5
+            curl -f http://localhost/api/health || (echo "[-] Health check failed" && exit 1)
+            echo "[+] Deployment completed successfully!"
+
