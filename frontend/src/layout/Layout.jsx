@@ -35,7 +35,7 @@ function LayoutContent() {
         <NavLink to="/challenges">Challenges</NavLink>
         <NavLink to="/leaderboard">Leaderboard</NavLink>
         <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>
-        {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
+        {user?.role === 'admin' && <><NavLink to="/admin" end>Admin</NavLink><NavLink to="/admin/challenges">Manage challenges</NavLink></>}
       </nav>
       <div className="account">
         {loading ? <span>Loading…</span> : user ? <><span className="email">{user.email}</span><button className="secondary" onClick={logout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button></> : <><Link to="/login">Login</Link><Link to="/signup">Sign up</Link></>}

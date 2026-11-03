@@ -1,0 +1,11 @@
+{
+  "slug": "sanity-check",
+  "title": "Sanity Check",
+  "category": "misc",
+  "difficulty": "easy",
+  "points": 25,
+  "type": "static",
+  "flag": "CTF{welcome_to_the_arena}",
+  "description": "Welcome to the arena! Flags look like `CTF{...}`. Here is a free one to test submission: `CTF{welcome_to_the_arena}`",
+  "visible": true
+}

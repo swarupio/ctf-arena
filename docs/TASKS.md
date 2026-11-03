@@ -66,30 +66,30 @@ Each task has an **acceptance** line: if it is true, the task is done.
 **Goal:** a team can see challenges, start their own container, solve it, submit the flag and earn points.
 
 ### Challenge images (can start during Phase 1)
-- [ ] **P2-01 Challenge template.** `challenges/_template/` with Dockerfile rules from `CHALLENGES.md`.
-- [ ] **P2-02 Build the starter challenges** listed in `CHALLENGES.md` (at least 3 Docker ones and 2 static ones).
+- [x] **P2-01 Challenge template.** `challenges/_template/` with Dockerfile rules from `CHALLENGES.md`.
+- [x] **P2-02 Build the starter challenges** listed in `CHALLENGES.md` (at least 3 Docker ones and 2 static ones).
   *Acceptance:* `docker run -e FLAG=CTF{test} -p 8080:80 ctf/cookie-monster` serves the page and the flag is only obtainable by solving.
 
 ### Data and admin
-- [ ] **P2-03 Models.** `Challenge`, `Instance`, `Submission`, `Solve` exactly as in `DATABASE_SCHEMA.md`, including the unique and TTL indexes.
-- [ ] **P2-04 Admin challenge CRUD.** `GET/POST/PUT/DELETE /api/admin/challenges` (role `admin`), with validation. Flag is stored hashed for static challenges and never returned to players.
+- [x] **P2-03 Models.** `Challenge`, `Instance`, `Submission`, `Solve` exactly as in `DATABASE_SCHEMA.md`, including the unique and TTL indexes.
+- [x] **P2-04 Admin challenge CRUD.** `GET/POST/PUT/DELETE /api/admin/challenges` (role `admin`), with validation. Flag is stored hashed for static challenges and never returned to players.
   *Acceptance:* admin creates a challenge; player cannot see the flag or hash in any response.
-- [ ] **P2-05 Player challenge routes.** `GET /api/challenges` (grouped info, solved flag for my team, solve count) and `GET /api/challenges/:id`. Hidden challenges are not listed.
+- [x] **P2-05 Player challenge routes.** `GET /api/challenges` (grouped info, solved flag for my team, solve count) and `GET /api/challenges/:id`. Hidden challenges are not listed.
 
 ### Docker engine
-- [ ] **P2-06 `dockerService.js`.** Functions: `ensureNetwork`, `createInstance`, `stopInstance`, `listManagedContainers`. Applies limits from `.env` (memory, CPU, pids, cap-drop ALL, no-new-privileges).
+- [x] **P2-06 `dockerService.js`.** Functions: `ensureNetwork`, `createInstance`, `stopInstance`, `listManagedContainers`. Applies limits from `.env` (memory, CPU, pids, cap-drop ALL, no-new-privileges).
   *Acceptance:* unit-test with a fake docker client; manual test starts a real container.
-- [ ] **P2-07 Instance routes.** `POST /api/challenges/:id/instance`, `GET /api/instances`, `DELETE /api/instances/:id`, `POST /api/instances/:id/extend` (once, +15 min). Atomic port claim via unique index.
+- [x] **P2-07 Instance routes.** `POST /api/challenges/:id/instance`, `GET /api/instances`, `DELETE /api/instances/:id`, `POST /api/instances/:id/extend` (once, +15 min). Atomic port claim via unique index.
   *Acceptance:* two replicas starting instances at once never get the same port; team limit enforced.
-- [ ] **P2-08 Reaper.** `reaper.js` runs every 60 s, claims expired instances atomically, stops containers; on startup reconciles DB vs real containers (kills orphans, marks missing ones stopped).
+- [x] **P2-08 Reaper.** `reaper.js` runs every 60 s, claims expired instances atomically, stops containers; on startup reconciles DB vs real containers (kills orphans, marks missing ones stopped).
   *Acceptance:* an instance with a 1-minute TTL disappears from `docker ps` without manual action.
 
 ### Flags and scoring
-- [ ] **P2-09 `flagService.js`.** Per-team dynamic flags with HMAC, static flag hashing and verification with `timingSafeEqual`.
+- [x] **P2-09 `flagService.js`.** Per-team dynamic flags with HMAC, static flag hashing and verification with `timingSafeEqual`.
   *Acceptance:* two teams get different flags for the same Docker challenge; tests cover both types.
-- [ ] **P2-10 Submission route.** `POST /api/challenges/:id/submit` with rate limit (5 per minute per team per challenge), writes `Submission`, creates `Solve` on success (duplicate-safe), stops the team's instance.
+- [x] **P2-10 Submission route.** `POST /api/challenges/:id/submit` with rate limit (5 per minute per team per challenge), writes `Submission`, creates `Solve` on success (duplicate-safe), stops the team's instance.
   *Acceptance:* double-click gives exactly one solve; wrong flags are logged; banned teams get 403.
-- [ ] **P2-11 `scoringService.js`.** Fixed points plus 10% first-blood bonus. Returns the team's updated score.
+- [x] **P2-11 `scoringService.js`.** Fixed points plus 10% first-blood bonus. Returns the team's updated score.
   *Acceptance:* tests for first blood vs second solve.
 
 ### Frontend

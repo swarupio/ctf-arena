@@ -7,6 +7,9 @@ import Team from '../src/models/Team.js';
 import { installTeamStore } from './helpers/teamStore.js';
 
 vi.mock('../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
+vi.mock('../src/services/instanceService.js', () => ({
+  instanceService: { stopTeamInstances: vi.fn().mockResolvedValue(undefined) },
+}));
 vi.mock('../src/models/User.js', () => ({ default: {
   init: vi.fn(), findOne: vi.fn(), find: vi.fn(), findOneAndUpdate: vi.fn(), db: { transaction: vi.fn() },
 } }));

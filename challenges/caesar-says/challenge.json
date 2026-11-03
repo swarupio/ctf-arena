@@ -1,0 +1,11 @@
+{
+  "slug": "caesar-says",
+  "title": "Caesar Says",
+  "category": "crypto",
+  "difficulty": "easy",
+  "points": 75,
+  "type": "static",
+  "flag": "CTF{caesar_was_here}",
+  "description": "A message was intercepted. Julius would know what to do.\n\n```\naol zljyla mshn pz JAM{jhlzhy_dhz_olyl} zv rllw pa zhml\n```\n\nFlag format: `CTF{...}` (letters inside the braces are lowercase).",
+  "visible": true
+}

@@ -7,6 +7,7 @@ vi.mock('../src/config/env.js', () => ({
 }));
 vi.mock('../src/config/db.js', () => ({ connectDB: vi.fn() }));
 vi.mock('../src/app.js', () => ({ default: { listen: vi.fn() } }));
+vi.mock('../src/services/reaper.js', () => ({ reaper: { start: vi.fn() } }));
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -1,0 +1,12 @@
+{
+  "slug": "login-bypass",
+  "title": "Login Bypass",
+  "category": "web",
+  "difficulty": "medium",
+  "points": 200,
+  "type": "docker",
+  "image": "ctf/login-bypass",
+  "internalPort": 8000,
+  "description": "Staff only. You do not have a password. Start the instance and get in anyway.\n\nFlag format: `CTF{...}`",
+  "visible": true
+}

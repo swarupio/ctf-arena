@@ -5,6 +5,7 @@ import { auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import User from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
+import { instanceService } from '../services/instanceService.js';
 
 const router = Router();
 const nameSchema = z.object({ name: z.string().trim().min(3).max(24) }).strict();
@@ -127,6 +128,7 @@ router.get('/me', async (req, res) => {
 
 router.post('/me/leave', async (req, res) => {
   validate(z.object({}).strict(), req.body ?? {});
+  let disbandedTeamId = null;
   await transaction(async (Team, session) => {
     const user = await User.findOne({ cognitoSub: req.user.cognitoSub }, null, { session });
     if (!user?.teamId) { throw noTeam(); }
@@ -135,6 +137,7 @@ router.post('/me/leave', async (req, res) => {
     const remaining = team.memberIds.filter((id) => String(id) !== String(user._id));
     if (remaining.length === 0) {
       await Team.deleteOne({ _id: team._id }, { session });
+      disbandedTeamId = team._id;
     } else {
       await Team.updateOne({ _id: team._id }, { $set: {
         memberIds: remaining,
@@ -145,8 +148,11 @@ router.post('/me/leave', async (req, res) => {
       $set: { teamId: null },
     }, { new: true, runValidators: true, session });
     if (!cleared) { throw new AppError(409, 'CONFLICT', 'Your team membership changed. Try again.'); }
-    // TODO: P2: stop this team's running instances here
   });
+  // The team no longer exists, so its running containers must not outlive it.
+  if (disbandedTeamId) {
+    try { await instanceService.stopTeamInstances(disbandedTeamId); } catch { /* the reaper retries */ }
+  }
   res.sendStatus(204);
 });
 
