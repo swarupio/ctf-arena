@@ -8,6 +8,7 @@ import teamsRouter from './routes/teams.js';
 import challengesRouter from './routes/challenges.js';
 import instancesRouter from './routes/instances.js';
 import adminChallengesRouter from './routes/admin/challenges.js';
+import leaderboardRouter from './routes/leaderboard.js';
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use('/api/teams', teamsRouter);
 app.use('/api/challenges', challengesRouter);
 app.use('/api/instances', instancesRouter);
 app.use('/api/admin/challenges', adminChallengesRouter);
+app.use('/api/leaderboard', leaderboardRouter);
 app.use(notFound);
 app.use(errorHandler);
 
