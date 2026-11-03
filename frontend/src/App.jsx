@@ -9,7 +9,7 @@ import ChallengeDetail from './pages/ChallengeDetail.jsx';
 import ChallengeAdmin from './pages/ChallengeAdmin.jsx';
 
 function Placeholder({ title }) {
-  return <section><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
+  return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
 
 export default function App() {
