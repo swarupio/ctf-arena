@@ -78,7 +78,7 @@ export default function ChallengeDetail() {
         <p>Status: <strong>{instance.status}</strong> · Time left: <strong>{formatCountdown(instance.expiresAt, now)}</strong></p>
         <p>Connect: <a href={instance.url} target="_blank" rel="noreferrer">{instance.url}</a></p>
         <div className="actions">
-          <button className="secondary" disabled={busy} onClick={() => run(() => extendInstance(instance.id), 'Instance extended by 15 minutes.')}>Extend +15 min</button>
+          <button className="secondary" disabled={busy || instance.extended} title={instance.extended ? 'Already extended once' : undefined} onClick={() => run(() => extendInstance(instance.id), 'Instance extended by 15 minutes.')}>{instance.extended ? 'Extended' : 'Extend +15 min'}</button>
           <button className="secondary" disabled={busy} onClick={() => run(() => stopInstance(instance.id), 'Instance stopped.')}>Stop</button>
         </div>
       </> : <>

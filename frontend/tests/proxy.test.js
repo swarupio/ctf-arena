@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { createServer as createHttpServer } from 'node:http';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
+
+// Pin Vite to this package so vite.config.js (and its /api proxy) is found no matter
+// which directory the tests are launched from (e.g. `node --test frontend/tests`).
+const frontendRoot = fileURLToPath(new URL('..', import.meta.url));
 
 test('the Vite API proxy uses the target override and preserves X-Served-By', async () => {
   const upstream = createHttpServer((req, res) => {
@@ -14,7 +19,11 @@ test('the Vite API proxy uses the target override and preserves X-Served-By', as
   process.env.API_PROXY_TARGET = `http://127.0.0.1:${upstream.address().port}`;
   let vite;
   try {
-    vite = await createViteServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
+    vite = await createViteServer({
+      root: frontendRoot,
+      server: { host: '127.0.0.1', port: 0 },
+      logLevel: 'silent',
+    });
     await vite.listen();
     const response = await fetch(`http://127.0.0.1:${vite.httpServer.address().port}/api/health`);
     assert.equal(response.status, 200);
