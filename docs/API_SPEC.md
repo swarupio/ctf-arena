@@ -1,9 +1,9 @@
 # API Specification (the contract)
 
 Base path: `/api`. JSON in, JSON out.
-Implementation status (P1-15 audit): Health, identity and Teams below are implemented.
-Challenges, Instances, Leaderboard and Admin sections are Phase 2/3 contracts;
-their routes are not mounted yet and currently return 404 `NOT_FOUND`.
+Implementation status (Phase 2): Health, identity, Teams, Challenges, Instances and
+`/admin/challenges` are implemented. Leaderboard and the other Admin sections are Phase 3
+contracts; their routes are not mounted yet and currently return 404 `NOT_FOUND`.
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
@@ -90,6 +90,12 @@ available seat and an unassigned user; failed claims roll back both documents.
 | GET | `/challenges/:id` | player | G | Adds `description`, `attachments:[{name,url}]`, `hasInstance`, `myInstance` (see below) |
 | POST | `/challenges/:id/submit` | player | G | Body `{ flag }`. Response `{ correct:boolean, pointsAwarded:number, firstBlood:boolean, message }`. 429 after 5 tries per minute per team per challenge. 409 if already solved. |
 
+Phase 2 implementation notes (Challenges):
+- Admins get 403 on player routes (roles are exact). Hidden challenges and malformed ids return 404 `NOT_FOUND`.
+- Players without a team can list and read challenges (`solvedByMyTeam` is false). Submit and instance routes need a team: 404 `NO_TEAM`; banned teams get 403 `TEAM_BANNED`.
+- Submit body is strict `{ flag }` (1-200 chars). A wrong flag returns 200 with `correct: false`. A correct flag returns 200 with `pointsAwarded` (base points, plus 10% on first blood, rounded down) and `firstBlood`. The rate limit (5 per minute per team per challenge) is counted in MongoDB, so it holds across replicas. A team that already solved it gets 409 `CONFLICT`, including the losing side of a double click.
+- Correct submissions stop the team's instance of that challenge.
+
 ## Instances (Docker containers)
 
 | Method | Path | Auth | Owner | Description |
@@ -99,7 +105,11 @@ available seat and an unassigned user; failed claims roll back both documents.
 | POST | `/instances/:id/extend` | player | G | Adds 15 minutes, allowed once per instance |
 | DELETE | `/instances/:id` | player | G | Stops and removes the container |
 
-`myInstance` object: `{ id, status: "starting|running|stopping", url, expiresAt, extended }`
+`myInstance` object: `{ id, challengeId, status: "starting|running|stopping", url, expiresAt, extended }`
+(`POST .../instance` returns 201 with the same object; `GET /instances` returns an array of them).
+Phase 2 notes: `INSTANCE_LIMIT`, `ALREADY_RUNNING` and a second extension are 409; `NO_FREE_PORT` is 503;
+`NOT_DOCKER_CHALLENGE` is 400. `DELETE` returns 204. Instances are only visible to the owning team (others get 404).
+Leaving a team as its last member stops that team's instances.
 
 ## Leaderboard
 
@@ -121,6 +131,11 @@ available seat and an unassigned user; failed claims roll back both documents.
 | POST | `/admin/instances/:id/kill` | H | Force stop |
 | GET | `/admin/teams` | H | All teams with score and ban state |
 | PATCH | `/admin/teams/:id/ban` | H | Body `{ banned: true|false }` |
+
+Admin responses never contain a flag or hash. They return the challenge fields plus `hasFlag` (static only),
+`visible`, `solveCount` and `createdAt`. `PUT` takes the same body as create; for static challenges
+omitting `flag` keeps the stored hash. `image` must start with `ctf/`. Duplicate slugs return 409 `CONFLICT`.
+Deleting a challenge stops its instances; existing solves are kept.
 
 **Challenge body (create / update)**
 ```json

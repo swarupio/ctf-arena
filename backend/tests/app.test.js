@@ -10,6 +10,11 @@ import { AppError } from '../src/utils/AppError.js';
 vi.mock('../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 // Skeleton tests exercise health/errors only; avoid loading schemas into the DB-state mock.
 vi.mock('../src/models/User.js', () => ({ default: {} }));
+vi.mock('../src/models/Challenge.js', () => ({ default: {} }));
+vi.mock('../src/models/Instance.js', () => ({ default: {}, ACTIVE_STATUSES: ['starting', 'running', 'stopping'] }));
+vi.mock('../src/models/Solve.js', () => ({ default: {} }));
+vi.mock('../src/models/Submission.js', () => ({ default: {} }));
+vi.mock('../src/models/Team.js', () => ({ default: {} }));
 vi.mock('mongoose', () => ({ default: { connection: { readyState: 0 } } }));
 
 describe('backend skeleton', () => {

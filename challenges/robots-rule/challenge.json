@@ -1,0 +1,12 @@
+{
+  "slug": "robots-rule",
+  "title": "Robots Rule",
+  "category": "web",
+  "difficulty": "easy",
+  "points": 100,
+  "type": "docker",
+  "image": "ctf/robots-rule",
+  "internalPort": 8000,
+  "description": "Our intranet has a secret page. Start the instance and find it.\n\nFlag format: `CTF{...}`",
+  "visible": true
+}

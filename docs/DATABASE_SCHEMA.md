@@ -2,10 +2,12 @@
 
 Models are written with Mongoose. Field types: S = string, N = number, D = date, B = boolean, OID = ObjectId.
 Owner: **S** Swarup, **G** Gururaj.
-Implementation status (P1-15 audit): only `User` and `Team` models exist.
-Challenges, instances, submissions, solves and the leaderboard query below are
-planned Phase 2/3 contracts, not existing collections/indexes guaranteed by this code.
-Mongoose also adds its default `__v` version key to User and Team documents.
+Implementation status (Phase 2): `User`, `Team`, `Challenge`, `Instance`, `Submission` and `Solve`
+exist with the indexes below (verified live on Atlas). The leaderboard query is a Phase 3 contract.
+Mongoose also adds its default `__v` version key to documents.
+Phase 2 detail: `instances` has no `updatedAt`; a failed start sets `status: 'failed'`, which sits outside the
+partial unique indexes and so frees the port. `solves.points` starts as the base points and is raised to include
+the bonus when the team is the first solver (`solveCount` becomes 1 atomically). Team score is the sum of `solves.points`.
 
 ## users (S)
 | Field | Type | Notes |

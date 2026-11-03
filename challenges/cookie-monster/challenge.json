@@ -1,0 +1,12 @@
+{
+  "slug": "cookie-monster",
+  "title": "Cookie Monster",
+  "category": "web",
+  "difficulty": "easy",
+  "points": 100,
+  "type": "docker",
+  "image": "ctf/cookie-monster",
+  "internalPort": 8000,
+  "description": "Only admins can see the good stuff. Start the instance and become one.\n\nFlag format: `CTF{...}`",
+  "visible": true
+}

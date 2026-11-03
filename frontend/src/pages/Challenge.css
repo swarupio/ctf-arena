@@ -1,0 +1,25 @@
+.challenges, .challenge-detail, .challenge-admin { background: #fff; padding: 32px; border-radius: 8px; }
+.challenges h1, .challenge-detail h1, .challenge-admin h1 { margin-top: 0; }
+.challenge-group h2 { text-transform: capitalize; margin: 24px 0 12px; }
+.challenge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.challenge-card { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid #cfd4d6; border-radius: 8px; color: inherit; text-decoration: none; background: #fafafa; }
+.challenge-card:hover { border-color: #1f2a30; }
+.challenge-card.solved { background: #eaf6ee; border-color: #8cc9a0; }
+.challenge-title { font-weight: 700; overflow-wrap: anywhere; }
+.challenge-meta { color: #55626a; font-size: 14px; text-transform: capitalize; }
+.badge { align-self: flex-start; padding: 2px 8px; border-radius: 4px; background: #2e7d4f; color: #fff; font-size: 12px; font-weight: 600; }
+.challenge-description { white-space: pre-wrap; margin: 16px 0; overflow-wrap: anywhere; }
+.instance-panel, .flag-form { margin-top: 24px; padding: 20px; border: 1px solid #cfd4d6; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+.instance-panel h2, .flag-form h2 { margin: 0; font-size: 20px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.attachments { padding-left: 20px; }
+.admin-form { display: grid; gap: 12px; max-width: 640px; margin-bottom: 32px; }
+.admin-form label { display: flex; flex-direction: column; gap: 4px; }
+.admin-form label.check { flex-direction: row; align-items: center; gap: 8px; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th, .admin-table td { text-align: left; padding: 8px; border-top: 1px solid #dde1e3; }
+.admin-table td.actions { justify-content: flex-end; }
+@media (max-width: 760px) {
+  .challenges, .challenge-detail, .challenge-admin { padding: 20px 16px; }
+  .admin-table { display: block; overflow-x: auto; }
+}
