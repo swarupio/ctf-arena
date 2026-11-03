@@ -1,0 +1,87 @@
+# Deploy to the Azure VM on every push to main (task P3-10).
+#   1. tests      backend tests, frontend tests and build (shared with ci.yml via tests.yml)
+#   2. deploy     SSH to the VM, git pull, deploy/deploy.sh (frontend build, challenge images,
+#                 docker compose up -d --build, health check that fails the job if /api/health is not ok)
+#   3. the public URL is probed from the runner as a last end-to-end check
+#
+# Repository secrets (Settings > Secrets and variables > Actions). Nothing secret is in this file:
+#   AZURE_VM_HOST      public IP or DNS name of the VM
+#   AZURE_VM_USER      login user on the VM (for example azureuser)
+#   AZURE_VM_SSH_KEY   private key of a key pair used ONLY for deployments (see docs/AZURE_SETUP.md)
+#   AZURE_VM_HOST_KEY  optional but recommended: the VM's SSH host key line, to pin it
+#                      (output of: ssh-keyscan -t ed25519 <host>)
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # manual redeploy from the Actions tab (only deploys when run on main)
+
+permissions:
+  contents: read
+
+# One deploy at a time. A newer push waits instead of cancelling a deploy that is half finished.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  deploy:
+    name: Deploy to Azure VM
+    needs: tests
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      # Plain ssh instead of a third-party action: the private key never leaves this runner or reaches
+      # code we do not control, and the whole mechanism is the ~20 lines below. Secrets are passed as
+      # environment variables, never pasted into the script text.
+      - name: Deploy over SSH
+        env:
+          VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          VM_USER: ${{ secrets.AZURE_VM_USER }}
+          VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          VM_HOST_KEY: ${{ secrets.AZURE_VM_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          : "${VM_HOST:?Repository secret AZURE_VM_HOST is not set}"
+          : "${VM_USER:?Repository secret AZURE_VM_USER is not set}"
+          : "${VM_SSH_KEY:?Repository secret AZURE_VM_SSH_KEY is not set}"
+
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          trap 'rm -f "$HOME/.ssh/deploy_key"' EXIT
+          printf '%s\n' "$VM_SSH_KEY" | tr -d '\r' > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+
+          if [ -n "${VM_HOST_KEY:-}" ]; then
+            printf '%s\n' "$VM_HOST_KEY" | tr -d '\r' > "$HOME/.ssh/known_hosts"
+          else
+            echo "::warning::AZURE_VM_HOST_KEY is not set, so the VM's host key is trusted on first contact. Set it to pin the key."
+            ssh-keyscan -T 15 -t ed25519,rsa "$VM_HOST" > "$HOME/.ssh/known_hosts"
+          fi
+
+          ssh -i "$HOME/.ssh/deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            "$VM_USER@$VM_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd ~/ctf-arena
+          git pull --ff-only origin main
+          bash deploy/deploy.sh
+          REMOTE
+
+      - name: Check the public URL
+        env:
+          VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+        run: |
+          set -euo pipefail
+          body="$(curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors --max-time 10 "http://${VM_HOST}/api/health")"
+          echo "$body"
+          echo "$body" | grep -q '"status":"ok"'

@@ -1,0 +1,52 @@
+# Reusable test workflow. ci.yml (pull requests) and deploy.yml (push to main) both call it,
+# so a PR and a deploy are always judged by exactly the same checks.
+name: Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      # The tests mock MongoDB, Cognito and Docker: no .env and no secrets are needed.
+      - run: npm ci
+      - run: npm test
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      # Proves the production bundle compiles. The deployed bundle is built on the VM with the real
+      # VITE_* values from its .env (see deploy/deploy.sh).
+      - run: npm run build
