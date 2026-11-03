@@ -10,10 +10,10 @@ Each task has an **acceptance** line: if it is true, the task is done.
 **Goal:** a person can register, set up MFA, log in, create or join a team, and the backend knows who they are.
 
 ### Setup
-- [ ] **P1-01 Repo and structure.** Create the GitHub repo, add the folder layout from `AGENTS.md`, add the docs from this package, protect `main`, invite Gururaj and Shubham.
+- [x] **P1-01 Repo and structure.** Create the GitHub repo, add the folder layout from `AGENTS.md`, add the docs from this package, protect `main`, invite Gururaj and Shubham.
   *Acceptance:* all three can clone and push a branch.
   *Local progress:* folder skeleton and docs are present; GitHub protection, invitations, and collaborator access remain unverified.
-  *Update (2026-11-03):* `main` branch protection enabled (PR + 1 approval, no force-push/deletion); invitations pending for gururajpanse and Shubham-Mahajani. Tick once both accept and can push a branch.
+  *Update (2026-11-03):* `main` branch protection enabled (PR + 1 approval, no force-push/deletion); invitations pending for gururajpanse and Shubham-Mahajani. Both accepted 2026-11-03; `gururajpanse` and `Shubham-Mahajani` now have push access, no invitations pending. Old merged `swarup/*` branches deleted.
 - [x] **P1-02 Backend skeleton.** Express app with `app.js` / `server.js`, `helmet`, JSON parsing, CORS off (same origin via Nginx), central error handler returning `{ "error": { "code", "message" } }`.
   *Acceptance:* `GET /api/health` returns `{ "status": "ok", "replica": "<hostname>" }`.
 - [x] **P1-03 Env config.** `config/env.js` loads and validates all variables with `zod`; app refuses to start if one is missing.
