@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { roleFromGroups, userFromSession, signInPath, returnPath, authMessage, missingAuthVariables } from '../src/auth/logic.js';
-import viteConfig from '../vite.config.js';
+import createViteConfig from '../vite.config.js';
 
 test('Vite reads the root env while retaining the browser prefix restriction', () => {
+  const viteConfig = createViteConfig({ mode: 'test' });
   assert.equal(viteConfig.envDir, '..');
   assert.equal(viteConfig.envPrefix, 'VITE_');
   assert.equal(viteConfig.define, undefined);
