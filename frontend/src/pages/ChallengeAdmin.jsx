@@ -97,7 +97,7 @@ export default function ChallengeAdmin() {
         <label>Image (ctf/…)<input value={form.image} onChange={set('image')} required placeholder="ctf/cookie-monster" /></label>
         <label>Internal port<input type="number" min="1" max="65535" value={form.internalPort} onChange={set('internalPort')} required /></label>
       </> : <label>Flag{editingId ? ' (leave empty to keep the current one)' : ''}<input value={form.flag} onChange={set('flag')} required={!editingId} autoComplete="off" /></label>}
-      <label>Description (markdown)<textarea value={form.description} onChange={set('description')} rows={5} /></label>
+      <label className="wide">Description (markdown)<textarea value={form.description} onChange={set('description')} rows={5} /></label>
       <label className="check"><input type="checkbox" checked={form.visible} onChange={set('visible')} /> Visible to players</label>
       <div className="actions">
         <button disabled={busy}>{busy ? 'Saving…' : editingId ? 'Save changes' : 'Create challenge'}</button>
@@ -105,16 +105,16 @@ export default function ChallengeAdmin() {
       </div>
     </form>
 
-    {!challenges ? <p role="status">Loading…</p> : <table className="admin-table">
+    {!challenges ? <p role="status">Loading…</p> : <div className="table-wrap"><table className="admin-table">
       <thead><tr><th>Title</th><th>Type</th><th>Category</th><th>Points</th><th>Solves</th><th>Visible</th><th /></tr></thead>
       <tbody>{challenges.map((challenge) => <tr key={challenge.id}>
-        <td>{challenge.title}</td><td>{challenge.type}</td><td>{challenge.category}</td>
-        <td>{challenge.points}</td><td>{challenge.solveCount}</td><td>{challenge.visible ? 'yes' : 'hidden'}</td>
+        <td data-label="Title">{challenge.title}</td><td data-label="Type">{challenge.type}</td><td data-label="Category">{challenge.category}</td>
+        <td data-label="Points">{challenge.points}</td><td data-label="Solves">{challenge.solveCount}</td><td data-label="Visible">{challenge.visible ? 'yes' : 'hidden'}</td>
         <td className="actions">
           <button className="secondary" onClick={() => edit(challenge)}>Edit</button>
           <button className="secondary" onClick={() => remove(challenge)}>Delete</button>
         </td>
       </tr>)}</tbody>
-    </table>}
+    </table></div>}
   </section>;
 }
