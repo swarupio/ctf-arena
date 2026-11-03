@@ -15,7 +15,7 @@ submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
 | 1 | IAM + MFA | AWS Cognito (TOTP authenticator app) | Sign up, login, 6-digit code, `player` / `admin` roles |
 | 2 | Database as a Service | MongoDB Atlas (free tier) | Teams, challenges, solves, submissions, leaderboard |
 | 3 | Docker + scaling | Docker, Docker Compose, Nginx | One container per team per challenge, 3 backend replicas |
-| 4 | Deployment | AWS EC2 + GitHub Actions | Public URL, auto-deploy on push to `main` |
+| 4 | Deployment | Azure VM + GitHub Actions | Public URL, auto-deploy on push to `main` |
 
 ## Who builds what
 

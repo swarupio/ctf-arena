@@ -18,7 +18,7 @@ Backend replicas run behind Nginx; data lives in MongoDB Atlas. Three people bui
 ## 3. Tech stack
 Node.js 20, Express, Mongoose (MongoDB Atlas), `dockerode`, `aws-jwt-verify`, `zod`, `helmet`,
 Vitest or Jest + Supertest. Frontend: React + Vite + React Router + `aws-amplify` (Auth only).
-Infra: Docker Compose, Nginx, AWS EC2, GitHub Actions. IAM/MFA: AWS Cognito.
+Infra: Docker Compose, Nginx, Azure VM, GitHub Actions. IAM/MFA: AWS Cognito (the only AWS service).
 
 ## 4. Repository layout (target)
 ```
@@ -46,7 +46,7 @@ ctf-arena/
 ├── challenges/
 │   ├── _template/
 │   └── <challenge-slug>/      # Dockerfile + app + README (solution notes)
-├── deploy/ { loadtest/, ec2-setup.sh }
+├── deploy/ { loadtest/, azure-setup.sh }
 └── .github/ { workflows/deploy.yml, pull_request_template.md }
 ```
 
@@ -110,7 +110,7 @@ docker build -t ctf/cookie-monster challenges/cookie-monster
   > Read AGENTS.md, docs/ARCHITECTURE.md section 3.2 and docs/DATABASE_SCHEMA.md. We are on task P2-07. Implement `POST /api/challenges/:id/instance` using `dockerService.createInstance`, claim a port atomically through the unique partial index on `instances.port`, enforce MAX_INSTANCES_PER_TEAM, and return the connection URL. Add tests with a fake docker client.
 
 ### Agent 3 - Release Agent (Shubham, Phase 3)
-- **Mission:** leaderboard, admin dashboard, Nginx load balancing, load testing, EC2 deployment, CI/CD, demo and report.
+- **Mission:** leaderboard, admin dashboard, Nginx load balancing, load testing, Azure VM deployment, CI/CD, demo and report.
 - **May edit:** `routes/leaderboard.js`, `routes/admin/{stats,instances,teams}.js`, `frontend/src/pages/{Leaderboard,Admin}*`, `nginx/`, `docker-compose.yml`, `.github/`, `deploy/`, `docs/`.
 - **Must not touch:** flag generation, scoring rules, auth verification (open an issue instead).
 - **Done when:** tasks P3-01 to P3-15 are ticked and `v1.0-release` is tagged.

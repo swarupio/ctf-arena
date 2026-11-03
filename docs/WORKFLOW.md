@@ -130,7 +130,7 @@ API contracts are fixed in `API_SPEC.md`, so mocks are allowed.
 | While this person is building... | ...the next person prepares |
 |----------------------------------|-----------------------------|
 | **Swarup** (Phase 1) | **Gururaj:** builds the challenge Docker images in `challenges/` (they need no login), writes the Dockerfile template, tests them with plain `docker run`. Reads `dockerode` docs. Prototypes `dockerService.js` in a scratch script. |
-| **Gururaj** (Phase 2) | **Shubham:** writes `nginx.conf`, creates the EC2 instance, security groups, Elastic IP, installs Docker, writes the GitHub Actions workflow, builds the leaderboard UI against mock JSON, prepares the load-test script. |
+| **Gururaj** (Phase 2) | **Shubham:** writes `nginx.conf`, creates the Azure VM, network security group rules, static public IP, installs Docker, writes the GitHub Actions workflow, builds the leaderboard UI against mock JSON, prepares the load-test script. |
 | **Shubham** (Phase 3) | **Swarup and Gururaj:** write test cases, fix bugs reported in the final QA, draft the report sections for their own parts, prepare their part of the demo. |
 
 Rule: prep work lives on its own branch and only merges **after** the previous handoff gate passes.

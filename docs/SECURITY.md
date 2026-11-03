@@ -23,7 +23,7 @@ Reduce the risk:
 1. Only the backend service gets the mount, and the backend never runs user-provided code.
 2. Validate everything that reaches `dockerService` (image must start with `ctf/`; ports come from the allowed range; no user-supplied command, volume or env).
 3. Optional hardening: run `tecnativa/docker-socket-proxy` and point the backend at it, allowing only `CONTAINERS` and `NETWORKS` APIs.
-4. Keep EC2 security groups tight: SSH only from known IPs.
+4. Keep the Azure network security group tight: SSH (22) only from known IPs.
 
 ## 3. Container creation checklist (`dockerService.createInstance`)
 ```js
@@ -45,7 +45,7 @@ Env: ['FLAG=<team flag>']
 ## 4. Secrets handling
 - Only `.env.example` is committed.
 - Share real values privately, never in screenshots.
-- GitHub Actions secrets: `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`.
+- GitHub Actions secrets: `AZURE_VM_HOST`, `AZURE_VM_USER`, `AZURE_VM_SSH_KEY`.
 - If a secret leaks: rotate it immediately (Atlas password, Cognito app client, `FLAG_SECRET`).
 
 ## 5. Ethics and rules for players (put on the site footer or rules page)

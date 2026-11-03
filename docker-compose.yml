@@ -9,7 +9,7 @@ services:
       # Lets the backend start challenge containers. See docs/SECURITY.md.
       - /var/run/docker.sock:/var/run/docker.sock
     # The backend runs as the non-root 'node' user; it needs the docker socket's group
-    # to start challenge containers. Linux/EC2: DOCKER_GID=$(getent group docker | cut -d: -f3).
+    # to start challenge containers. Linux/Azure VM: DOCKER_GID=$(getent group docker | cut -d: -f3).
     group_add:
       - "${DOCKER_GID:-0}"
     deploy:

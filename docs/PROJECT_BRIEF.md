@@ -38,7 +38,7 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 - Live leaderboard (polls every 10 seconds)
 - Admin: manage challenges, see active instances, kill any instance, see platform stats
 - 3 backend replicas behind Nginx, replica ID shown in the footer
-- Public deployment on EC2 with auto-deploy from GitHub
+- Public deployment on an Azure VM with auto-deploy from GitHub
 
 **Should have**
 - First-blood bonus (+10% points for the first team to solve)
@@ -75,7 +75,7 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 | IAM + MFA | AWS Cognito User Pool, TOTP only |
 | Containers | Docker + Docker Compose |
 | Load balancer | Nginx |
-| Hosting | AWS EC2 (Ubuntu) + Elastic IP |
+| Hosting | Azure Virtual Machine (Ubuntu) + static public IP |
 | CI/CD | GitHub Actions (SSH deploy) |
 | Tests | Vitest or Jest + Supertest |
 
@@ -87,4 +87,4 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 | Cognito setup is confusing | Step-by-step in SETUP.md; fallback is self-made TOTP with `otplib` + JWT |
 | Later phases blocked by earlier ones | API contract is fixed up front, so mocks are allowed (see WORKFLOW.md) |
 | Port clashes between replicas | Atomic port claim using a unique index in MongoDB |
-| EC2 free tier too small for many containers | Limit to 128 MB / 0.25 CPU per container, max 2 per team |
+| A small Azure VM size is too small for many containers | Limit to 128 MB / 0.25 CPU per container, max 2 per team |
