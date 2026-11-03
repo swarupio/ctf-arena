@@ -1,116 +1,87 @@
-name: CI/CD Pipeline - CTF Arena
+# Deploy to the Azure VM on every push to main (task P3-10).
+#   1. tests      backend tests, frontend tests and build (shared with ci.yml via tests.yml)
+#   2. deploy     SSH to the VM, git pull, deploy/deploy.sh (frontend build, challenge images,
+#                 docker compose up -d --build, health check that fails the job if /api/health is not ok)
+#   3. the public URL is probed from the runner as a last end-to-end check
+#
+# Repository secrets (Settings > Secrets and variables > Actions). Nothing secret is in this file:
+#   AZURE_VM_HOST      public IP or DNS name of the VM
+#   AZURE_VM_USER      login user on the VM (for example azureuser)
+#   AZURE_VM_SSH_KEY   private key of a key pair used ONLY for deployments (see docs/AZURE_SETUP.md)
+#   AZURE_VM_HOST_KEY  optional but recommended: the VM's SSH host key line, to pin it
+#                      (output of: ssh-keyscan -t ed25519 <host>)
+name: Deploy
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:      # manual redeploy from the Actions tab (only deploys when run on main)
+
+permissions:
+  contents: read
+
+# One deploy at a time. A newer push waits instead of cancelling a deploy that is half finished.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  test:
-    name: Backend & Frontend Tests
-    runs-on: ubuntu-latest
-
-    # Fake-but-valid env vars so backend/src/config/env.js does not call
-    # process.exit(1) during module load. No real secrets here — the backend
-    # never connects to MongoDB or Cognito while running unit tests because
-    # those services are mocked. Values must only pass Zod schema validation.
-    env:
-      NODE_ENV: test
-      PORT: "4000"
-      MONGODB_URI: mongodb://localhost:27017/ctf-test
-      COGNITO_REGION: us-east-1
-      COGNITO_USER_POOL_ID: us-east-1_TESTPOOL
-      COGNITO_CLIENT_ID: testclientid12345678
-      VITE_COGNITO_REGION: us-east-1
-      VITE_COGNITO_USER_POOL_ID: us-east-1_TESTPOOL
-      VITE_COGNITO_CLIENT_ID: testclientid12345678
-      PUBLIC_HOST: http://localhost:4000
-      FLAG_SECRET: "ci-test-secret-at-least-32-characters-long"
-      CHALLENGE_PORT_MIN: "30000"
-      CHALLENGE_PORT_MAX: "30100"
-      INSTANCE_TTL_MINUTES: "30"
-      MAX_INSTANCES_PER_TEAM: "2"
-      CHALLENGE_MEMORY_MB: "128"
-      CHALLENGE_CPU_LIMIT: "0.5"
-      CHALLENGE_PIDS_LIMIT: "50"
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install Backend Dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Run Backend Tests
-        working-directory: backend
-        run: npm test
-
-      - name: Install Frontend Dependencies
-        run: |
-          if [ -f "frontend/package.json" ]; then
-            cd frontend && npm ci
-          else
-            echo "No frontend/package.json — skipping."
-          fi
-
-      - name: Build Frontend
-        run: |
-          if [ -f "frontend/package.json" ]; then
-            cd frontend && npm run build
-          else
-            echo "No frontend/package.json — skipping."
-          fi
+  tests:
+    uses: ./.github/workflows/tests.yml
 
   deploy:
-    name: Continuous Deployment to Azure VM
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    name: Deploy to Azure VM
+    needs: tests
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
+    timeout-minutes: 25
     steps:
-      - name: Deploy to Azure VM via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.AZURE_HOST }}
-          username: ${{ secrets.AZURE_USER }}
-          key: ${{ secrets.AZURE_SSH_KEY }}
-          port: 22
-          script: |
-            set -e
-            APP_DIR="/home/${{ secrets.AZURE_USER }}/ctf-arena"
+      # Plain ssh instead of a third-party action: the private key never leaves this runner or reaches
+      # code we do not control, and the whole mechanism is the ~20 lines below. Secrets are passed as
+      # environment variables, never pasted into the script text.
+      - name: Deploy over SSH
+        env:
+          VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          VM_USER: ${{ secrets.AZURE_VM_USER }}
+          VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          VM_HOST_KEY: ${{ secrets.AZURE_VM_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          : "${VM_HOST:?Repository secret AZURE_VM_HOST is not set}"
+          : "${VM_USER:?Repository secret AZURE_VM_USER is not set}"
+          : "${VM_SSH_KEY:?Repository secret AZURE_VM_SSH_KEY is not set}"
 
-            if [ ! -d "$APP_DIR" ]; then
-              echo "[-] Target directory $APP_DIR does not exist. Cloning..."
-              git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
-            fi
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          trap 'rm -f "$HOME/.ssh/deploy_key"' EXIT
+          printf '%s\n' "$VM_SSH_KEY" | tr -d '\r' > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
 
-            cd "$APP_DIR"
-            echo "[+] Fetching latest updates from origin/main..."
-            git fetch origin main
-            git reset --hard origin/main
+          if [ -n "${VM_HOST_KEY:-}" ]; then
+            printf '%s\n' "$VM_HOST_KEY" | tr -d '\r' > "$HOME/.ssh/known_hosts"
+          else
+            echo "::warning::AZURE_VM_HOST_KEY is not set, so the VM's host key is trusted on first contact. Set it to pin the key."
+            ssh-keyscan -T 15 -t ed25519,rsa "$VM_HOST" > "$HOME/.ssh/known_hosts"
+          fi
 
-            if [ -f "frontend/package.json" ]; then
-              echo "[+] Building frontend..."
-              cd frontend
-              npm ci
-              npm run build
-              cd ..
-            fi
+          ssh -i "$HOME/.ssh/deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            "$VM_USER@$VM_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd ~/ctf-arena
+          git pull --ff-only origin main
+          bash deploy/deploy.sh
+          REMOTE
 
-            echo "[+] Deploying containers with Docker Compose..."
-            docker compose down --remove-orphans || true
-            docker compose up -d --build --scale backend=3
-
-            echo "[+] Verifying health endpoint..."
-            sleep 5
-            curl -f http://localhost/api/health || (echo "[-] Health check failed" && exit 1)
-            echo "[+] Deployment completed successfully!"
+      - name: Check the public URL
+        env:
+          VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+        run: |
+          set -euo pipefail
+          body="$(curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors --max-time 10 "http://${VM_HOST}/api/health")"
+          echo "$body"
+          echo "$body" | grep -q '"status":"ok"'

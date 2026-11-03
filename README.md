@@ -35,8 +35,9 @@ submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
 6. `docs/API_SPEC.md` and `docs/DATABASE_SCHEMA.md` - the contracts everyone codes against
 7. `docs/CHALLENGES.md` - the starter challenges and the container template
 8. `docs/SETUP.md` - local setup, Atlas, Cognito
-9. `docs/SECURITY.md` - rules that keep the platform safe
+9. `docs/SECURITY.md` - rules that keep the platform safe, plus the production checklist
 10. `docs/DEMO_AND_REPORT.md` - demo script and report outline
+11. `docs/AZURE_SETUP.md` - create the Azure VM and deploy (runbook for whoever owns the Azure account)
 
 ## Backend foundation (P1-01 through P1-04)
 
@@ -71,9 +72,9 @@ Run `npm test` in `backend/` for API, startup, database, and environment tests
 `npm start` to run without nodemon. Removing `MONGODB_URI` from the environment
 and both `.env` files makes startup exit with code 1 and an error naming the variable.
 
-Frontend auth/team screens and backend teams are implemented locally. Challenge
-and deployment features remain future work. Nginx serves the built
-frontend (`frontend/dist`, SPA fallback) and proxies the API.
+Frontend auth/team screens and backend teams are implemented locally. Nginx serves
+the built frontend (`frontend/dist`, SPA fallback) and load-balances the API
+across the backend replicas.
 GitHub branch protection and collaborator access still need verification for P1-01.
 
 ## Demo seed data (P1-14)
@@ -161,3 +162,21 @@ header. Repeated requests should show different replica names:
 The backend image uses Node.js 20 Alpine, installs production dependencies
 only, and runs as the non-root `node` user. The built frontend is mounted
 into Nginx. Stop the stack with `docker compose down`.
+
+## Scaling, load test and deployment (Phase 3)
+
+Scale the backend without any code change (Nginx re-resolves the `backend` service every 10 seconds):
+
+```bash
+docker compose up -d --scale backend=5
+```
+
+Set `NGINX_HOST_PORT` (for example in `.env`) if host port 80 is taken. A free load test with results at
+1, 3 and 5 replicas is in [`deploy/loadtest/`](deploy/loadtest/README.md).
+
+Deployment is one Ubuntu VM on Azure. [`docs/AZURE_SETUP.md`](docs/AZURE_SETUP.md) is the step-by-step runbook
+(VM, network rules, `deploy/azure-setup.sh`, `.env` for production, first deploy, troubleshooting).
+On the VM, `bash deploy/deploy.sh` builds the frontend and challenge images and restarts the stack; the GitHub
+Actions workflow `.github/workflows/deploy.yml` runs the same script after the tests on every push to `main`
+(pull requests run only the tests, `.github/workflows/ci.yml`). Before real players arrive, tick the production
+checklist in [`docs/SECURITY.md`](docs/SECURITY.md).
