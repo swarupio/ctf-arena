@@ -28,7 +28,7 @@ function useElementWidth(ref) {
 
 function LineKey({ style, width = 22 }) {
   return <svg className="lb-key" width={width} height="10" viewBox={`0 0 ${width} 10`} aria-hidden="true">
-    <line x1="0" y1="5" x2={width} y2="5" stroke={style.color} strokeWidth="3" strokeDasharray={style.dash || undefined} strokeLinecap="round" />
+    <line x1="0" y1="5" x2={width} y2="5" stroke={style.color} strokeWidth="3" strokeDasharray={style.dash || undefined} />
   </svg>;
 }
 
@@ -80,12 +80,12 @@ function ScoreChart({ teams, myTeamId }) {
           const dim = focused !== null && !strong;
           return <g key={line.teamId} opacity={dim ? 0.25 : 1}>
             <path className="lb-line" d={line.path} stroke={style.color} strokeWidth={strong ? 3.5 : 2} strokeDasharray={style.dash || undefined} />
-            <circle cx={line.end.x} cy={line.end.y} r="4" fill={style.color} />
+            <circle className="lb-dot" cx={line.end.x} cy={line.end.y} r="5" fill={style.color} />
           </g>;
         })}
         {readout && <g className="lb-hover" pointerEvents="none">
           <line className="lb-crosshair" x1={readout.x} x2={readout.x} y1={plot.top} y2={plot.bottom} />
-          {readout.rows.map((row) => <circle key={row.teamId} cx={readout.x} cy={row.y} r="4" fill={styles.get(row.teamId).color} />)}
+          {readout.rows.map((row) => <circle className="lb-dot" key={row.teamId} cx={readout.x} cy={row.y} r="5" fill={styles.get(row.teamId).color} />)}
         </g>}
         <rect className="lb-hit" x={plot.left} y={plot.top} width={plot.right - plot.left} height={plot.bottom - plot.top}
           fill="transparent" onPointerMove={onPointer} onPointerDown={onPointer} onPointerLeave={() => setHover(null)} onPointerCancel={() => setHover(null)} />
@@ -158,6 +158,7 @@ export default function Leaderboard() {
     {!mine && team?.banned && <p className="lb-summary">Your team has been banned and is hidden from the leaderboard.</p>}
 
     <div className="lb-card">
+      <h2>Standings</h2>
       {standings.length === 0
         ? <p className="lb-note">No teams yet. Create a team on the Team page, then solve a challenge to get on the board.</p>
         : <table className="lb-table">

@@ -136,13 +136,13 @@ export default function AdminDashboard() {
         <table className="adm-table">
           <thead><tr><th>Team</th><th>Challenge</th><th>Status</th><th>Port</th><th>Time left</th><th>Extended</th><th><span className="adm-sr">Actions</span></th></tr></thead>
           <tbody>{instances.map((instance) => <tr key={instance.id}>
-            <td className="adm-name">{nameOrDeleted(instance.team?.name)}</td>
-            <td className="adm-name">{challengeLabel(instance.challenge)}</td>
-            <td>{instance.status}</td>
-            <td><a href={instance.url} target="_blank" rel="noreferrer">{instance.port}</a></td>
-            <td>{formatTimeLeft(instance.expiresAt, now)}</td>
-            <td>{instance.extended ? 'yes' : 'no'}</td>
-            <td><button className="secondary" disabled={busyKey !== null} onClick={() => kill(instance)}>{busyKey === `kill:${instance.id}` ? 'Killing…' : 'Kill'}</button></td>
+            <td className="adm-name" data-label="Team">{nameOrDeleted(instance.team?.name)}</td>
+            <td className="adm-name" data-label="Challenge">{challengeLabel(instance.challenge)}</td>
+            <td data-label="Status">{instance.status}</td>
+            <td data-label="Port"><a href={instance.url} target="_blank" rel="noreferrer">{instance.port}</a></td>
+            <td data-label="Time left">{formatTimeLeft(instance.expiresAt, now)}</td>
+            <td data-label="Extended">{instance.extended ? 'yes' : 'no'}</td>
+            <td className="adm-actions"><button className="secondary" disabled={busyKey !== null} onClick={() => kill(instance)}>{busyKey === `kill:${instance.id}` ? 'Killing…' : 'Kill'}</button></td>
           </tr>)}</tbody>
         </table>
       </div>}
@@ -154,12 +154,12 @@ export default function AdminDashboard() {
         <table className="adm-table">
           <thead><tr><th>Team</th><th>Members</th><th>Solves</th><th>Score</th><th>Status</th><th><span className="adm-sr">Actions</span></th></tr></thead>
           <tbody>{teams.map((team) => <tr key={team.id}>
-            <td className="adm-name">{team.name}</td>
-            <td>{team.members}/3</td>
-            <td>{formatNumber(team.solves)}</td>
-            <td>{formatNumber(team.score)}</td>
-            <td>{team.banned ? <span className="adm-badge adm-banned">Banned</span> : 'Active'}</td>
-            <td><button className="secondary" disabled={busyKey !== null} onClick={() => toggleBan(team)}>
+            <td className="adm-name" data-label="Team">{team.name}</td>
+            <td data-label="Members">{team.members}/3</td>
+            <td data-label="Solves">{formatNumber(team.solves)}</td>
+            <td data-label="Score">{formatNumber(team.score)}</td>
+            <td data-label="Status">{team.banned ? <span className="adm-badge adm-banned">Banned</span> : 'Active'}</td>
+            <td className="adm-actions"><button className="secondary" disabled={busyKey !== null} onClick={() => toggleBan(team)}>
               {busyKey === `ban:${team.id}` ? 'Saving…' : team.banned ? 'Unban' : 'Ban'}
             </button></td>
           </tr>)}</tbody>
