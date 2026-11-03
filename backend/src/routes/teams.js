@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/requireRole.js';
 import User from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
 import { instanceService } from '../services/instanceService.js';
+import { teamScore } from '../services/scoringService.js';
 
 const router = Router();
 const nameSchema = z.object({ name: z.string().trim().min(3).max(24) }).strict();
@@ -64,7 +65,7 @@ async function teamProfile(team, session) {
   return {
     id: String(team._id), name: team.name, inviteCode: team.inviteCode,
     members: team.memberIds.map((id) => ({ id: String(id), displayName: names.get(String(id)) })),
-    score: 0,
+    score: (await teamScore(team._id)) ?? 0,
     ...(team.banned ? { banned: true } : {}),
   };
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../api/client.js';
 import { useTeam } from '../layout/TeamContext.jsx';
 import { normalizeInviteCode, validInviteCode, validTeamName, teamErrorMessage } from './teamHelpers.js';
@@ -15,6 +15,9 @@ export default function Team() {
   const [copied, setCopied] = useState(false);
   const requestLock = useRef(false);
   const disabled = pending || loading;
+  // Scores change when teammates solve challenges, so re-read the team when the page opens.
+  // Only needed for members; skipping it for team-less users keeps the create/join forms usable at once.
+  useEffect(() => { if (team) void refresh().catch(() => {}); }, []);
 
   async function reload() {
     setError('');
