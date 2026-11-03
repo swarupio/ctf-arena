@@ -53,15 +53,15 @@ done
 echo "$built challenge image(s) up to date"
 
 # --- 3. register challenges (optional) -------------------------------------------------------
-# Runs inside the backend image with the challenge files mounted. We do not use
-# "npm run seed:challenges": its "run only when executed directly" check never matches on Linux.
+# Runs the same script as "npm run seed:challenges" (backend/package.json) inside the backend image with
+# the challenge files mounted at /challenges, which is where the script looks for them in the image.
+# It is repeatable: existing challenges are updated in place and keep their solve counts.
 if [ "${SEED_CHALLENGES:-0}" = "1" ]; then
   log "Registering challenges in MongoDB"
   docker compose build backend
   docker compose run --rm --no-deps \
     -v "$ROOT/challenges:/challenges:ro" \
-    -v "$ROOT/deploy/seed-challenges.mjs:/app/seed-challenges.mjs:ro" \
-    backend node /app/seed-challenges.mjs
+    backend node src/scripts/seedChallenges.js
 fi
 
 # --- 4. stack ---------------------------------------------------------------------------------
