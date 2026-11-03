@@ -1,0 +1,16 @@
+{
+  "name": "ctf-arena-loadtest",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Free load test for Mini CTF Arena (P3-07). Self-contained: does not touch backend/ or frontend/.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "loadtest": "node loadtest.mjs"
+  },
+  "devDependencies": {
+    "autocannon": "^8.0.0"
+  }
+}
