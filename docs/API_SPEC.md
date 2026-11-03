@@ -118,6 +118,13 @@ Leaving a team as its last member stops that team's instances.
 | GET | `/leaderboard` | player | H | `[{ rank, teamId, teamName, points, solves, lastSolveAt }]`, banned teams hidden |
 | GET | `/leaderboard/timeline` | player | H | `{ teams:[{ teamId, teamName, points:[{ t, score }] }] }` (top 10 teams) |
 
+Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderboard.js`):
+- Both endpoints are `player` only (admins get 403, no token 401) and need no team, so team-less and banned-team players can read them. Banned and deleted teams are hidden.
+- `rank` is the 1-based position. Order: points desc, then earliest `lastSolveAt`, then team name (case-insensitive), then team id, so ties are deterministic on every replica. Teams with no solves are appended with `points: 0`, `solves: 0`, `lastSolveAt: null`. `lastSolveAt` is an ISO string.
+- Optional query `?limit=1..500` truncates the list after ranking (default: all teams). Anything else in the query string is ignored; an invalid `limit` is 400 `VALIDATION_ERROR`.
+- Timeline: teams are in rank order (top 10 including zero-solve teams). Each `points` array starts with `{ t, score: 0 }` at the time of the earliest solve shown (the current time if there are no solves yet), then one entry per solve in `solvedAt` order with the running total (`solves.points`, bonus included). A chart should hold a score flat until the next entry.
+- Responses contain only the fields above: no invite codes, member lists, emails, user ids or flag material. Nothing is cached in the process, so any replica returns the same data.
+
 ## Admin (role `admin`)
 
 | Method | Path | Owner | Description |
