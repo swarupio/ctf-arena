@@ -102,6 +102,43 @@ describe('instanceService.stop and extend', () => {
     expect(Instance.updateOne).toHaveBeenCalledWith({ _id: 'i1', status: 'stopping' }, { $set: { status: 'running' } });
   });
 
+  it('claims only starting and running instances unless forced (player routes and the reaper)', async () => {
+    Instance.findOneAndUpdate.mockResolvedValueOnce(null);
+    expect(await service.stop('i1')).toBeNull();
+    Instance.findOneAndUpdate.mockResolvedValueOnce(null);
+    expect(await service.stop('i1', {})).toBeNull();
+    for (const [filter] of Instance.findOneAndUpdate.mock.calls) {
+      expect(filter).toEqual({ _id: 'i1', status: { $in: ['starting', 'running'] } });
+    }
+  });
+
+  it('force also takes over an instance stuck in stopping and removes its container', async () => {
+    Instance.findOneAndUpdate.mockResolvedValueOnce({ _id: 'i1', containerId: 'c-1', status: 'stopping' })
+      .mockResolvedValueOnce({ _id: 'i1', status: 'stopped' });
+    expect((await service.stop('i1', { force: true })).status).toBe('stopped');
+    const [claim, update] = Instance.findOneAndUpdate.mock.calls[0];
+    expect(claim).toEqual({ _id: 'i1', status: { $in: ['starting', 'running', 'stopping'] } });
+    expect(update).toEqual({ $set: { status: 'stopping' } });
+    expect(docker.stopInstance).toHaveBeenCalledWith('c-1');
+    expect(Instance.findOneAndUpdate.mock.calls[1][1].$set).toMatchObject({ status: 'stopped' });
+  });
+
+  it('force never claims stopped or failed instances', async () => {
+    Instance.findOneAndUpdate.mockResolvedValueOnce(null);
+    expect(await service.stop('i1', { force: true })).toBeNull();
+    expect(docker.stopInstance).not.toHaveBeenCalled();
+    const statuses = Instance.findOneAndUpdate.mock.calls[0][0].status.$in;
+    expect(statuses).not.toContain('stopped');
+    expect(statuses).not.toContain('failed');
+  });
+
+  it('a forced stop that fails puts the instance back for a retry', async () => {
+    Instance.findOneAndUpdate.mockResolvedValueOnce({ _id: 'i1', containerId: 'c-1', status: 'stopping' });
+    docker.stopInstance.mockRejectedValue(new Error('busy'));
+    await expect(service.stop('i1', { force: true })).rejects.toThrow('busy');
+    expect(Instance.updateOne).toHaveBeenCalledWith({ _id: 'i1', status: 'stopping' }, { $set: { status: 'running' } });
+  });
+
   it('extends once with a single atomic update and rejects a second extension', async () => {
     Instance.findOneAndUpdate.mockResolvedValueOnce({ _id: 'i1', extended: true });
     await service.extend({ instanceId: 'i1', teamId: 't1' });
@@ -123,6 +160,8 @@ describe('reaper', () => {
     Instance.find.mockResolvedValue([{ _id: 'a' }, { _id: 'b' }]);
     const reaper = createReaper({ docker: {}, instances });
     expect(await reaper.reapExpired()).toBe(1);
+    // The reaper never forces: it must not take over a stop that another replica has in progress.
+    expect(instances.stop.mock.calls).toEqual([['a'], ['b']]);
     expect(Instance.find.mock.calls[0][0]).toMatchObject({ status: { $in: ['starting', 'running'] } });
   });
 

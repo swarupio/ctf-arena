@@ -63,8 +63,9 @@ export function createAdminService({ instances = defaultInstances } = {}) {
     });
   }
 
+  // Forced, so an instance stuck in 'stopping' after a crash can still be cleaned up from the dashboard.
   async function killInstance(instanceId) {
-    const stopped = await instances.stop(instanceId);
+    const stopped = await instances.stop(instanceId, { force: true });
     if (!stopped) { throw new AppError(404, 'NOT_FOUND', 'Active instance not found.'); }
   }
 

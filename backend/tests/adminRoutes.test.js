@@ -169,7 +169,7 @@ describe('POST /admin/instances/:id/kill', () => {
     instanceService.stop.mockResolvedValue({ _id: oid(7), status: 'stopped' });
     const response = await api('post', `/admin/instances/${oid(7)}/kill`).expect(204);
     expect(response.text).toBe('');
-    expect(instanceService.stop).toHaveBeenCalledWith(oid(7));
+    expect(instanceService.stop).toHaveBeenCalledWith(oid(7), { force: true });
   });
 
   it('returns 404 when the instance does not exist or is no longer active', async () => {
