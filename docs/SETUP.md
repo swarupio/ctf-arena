@@ -64,7 +64,7 @@ cd frontend && npm install && npm run dev
 ```
 
 Compose mounts `frontend/dist` into Nginx (with SPA fallback), so run
-`npm run build` first. Teams and seed require Atlas or a local MongoDB replica set, not standalone MongoDB.
+`npm run build` first. Teams and seed require Atlas or a local MongoDB **replica set**, not standalone MongoDB (see 'Local database' below).
 The site is then on http://localhost (set `NGINX_HOST_PORT` in `.env` if port 80 is taken) and the backend runs as
 3 replicas (`docker compose up -d --scale backend=5` for more).
 
@@ -86,6 +86,22 @@ placeholder values the same way).
 - Build challenge images before testing instances: `docker build -t ctf/<slug> challenges/<slug>` (the loop above builds all of them).
 - Replica names in the footer and on the admin dashboard are container ids; `docker ps --filter name=backend --format '{{.ID}}  {{.Names}}'` maps them to Compose names.
 
+## 6b. Local database (no Atlas needed)
+Atlas only accepts the addresses on its Network Access list. Home and mobile connections change their public address
+(sometimes several times an hour), and then the containers cannot reach Atlas and the site shows `502` / "Unexpected token '<'".
+For a laptop you can run the database in Docker instead (a one-node replica set, like Atlas; never use it on the Azure VM):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build
+```
+
+- The first start has an empty database. Fill it from the `backend` folder:
+  `MONGODB_URI='mongodb://127.0.0.1:27017/ctf-arena?directConnection=true'` then `npm run seed`, `npm run seed:challenges`,
+  `npm run seed:terminal` and optionally `npm run seed:demo` (on Windows PowerShell set `$env:MONGODB_URI` first).
+- Players are created again the first time they sign in, and they create their team again.
+- Data survives restarts (Docker volume `ctf-mongo-data`). To start from scratch: `docker compose -f docker-compose.yml -f docker-compose.localdb.yml down -v`.
+- To go back to Atlas just use plain `docker compose up -d --build` (and add your current IPv4 address to Atlas Network Access).
+
 ## 7. Create an admin
 1. Sign up normally.
 2. Cognito -> User pools -> your pool -> Groups -> `admin` -> **Add user to group**.
@@ -95,7 +111,7 @@ placeholder values the same way).
 
 | Problem | Likely fix |
 |---------|-----------|
-| `MongoNetworkError` | Your IP is not in Atlas Network Access |
+| `MongoNetworkError`, API answers 502, pages show `Unexpected token '<'` | Your public IP changed and is not in Atlas Network Access. Add the new IPv4 address, or use the local database (section 6b) |
 | 401 on every call | Wrong user pool ID / client ID, or you sent the access token instead of the ID token |
 | User is `player` but should be `admin` | Log out and in after adding to the group |
 | Container starts but URL does not open | Azure network security group / firewall does not allow 30000-30100; wrong `PUBLIC_HOST` |

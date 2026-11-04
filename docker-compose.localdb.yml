@@ -1,0 +1,52 @@
+# Local database for laptops (demos, development), used INSTEAD of MongoDB Atlas.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build
+#
+# Why: Atlas only accepts the addresses on its Network Access list. A home or mobile internet connection changes its
+# public address (even several times an hour), and Atlas then refuses the containers, so the API answers 502.
+# A database inside Docker has no such dependency.
+#
+# It runs as a one-node replica set (like Atlas) because teams use multi-document transactions.
+#
+# NEVER use this on the Azure VM or any shared server: the database has no password. It is only reachable from the Docker
+# network and from this computer (127.0.0.1). On the VM keep using Atlas (the VM has a fixed address, see docs/AZURE_SETUP.md).
+#
+# Data lives in the named volume `ctf-mongo-data` and survives restarts. Fill an empty database from the backend folder with
+#   MONGODB_URI='mongodb://127.0.0.1:27017/ctf-arena?directConnection=true'  npm run seed / seed:challenges / seed:terminal
+# See docs/SETUP.md, "Local database".
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.5"]
+    ports:
+      - "127.0.0.1:27017:27017"   # this computer only, for the seed scripts
+    volumes:
+      - ctf-mongo-data:/data/db
+    networks:
+      - ctf-net
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Healthy once this node is the primary of replica set rs0. The first run also initiates the set.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "const h = db.hello(); if (h.isWritablePrimary) quit(0); if (!h.setName) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }); } quit(1);"
+      interval: 5s
+      timeout: 8s
+      retries: 20
+      start_period: 10s
+
+  backend:
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/ctf-arena?replicaSet=rs0
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  ctf-mongo-data:

@@ -512,3 +512,10 @@ test('the terminal category sorts after the classic ones and does not break grou
   ]);
   assert.deepEqual(groups.map((g) => g.category), ['web', 'misc', 'terminal', 'zzz']);
 });
+
+test('unsolved codes are estimated from the base points, not from what is left after a first-blood bonus', () => {
+  const progress = { total: 4, solved: [{ n: 1, title: 'Welcome Aboard', points: 44, firstBlood: true }] };
+  const rows = buildCodeRows(progress, { codes: 4, points: 160 });
+  assert.deepEqual(rows.filter((row) => !row.solved).map((row) => row.points), [40, 40, 40]);
+  assert.equal(rows[0].points, 44);
+});
