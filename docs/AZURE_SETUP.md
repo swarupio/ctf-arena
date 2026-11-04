@@ -188,7 +188,8 @@ SEED_CHALLENGES=1 bash deploy/deploy.sh
 ```
 
 This builds the frontend (in a Node container, so nothing is installed on the VM), builds one `ctf/<slug>` image
-for every `challenges/<slug>/Dockerfile`, registers the challenges in MongoDB, runs `docker compose up -d --build`
+for every `challenges/<slug>/Dockerfile`, registers the challenges in MongoDB (including the Arena Terminal codes,
+`npm run seed:terminal`), runs `docker compose up -d --build`
 and waits for `/api/health`. The first run takes several minutes (image downloads); later runs are fast. The same
 script is what the CI/CD pipeline runs. Manual equivalents, if you want to see the steps:
 
@@ -281,7 +282,8 @@ VM > Auto-shutdown. After the project: `az group delete --name $RG --yes` remove
 | `curl /api/health` shows `"db":"down"`, or backends keep restarting with "MongoDB connection failed" | The VM's public IP is not in Atlas Network Access, or `MONGODB_URI` is wrong. Add the IP and `docker compose restart backend` |
 | Backend log: `permission denied` on `/var/run/docker.sock`, or starting an instance fails | `DOCKER_GID` missing or wrong in `.env`. Run `getent group docker \| cut -d: -f3`, put the number in `.env`, then `docker compose up -d --force-recreate backend` |
 | Site unreachable from outside, works with `curl localhost` on the VM | NSG rule for 80 missing, or the VM has another firewall. Check the NSG, `sudo ufw status`, and `docker compose ps` |
-| The challenge list is empty | Challenges are registered only on request: run `SEED_CHALLENGES=1 bash deploy/deploy.sh` once. It prints `Challenges seeded: N created, M updated.` (the same as `npm run seed:challenges` in `backend/`) |
+| The challenge list is empty | Challenges are registered only on request: run `SEED_CHALLENGES=1 bash deploy/deploy.sh` once. It prints `Challenges seeded: N created, M updated.` (the same as `npm run seed:challenges` in `backend/`) and then `Terminal challenges seeded: N created, M updated.` (`npm run seed:terminal`) |
+| The Terminal page answers `Run npm run seed:terminal.` (503 `TERMINAL_NOT_SEEDED`) | The Arena Terminal codes are registered by the same `SEED_CHALLENGES=1 bash deploy/deploy.sh` run (or `npm run seed:terminal` in `backend/`); repeat it any time, it keeps solve counts |
 | An instance is stuck in the admin dashboard and Kill did nothing | Kill is forced and also takes over an instance stuck in `stopping`; if it still fails, check `docker ps --filter label=ctf.instance` and `docker compose logs backend` |
 | Instance starts but the link does not open | NSG rule for 30000-30100 missing, or `PUBLIC_HOST` is wrong (still `localhost`). Fix `.env`, `docker compose up -d --force-recreate backend` |
 | Login page loads but sign-in says the pool or client is invalid | `VITE_COGNITO_*` was wrong or empty when the frontend was built. Fix `.env`, run `bash deploy/deploy.sh` (rebuilds the frontend) |

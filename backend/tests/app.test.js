@@ -16,6 +16,10 @@ vi.mock('../src/models/Solve.js', () => ({ default: {} }));
 vi.mock('../src/models/Submission.js', () => ({ default: {} }));
 vi.mock('../src/models/Team.js', () => ({ default: {} }));
 vi.mock('../src/models/ReplicaStat.js', () => ({ default: {} }));
+vi.mock('../src/models/AttemptCounter.js', () => ({ default: {} }));
+vi.mock('../src/models/CheatSignal.js', () => ({ default: {}, SIGNAL_KINDS: [] }));
+vi.mock('../src/models/TaintedFlag.js', () => ({ default: {} }));
+vi.mock('../src/models/TerminalActivity.js', () => ({ default: {} }));
 vi.mock('mongoose', () => ({ default: { connection: { readyState: 0 } } }));
 
 describe('backend skeleton', () => {

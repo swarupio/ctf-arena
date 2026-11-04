@@ -1,6 +1,8 @@
 # Security Rules
 
 We are running other people's puzzle containers on a real server. These rules protect the platform.
+The full API security review (findings, tests, open items) is in `docs/SECURITY_AUDIT.md`; the route and access matrix is enforced by
+`backend/tests/security/routeMatrix.test.js`, which fails when an endpoint is added without a decision about who may call it.
 
 ## 1. Threats we care about
 
@@ -8,14 +10,15 @@ We are running other people's puzzle containers on a real server. These rules pr
 |--------|-----------|
 | Stolen or weak accounts | Cognito with mandatory TOTP MFA, email verification |
 | Player acts as admin | Role comes from the verified token only; admin routes use `requireRole('admin')` |
-| Flag guessing / brute force | 5 attempts per minute per team per challenge, every attempt logged |
+| Flag guessing / brute force | 5 attempts per minute per team per challenge, every attempt logged; the count is checked again after the insert, so a parallel burst cannot test more guesses |
+| Invite-code guessing (6 characters, 32^6 codes) | 10 join attempts per 15 minutes per account (MongoDB counter, `429 RATE_LIMITED`), plus Nginx `limit_req` per IP |
 | Flag sharing between teams | Per-team dynamic flags for Docker challenges |
 | Double scoring | Unique index `teamId + challengeId` on `solves` |
 | Escaping a challenge container | Non-root user, `CapDrop ALL`, `no-new-privileges`, pids/memory/CPU limits, no host mounts |
 | Resource abuse (fork bombs, many containers) | Limits per container, max 2 instances per team, TTL with reaper |
 | Players attacking the host or each other | Challenge containers on their own network, no access to Mongo or backend |
 | Secrets leaking | `.env` ignored by git, secrets only in env, rotate `FLAG_SECRET` if exposed |
-| Misbehaving team | Admin dashboard: Ban (exact `admin` role, flips `teams.banned` then stops the team's containers; a banned team gets 403 on submit and instance routes and is hidden from the leaderboard) and Kill (forced stop, also for an instance stuck in `stopping`) |
+| Misbehaving team | Admin dashboard: Ban (exact `admin` role, flips `teams.banned` then stops the team's containers; a banned team gets 403 on submit and instance routes, cannot leave its team (so it cannot start over with a fresh one), and is hidden from the leaderboard) and Kill (forced stop, also for an instance stuck in `stopping`) |
 | API abuse | `limit_req` in Nginx (20 requests/s per IP, burst 60, JSON 429), `helmet`, 128 KB request bodies at Nginx and 100 KB in the backend |
 
 ## 2. The Docker socket risk (read this)
@@ -59,7 +62,7 @@ Env: ['FLAG=<team flag>']
 Tick every box on the VM before real players arrive. Commands run on the VM in `~/ctf-arena`.
 
 **Secrets and configuration**
-- [ ] `FLAG_SECRET` is a real random value, at least 32 characters (`openssl rand -hex 32`), not the placeholder and not a value used on a laptop. Set it once before play: changing it changes every team's dynamic flag.
+- [ ] `FLAG_SECRET` is a real random value, at least 32 characters (`openssl rand -hex 32`), not the placeholder and not a value used on a laptop. Set it once before play: changing it changes every team's dynamic flag. With `NODE_ENV=production` the backend refuses to start while `FLAG_SECRET` still looks like the public `.env.example` placeholder.
 - [ ] `NODE_ENV=production` in `.env`.
 - [ ] `.env` is mode 600 and was never committed: `ls -l .env` and `git status` (clean).
 - [ ] `PUBLIC_HOST` is the public IP or DNS name players use.

@@ -13,6 +13,7 @@ dotenv.config({
   quiet: true,
 });
 
+const PLACEHOLDER_SECRET = /replace_with|placeholder|changeme|change_me|your[-_]secret/i;
 const text = z.string().trim().min(1, 'is required');
 const positiveInteger = text.pipe(z.coerce.number().int().positive());
 const port = positiveInteger.pipe(z.number().max(65535));
@@ -38,6 +39,10 @@ const schema = z.object({
 }).refine((value) => value.CHALLENGE_PORT_MAX >= value.CHALLENGE_PORT_MIN, {
   path: ['CHALLENGE_PORT_MAX'],
   message: 'must be at least CHALLENGE_PORT_MIN',
+}).refine((value) => value.NODE_ENV !== 'production' || !PLACEHOLDER_SECRET.test(value.FLAG_SECRET), {
+  // Every team flag is HMAC(FLAG_SECRET, teamId:challengeId): the committed placeholder would let anyone forge them.
+  path: ['FLAG_SECRET'],
+  message: 'must be a private random value in production (the .env.example placeholder is public)',
 });
 
 const result = schema.safeParse(process.env);

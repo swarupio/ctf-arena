@@ -5,10 +5,15 @@ import { auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import User from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
+import { consumeAttempt } from '../services/attemptLimiter.js';
 import { instanceService } from '../services/instanceService.js';
 import { teamScore } from '../services/scoringService.js';
 
 const router = Router();
+// Invite codes have 32^6 (about 1.07e9) values. 10 attempts per 15 minutes per account keeps online guessing hopeless
+// (about 960 guesses per account per day); nginx limit_req adds a per-IP cap on top.
+export const JOIN_ATTEMPT_LIMIT = 10;
+export const JOIN_ATTEMPT_WINDOW_MS = 15 * 60_000;
 const nameSchema = z.object({ name: z.string().trim().min(3).max(24) }).strict();
 const inviteSchema = z.object({ inviteCode: z.string().trim().regex(/^[A-HJ-NP-Z2-9]{6}$/) }).strict();
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -100,6 +105,12 @@ router.post('/', async (req, res) => {
 
 router.post('/join', async (req, res) => {
   const { inviteCode } = validate(inviteSchema, req.body);
+  // Counted in MongoDB before any lookup, so a wrong, full or right code all cost the same attempt.
+  await consumeAttempt(`join:${req.user.cognitoSub}`, {
+    limit: JOIN_ATTEMPT_LIMIT,
+    windowMs: JOIN_ATTEMPT_WINDOW_MS,
+    message: 'Too many join attempts. Wait 15 minutes and try again.',
+  });
   const result = await transaction(async (Team, session) => {
     const user = await currentUser(req.user, session);
     if (user.teamId) { throw conflict(); }
@@ -135,6 +146,8 @@ router.post('/me/leave', async (req, res) => {
     if (!user?.teamId) { throw noTeam(); }
     const team = await Team.findById(user.teamId, null, { session });
     if (!team || !team.memberIds.some((id) => String(id) === String(user._id))) { throw noTeam(); }
+    // A ban must not be escapable: leaving (and disbanding) would let the player start over with a fresh team.
+    if (team.banned) { throw new AppError(403, 'TEAM_BANNED', 'Your team has been banned.'); }
     const remaining = team.memberIds.filter((id) => String(id) !== String(user._id));
     if (remaining.length === 0) {
       await Team.deleteOne({ _id: team._id }, { session });

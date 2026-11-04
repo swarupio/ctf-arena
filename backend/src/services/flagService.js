@@ -35,10 +35,26 @@ export function expectedFlagFor(challenge, { secret, teamId }) {
   });
 }
 
+// Docker and terminal challenges have no stored flag: it is derived per team from the secret.
+const hasDynamicFlag = (challenge) => challenge.type === 'docker' || challenge.type === 'terminal';
+
 export function verifyFlag(challenge, { secret, teamId, submitted }) {
   const flag = String(submitted).trim();
-  if (challenge.type === 'docker') {
+  if (hasDynamicFlag(challenge)) {
     return safeEqualHex(sha256(flag), sha256(expectedFlagFor(challenge, { secret, teamId })));
   }
   return verifyStaticFlag(challenge, flag);
+}
+
+// Compares a submission against the team's expected flag of several dynamic challenges (terminal modes).
+// Returns the matching challenge or null. Every candidate is always compared (no early exit), so the time
+// taken does not reveal which challenge matched or how far down the list it was.
+export function matchDynamicFlag(challenges, { secret, teamId, submitted }) {
+  const digest = sha256(String(submitted).trim());
+  let match = null;
+  for (const challenge of challenges) {
+    const equal = safeEqualHex(digest, sha256(expectedFlagFor(challenge, { secret, teamId })));
+    if (equal && !match) { match = challenge; }
+  }
+  return match;
 }
