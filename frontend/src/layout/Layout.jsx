@@ -34,6 +34,7 @@ function LayoutContent() {
     <header className="site-header">
       <Link className="brand" to="/"><PixelFlag className="brand-flag" /><span>CTF Arena</span></Link>
       <nav aria-label="Main navigation">
+        <NavLink to="/demo">Demo</NavLink>
         <NavLink to="/challenges">Challenges</NavLink>
         <NavLink to="/leaderboard">Leaderboard</NavLink>
         <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>

@@ -28,6 +28,7 @@ export default function Home() {
             <Link className="button" to="/login">Login</Link>
             <Link className="button secondary" to="/signup">Sign up</Link>
           </>}
+          <Link className="button secondary" to="/demo">Watch demo</Link>
         </div>}
       </div>
     </section>
