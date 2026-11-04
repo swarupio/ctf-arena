@@ -19,17 +19,18 @@ export const sumPoints = (solved) => (Array.isArray(solved) ? solved : []).reduc
 /**
  * Rows for the HUD code list: [{ n, solved, title, points, firstBlood }]. Unsolved codes show "???" and a points
  * estimate (the server only reports points of solved codes): from the remaining list when it has them, otherwise the
- * mode's remaining points shared evenly.
+ * mode's base points shared evenly over its codes.
  */
 export function buildCodeRows(progress, info) {
   const solvedItems = progress?.solved ?? [];
   const total = Math.max(progress?.total ?? info?.codes ?? 0, ...solvedItems.map((item) => item.n), 0);
   const byNumber = new Map(solvedItems.map((item) => [item.n, item]));
   const remainingCount = Math.max(0, total - byNumber.size);
-  const earned = sumPoints(solvedItems);
   const modePoints = Number(info?.points);
-  const even = remainingCount > 0 && Number.isFinite(modePoints) && modePoints > earned
-    ? Math.round((modePoints - earned) / remainingCount) : null;
+  // Earned points include first-blood bonuses, so dividing what is left would under-count. Every mode's codes are worth
+  // the same base value, so the base total shared over all codes is the right estimate.
+  const even = remainingCount > 0 && total > 0 && Number.isFinite(modePoints) && modePoints > 0
+    ? Math.round(modePoints / total) : null;
   const hinted = new Map((progress?.remainingItems ?? []).map((item) => [item.n, item.points]));
 
   return Array.from({ length: total }, (_, index) => {
