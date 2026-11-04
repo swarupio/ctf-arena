@@ -56,8 +56,9 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Implementation complete:* transactional, repeatable seed of two synthetic players and linked teams; exact-fixture reset, collision/external-membership refusal, production `--force` guard, generic errors and disconnect cleanup. No Cognito accounts or Phase 2 data are created. Usage and limits are in README. No API/model contract changes or new dependencies.
   *Local verification (2026-10-27):* backend tests include real Mongoose create/validation with database writes mocked, repeat runs, partial fixtures, reset, collision refusal and rollback. Live Atlas/replica-set execution and PR review remain pending; Docker Desktop's Linux engine was unavailable, so P1-14 stayed unchecked.
   *Live verification (2026-11-03):* against Atlas, first `npm run seed` created 2 users and 2 teams; the second created 0.
-- [ ] **P1-15 Docs sync and handoff.** Update API_SPEC, DATABASE_SCHEMA, `.env.example`; write `HANDOFF_1_swarup_to_gururaj.md`; tag `v0.1-foundation`.
+- [x] **P1-15 Docs sync and handoff.** Update API_SPEC, DATABASE_SCHEMA, `.env.example`; write `HANDOFF_1_swarup_to_gururaj.md`; tag `v0.1-foundation`.
   *Acceptance:* **Handoff gate checklist in WORKFLOW.md is fully ticked.**
+  *Done (2026-11-04):* `HANDOFF_1_swarup_to_gururaj.md` written, API_SPEC, DATABASE_SCHEMA and `.env.example` match the code, tag `v0.1-foundation` pushed on `c57d4c9` (the last Phase 1 commit). The "next person ran it on their own laptop" gate item was not done as written: Gururaj never started Phase 2, so Swarup carried on from this tag.
 
 ---
 
@@ -102,8 +103,9 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Verified (2026-11-04):* by an automated headless-browser run with locally signed test tokens against the real backend, Atlas and Docker (41 scenarios, all passing); not with a real Cognito login.
 
 ### Handoff
-- [ ] **P2-15 Docs sync and handoff.** Update docs, write `HANDOFF_2_gururaj_to_shubham.md`, tag `v0.2-engine`.
+- [x] **P2-15 Docs sync and handoff.** Update docs, write `HANDOFF_2_gururaj_to_shubham.md`, tag `v0.2-engine`.
   *Acceptance:* **Handoff gate checklist fully ticked.**
+  *Done (2026-11-04):* `HANDOFF_2_gururaj_to_shubham.md` written, docs match the code, tag `v0.2-engine` pushed on `c3a78eb` (the Phase 2 merge). Phase 2 was built by Swarup because Gururaj had not started. The "next person ran it on their own laptop" gate item was covered by Shubham's Phase 3 merge (#12) and a fresh-clone run of `main` (tests, build and a browser end-to-end pass), not by a separate laptop check.
 
 ---
 
