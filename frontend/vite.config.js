@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     envDir: '..',
     envPrefix: 'VITE_',
+    // Never ship source maps: they would hand the original source (and every route the client knows) to anyone with DevTools.
+    build: { sourcemap: false },
     server: {
       proxy: {
         '/api': {
