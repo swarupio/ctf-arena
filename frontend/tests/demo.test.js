@@ -21,6 +21,34 @@ const texts = (step) => [
   ...step.screen.rows.flatMap((row) => [row.label, row.value]),
   ...(step.screen.badge ? [step.screen.badge.text] : []),
   ...step.log.map((line) => line.text),
+  step.cmd.line,
+  ...step.hops.flatMap((hop) => [hop.title, hop.text]),
+];
+
+// Per-step playback (hops) and the shell command shown in the terminal.
+const CMD_WHO = ['alpha', 'beta', 'admin', 'system'];
+const WHO_BY_ACTOR = { Alpha: 'alpha', Beta: 'beta', Admin: 'admin', System: 'system' };
+const CMD_PROGRAMS = ['curl', 'docker', 'for', 'while'];
+const HOP_MS = 2200;
+const HOP_SLACK_MS = 1200;
+const MAX_DURATION_MS = 15000;
+const sameEdge = (a, b) => a[0] === b[0] && a[1] === b[1];
+const sentenceEnds = (text) => (text.match(/[.!?](?:\s+|$)/g) ?? []).length;
+const replicaName = (id) => `Backend ${id.replace('backend', '')}`;
+// Real routes from docs/API_SPEC.md that the demo commands are allowed to call (slug or a shell loop variable).
+const ROUTE_ID = '(?:[a-z0-9-]+|\\$[a-z])';
+const REAL_ROUTES = [
+  /^\/api\/health$/,
+  /^\/api\/me$/,
+  /^\/api\/teams$/,
+  /^\/api\/teams\/(?:join|me|me\/leave)$/,
+  /^\/api\/challenges$/,
+  new RegExp(`^/api/challenges/${ROUTE_ID}(?:/submit|/instance)?$`),
+  /^\/api\/instances$/,
+  new RegExp(`^/api/instances/${ROUTE_ID}(?:/extend)?$`),
+  /^\/api\/leaderboard(?:\/timeline)?$/,
+  /^\/api\/admin\/(?:stats|teams|challenges|instances)$/,
+  new RegExp(`^/api/admin/instances/${ROUTE_ID}/kill$`),
 ];
 
 test('the script is non-empty, sized for a demo, and TOTAL matches', () => {
@@ -121,9 +149,11 @@ test('flow edges use valid node ids and servedBy is a replica or null', () => {
   }
 });
 
-test('durations are in range and load is spread over all replicas', () => {
+test('durations leave about 2.2 s per hop, stay in range, and load is spread over all replicas', () => {
   for (const step of STEPS) {
-    assert.ok(step.duration >= 3500 && step.duration <= 6500, `${step.id}: duration ${step.duration}`);
+    assert.ok(step.duration >= step.hops.length * HOP_MS + HOP_SLACK_MS, `${step.id}: duration ${step.duration} too short for ${step.hops.length} hops`);
+    assert.ok(step.duration <= MAX_DURATION_MS, `${step.id}: duration ${step.duration} too long`);
+    assert.equal(step.duration % 100, 0, `${step.id}: duration is rounded to 100 ms`);
   }
   const used = new Set(STEPS.map((step) => step.servedBy).filter(Boolean));
   assert.deepEqual([...used].sort(), REPLICAS);
@@ -421,4 +451,131 @@ test('every flag shown is an obviously fake demo flag, never a real seeded one',
     for (const real of realFlags) { assert.ok(!flag.includes(real), `${flag} reuses a real flag`); }
   }
   assert.ok(everything.includes('CTF{cookie_monster_9f3a1c7e2b40}'));
+});
+
+test('every step has a shell command in the right shape, from the right actor', () => {
+  for (const step of STEPS) {
+    const where = `step ${step.id}`;
+    assert.ok(step.cmd && typeof step.cmd === 'object', `${where}: cmd`);
+    assert.ok(CMD_WHO.includes(step.cmd.who), `${where}: cmd.who ${step.cmd.who}`);
+    assert.equal(step.cmd.who, WHO_BY_ACTOR[step.actor], `${where}: cmd.who matches the actor ${step.actor}`);
+    const { line } = step.cmd;
+    assert.equal(typeof line, 'string', where);
+    assert.ok(line.length > 0 && line.length <= 160, `${where}: cmd length ${line.length}`);
+    assert.match(line, /^[\x20-\x7E]+$/, `${where}: cmd must be one line of printable ASCII`);
+    assert.ok(!/[\r\n]/.test(line), `${where}: cmd has a line break`);
+    assert.ok(line === line.trimEnd() && line === line.trimStart(), `${where}: cmd has stray spaces around it`);
+    if (line.startsWith('#')) {
+      assert.ok(line.startsWith('# ') && line.length > 2, `${where}: comment line must start with "# "`);
+    } else {
+      assert.ok(CMD_PROGRAMS.includes(line.split(' ')[0]), `${where}: cmd starts with ${line.split(' ')[0]}`);
+    }
+  }
+  const comments = STEPS.filter((step) => step.cmd.line.startsWith('# '));
+  assert.ok(comments.length <= 2, 'comment-only commands are for pure browser steps, not the default');
+  assert.ok(STEPS.some((step) => step.id === 'replica-failover' && /docker (?:kill|stop) ctf-arena-backend-2/.test(step.cmd.line)));
+  assert.ok(STEPS.some((step) => step.id === 'reaper-expiry' && /ctf\.managed=true/.test(step.cmd.line)));
+  assert.ok(STEPS.some((step) => step.id === 'final-board' && /\/api\/leaderboard/.test(step.cmd.line)));
+});
+
+test('shell commands call real documented routes with the placeholder token only', () => {
+  for (const step of STEPS) {
+    const { line } = step.cmd;
+    const paths = [...line.matchAll(/localhost(\/api\/[^\s'"]*)/g)].map((match) => match[1]);
+    if (line.startsWith('curl') || line.startsWith('for') || line.startsWith('while')) {
+      assert.ok(paths.length > 0, `${step.id}: curl command without an /api path`);
+    }
+    for (const path of paths) {
+      assert.ok(REAL_ROUTES.some((route) => route.test(path)), `${step.id}: ${path} is not a documented route`);
+      if (path !== '/api/health') {
+        assert.ok(line.includes('-H "Authorization: Bearer $ID_TOKEN"'), `${step.id}: missing the placeholder bearer header`);
+      }
+      if (/\/(?:instance|kill)$/.test(path)) { assert.ok(line.includes('-X POST'), `${step.id}: ${path} needs -X POST`); }
+      if (/\/(?:submit|teams\/join)$/.test(path) || (path === '/api/teams' && line.includes('--json'))) {
+        assert.match(line, /--json /, `${step.id}: ${path} sends a JSON body`);
+        assert.ok(!line.includes('-X POST'), `${step.id}: --json already implies POST`);
+      }
+    }
+    if (/bearer/i.test(line)) { assert.match(line, /Bearer \$ID_TOKEN\b/, `${step.id}: only the $ID_TOKEN placeholder`); }
+  }
+});
+
+test('every step plays as 2 to 5 hops with a title, one plain sentence and log lines', () => {
+  const seenTexts = new Set();
+  for (const step of STEPS) {
+    const where = `step ${step.id}`;
+    assert.ok(Array.isArray(step.hops), `${where}: hops`);
+    assert.ok(step.hops.length >= 2 && step.hops.length <= 5, `${where}: ${step.hops.length} hops`);
+    step.hops.forEach((hop, position) => {
+      const at = `${where}, hop ${position + 1}`;
+      assert.deepEqual(Object.keys(hop).sort(), ['edge', 'lines', 'text', 'title'], `${at}: fields`);
+      assert.equal(typeof hop.title, 'string', at);
+      assert.ok(hop.title.length > 0 && hop.title.length <= 36, `${at}: title length ${hop.title.length}`);
+      assert.equal(typeof hop.text, 'string', at);
+      assert.ok(hop.text.length > 0 && hop.text.length <= 140, `${at}: text length ${hop.text.length}`);
+      assert.match(hop.text, /[.!]$/, `${at}: text ends like a sentence`);
+      assert.ok(sentenceEnds(hop.text) <= 1, `${at}: more than one sentence in "${hop.text}"`);
+      assert.ok(!step.narration.includes(hop.text), `${at}: hop text repeats the narration`);
+      assert.ok(!seenTexts.has(hop.text), `${at}: duplicate hop text`);
+      seenTexts.add(hop.text);
+      assert.ok(Array.isArray(hop.lines) && hop.lines.every((n) => Number.isInteger(n)), `${at}: lines`);
+    });
+  }
+});
+
+test('hop edges come from the step flow, and every flow edge is played by a hop', () => {
+  for (const step of STEPS) {
+    step.hops.forEach((hop, position) => {
+      const at = `${step.id}, hop ${position + 1}`;
+      if (hop.edge === null) {
+        assert.equal(position, step.hops.length - 1, `${at}: only the final result hop has no edge`);
+        return;
+      }
+      assert.ok(Array.isArray(hop.edge) && hop.edge.length === 2, `${at}: edge shape`);
+      assert.ok(step.flow.some((edge) => sameEdge(edge, hop.edge)), `${at}: edge ${hop.edge} is not in the flow`);
+      const replica = hop.edge.find((id) => REPLICAS.includes(id));
+      if (replica) { assert.ok(hop.text.includes(replicaName(replica)), `${at}: text should name ${replicaName(replica)}`); }
+    });
+    for (const edge of step.flow) {
+      assert.ok(step.hops.some((hop) => hop.edge && sameEdge(hop.edge, edge)), `${step.id}: flow edge ${edge} is never played`);
+    }
+    if (step.servedBy) {
+      assert.ok(step.hops.some((hop) => hop.edge && hop.edge[1] === step.servedBy), `${step.id}: no hop reaches ${step.servedBy}`);
+    }
+  }
+});
+
+test('hop lines partition the log in order, and only the first hop may be silent', () => {
+  for (const step of STEPS) {
+    const flat = step.hops.flatMap((hop) => hop.lines);
+    assert.deepEqual(flat, step.log.map((_, index) => index), `${step.id}: hop lines must cover every log index once, in order`);
+    step.hops.forEach((hop, position) => {
+      if (position > 0) { assert.ok(hop.lines.length > 0, `${step.id}, hop ${position + 1}: only the first hop may have no lines`); }
+    });
+    const nullHop = step.hops.find((hop) => hop.edge === null);
+    if (nullHop) {
+      const kinds = nullHop.lines.map((index) => step.log[index].kind);
+      assert.ok(kinds.every((kind) => ['ok', 'warn', 'err', 'req'].includes(kind)), `${step.id}: result hop shows ${kinds}`);
+    }
+  }
+});
+
+test('playback of a step fits its duration at 1x', () => {
+  for (const step of STEPS) {
+    assert.ok(step.duration / step.hops.length >= HOP_MS, `${step.id}: under 2.2 s per hop`);
+  }
+  const total = STEPS.reduce((sum, step) => sum + step.duration, 0);
+  assert.ok(total >= 180000 && total <= 330000, `total runtime ${total} ms is out of the 3 to 5.5 minute range`);
+});
+
+test('stateAt exposes the hops and the command of the current step', () => {
+  const before = stateAt(-1);
+  assert.deepEqual(before.hops, []);
+  assert.equal(before.cmd, null);
+  for (let i = 0; i < TOTAL; i += 1) {
+    const state = stateAt(i);
+    assert.equal(state.hops, STEPS[i].hops, `${STEPS[i].id}: hops`);
+    assert.equal(state.cmd, STEPS[i].cmd, `${STEPS[i].id}: cmd`);
+  }
+  assert.equal(stateAt(TOTAL + 5).cmd, STEPS[TOTAL - 1].cmd);
 });

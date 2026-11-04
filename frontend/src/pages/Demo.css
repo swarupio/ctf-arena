@@ -12,9 +12,10 @@
   display: grid; justify-items: start; gap: var(--space-4);
   padding: var(--space-6); background: var(--color-surface); border: var(--border); box-shadow: var(--shadow-accent);
 }
-.demo-hero.is-compact { gap: var(--space-2); padding: var(--space-4) var(--space-5); box-shadow: none; }
-.demo-hero.is-compact h1 { font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem); }
-.demo-hero.is-compact h1::after { margin-top: var(--space-2); }
+.demo-hero.is-compact { gap: 0; padding: var(--space-2) var(--space-5); box-shadow: none; }
+.demo-hero.is-compact h1 { margin: 0; font-size: 1.5rem; }
+.demo-hero.is-compact h1::after { display: none; }
+.demo-hero.is-compact .demo-lead { display: none; }
 .demo-lead { max-width: 64ch; font-size: 1.0625rem; }
 .demo-hero.is-compact .demo-lead { font-size: 0.9375rem; color: var(--color-muted); }
 .demo-start { min-height: 64px; padding: var(--space-3) var(--space-7); font-size: 1.25rem; box-shadow: var(--shadow-hard); }
@@ -23,18 +24,21 @@
 /* Control bar and phase progress; sticks under the page top on roomy screens */
 .demo-controls { z-index: 20; background: var(--color-surface); border: var(--border); box-shadow: var(--shadow-hard); }
 .demo-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-3) var(--space-4); }
-.demo-transport, .demo-speed { display: flex; min-width: 0; }
-.demo-transport button + button, .demo-speed button + button { margin-left: -1px; }
-.demo-transport button, .demo-speed button { position: relative; }
+.demo-transport, .demo-hopnav, .demo-speed { display: flex; min-width: 0; }
+.demo-transport button + button, .demo-hopnav button + button, .demo-speed button + button { margin-left: -1px; }
+.demo-transport button, .demo-hopnav button, .demo-speed button { position: relative; }
 .demo-transport button:hover:not(:disabled), .demo-transport button:focus-visible,
+.demo-hopnav button:hover:not(:disabled), .demo-hopnav button:focus-visible,
 .demo-speed button:hover:not(:disabled), .demo-speed button:focus-visible { z-index: 1; }
+.demo-page .demo-hopnav button { min-width: 72px; padding-inline: var(--space-3); white-space: nowrap; }
 .demo-page .demo-play { min-width: 112px; }
 /* Pressed = lime fill with an ink underline bar, so it never relies on colour alone */
 .demo-page .demo-play[aria-pressed='true'],
 .demo-page .demo-speed button[aria-pressed='true'] { color: var(--color-ink); background: var(--color-accent); box-shadow: inset 0 -4px 0 var(--color-ink); }
 .demo-page .demo-speed button { min-width: 52px; padding-inline: var(--space-3); }
-.demo-readout { display: flex; align-items: center; gap: var(--space-3); margin-left: auto; }
+.demo-readout { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); margin-left: auto; }
 .demo-counter { font-size: 0.875rem; font-weight: 700; white-space: nowrap; }
+.demo-hopcount { padding-left: var(--space-3); border-left: 2px solid var(--color-line-soft); }
 .demo-clock {
   min-width: 7ch; padding: 0 var(--space-3); text-align: center; white-space: nowrap;
   font-size: 0.875rem; font-weight: 700; line-height: 1.9; font-variant-numeric: tabular-nums;
@@ -66,7 +70,7 @@
 .demo-page .demo-tick:active:not(:disabled) { transform: none; }
 
 /* Narration card */
-.demo-narration { padding: var(--space-5); background: var(--color-surface); border: var(--border); border-left: 8px solid var(--color-accent); }
+.demo-narration { padding: var(--space-4) var(--space-5); background: var(--color-surface); border: var(--border); border-left: 8px solid var(--color-accent); }
 .demo-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
 .demo-chip {
   display: inline-flex; align-items: center; max-width: 100%; padding: 0 var(--space-2);
@@ -75,7 +79,7 @@
 }
 .demo-chip-phase { background: var(--color-accent); }
 .demo-chip-actor { color: var(--color-ink-contrast); background: var(--color-ink); }
-.demo-narration h2 { margin-bottom: var(--space-3); font-size: clamp(1.625rem, 1.2rem + 1.4vw, 2.125rem); overflow-wrap: anywhere; }
+.demo-narration h2 { margin-bottom: var(--space-3); font-size: clamp(1.5rem, 1.1rem + 1vw, 1.875rem); overflow-wrap: anywhere; }
 .demo-narration h2::before { content: '> '; content: '> ' / ''; }
 .demo-text { max-width: 78ch; font-size: 1.0625rem; overflow-wrap: anywhere; }
 .demo-watch { display: grid; gap: var(--space-2); margin: var(--space-4) 0 0; padding: 0; list-style: none; }
@@ -94,18 +98,40 @@
 }
 .demo-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
-/* Main grid: screen + containers on the left, diagram + scoreboard on the right, event log underneath */
-.demo-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-5); }
+/* "What is happening right now": the numbered hop trail of the current step, full width under the narration */
+.demo-now { display: grid; gap: var(--space-3); padding: var(--space-4) var(--space-5); background: var(--color-surface); border: var(--border); }
+.demo-now h2.demo-now-title { margin: 0; font-size: 1.375rem; overflow-wrap: anywhere; }
+.demo-now-title::before { content: '> '; content: '> ' / ''; }
+
+/* Two rows of panels. Row 1 (stage): diagram (the star, wider) + step terminal. Row 2 (grid): what the player
+   sees + containers on the left, scoreboard on the right. One column on narrow screens. */
+.demo-stage, .demo-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-5); }
 .demo-col { display: grid; align-content: start; gap: var(--space-5); min-width: 0; }
-.demo-col > *, .demo-log-wrap > * { min-width: 0; }
-.demo-log-wrap { min-width: 0; }
+.demo-col > * { min-width: 0; }
+
+/* Full server log, folded away so it does not compete with the diagram and the terminal */
+.demo-fulllog { min-width: 0; background: var(--color-surface); border: var(--border); }
+.demo-fulllog > summary {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  font-weight: 700; cursor: pointer; list-style: none; overflow-wrap: anywhere;
+}
+.demo-fulllog > summary::-webkit-details-marker { display: none; }
+.demo-fulllog > summary::before {
+  content: '+'; content: '+' / ''; display: grid; place-items: center; flex: none;
+  width: 24px; height: 24px; line-height: 1; background: var(--color-accent); border: var(--border);
+}
+.demo-fulllog[open] > summary::before { content: '\2212'; content: '\2212' / ''; }
+.demo-fulllog > summary:hover { background: var(--color-accent-tint); }
+.demo-fulllog > summary:focus-visible { outline-offset: -3px; }
+.demo-fulllog[open] > summary { border-bottom: var(--border); }
+.demo-fulllog > .demo-pnl { border: 0; }
 
 @media (min-width: 1000px) {
-  .demo-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
-  .demo-narration { min-height: 13rem; }
+  .demo-stage, .demo-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+  .demo-narration { min-height: 9rem; }
 }
 @media (min-width: 1000px) and (min-height: 600px) {
-  .demo-controls { position: sticky; top: var(--space-2); }
+  /* Not sticky: the diagram and terminal below must stay in view while the demo plays. */
 }
 
 @media (pointer: coarse) {
@@ -117,16 +143,26 @@
   .demo-hero.is-compact { padding: var(--space-3) var(--space-4); }
   .demo-start { width: 100%; padding-inline: var(--space-4); }
   .demo-bar { padding: var(--space-3); }
-  .demo-transport, .demo-speed, .demo-readout { width: 100%; }
+  .demo-transport, .demo-hopnav, .demo-speed, .demo-readout { width: 100%; }
   .demo-transport { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .demo-hopnav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .demo-page .demo-transport button { min-width: 0; padding-inline: 4px; }
+  .demo-page .demo-hopnav button { min-width: 0; padding-inline: 4px; }
   .demo-page .demo-speed button { flex: 1 1 0; min-width: 0; padding-inline: 4px; }
   .demo-transport .demo-glyph { display: none; }
   .demo-readout { justify-content: space-between; margin-left: 0; }
+  .demo-hopcount { padding-left: 0; border-left: 0; }
   .demo-progress { padding: var(--space-3); }
   .demo-tick-n { display: none; }
   .demo-page .demo-tick { min-height: 32px; }
   .demo-narration { padding: var(--space-4); border-left-width: 6px; }
+  .demo-now { padding: var(--space-4); }
+  .demo-fulllog > summary { padding: var(--space-3); }
   .demo-proof { padding: var(--space-4); }
   .demo-actions > * { flex: 1 1 140px; }
 }
+
+/* Step navigator now sits below the diagram and terminal so those two stay near the top of the page. */
+.demo-jump { padding: var(--space-3) var(--space-4) var(--space-4); background: var(--color-surface); border: var(--border); }
+.demo-narration .demo-hops { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--color-line-soft); }
+.demo-hero.is-compact { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; white-space: nowrap; }

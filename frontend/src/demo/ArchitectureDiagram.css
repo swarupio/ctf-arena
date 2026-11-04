@@ -166,6 +166,154 @@
   white-space: nowrap;
 }
 
+/* ---------- Hop view (prop `hop`): one request hop at a time ---------- */
+
+/* Nodes that take no part in the current hop step back */
+.demo-arch .demo-arch__node.is-dim {
+  opacity: 0.5;
+}
+
+/* Bolder, faster lime dash so the direction of travel is easy to follow */
+.demo-arch.is-hop .demo-arch__flow-dash {
+  stroke-width: 3.2;
+  stroke-dasharray: 9 11;
+  animation-duration: 0.8s;
+}
+
+/* Arrowhead where the request arrives: the static direction cue (also shown with reduced motion) */
+.demo-arch .demo-arch__arrow {
+  fill: var(--color-ink, #0a0a0a);
+  stroke: var(--color-accent, #b5f23d);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* Numbered badge on the edge midpoint: black disc, lime number, hard shadow */
+.demo-arch .demo-arch__hopnum-shadow {
+  fill: var(--color-ink, #0a0a0a);
+}
+
+.demo-arch .demo-arch__hopnum-dot {
+  fill: var(--color-ink, #0a0a0a);
+  stroke: var(--color-surface, #fff);
+  stroke-width: 2;
+}
+
+.demo-arch .demo-arch__svg text.demo-arch__hopnum-text {
+  fill: var(--color-accent, #b5f23d);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Caption bar under the diagram: HOP n/total · title, then the explanation */
+.demo-arch .demo-arch__hopbar {
+  position: relative;
+  margin: 0;
+  min-height: 4.5rem;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-ink, #0a0a0a);
+  background: var(--color-surface, #fff);
+  border-top: var(--border, 1px solid #0a0a0a);
+  border-left: 8px solid var(--color-accent, #b5f23d);
+  overflow-wrap: anywhere;
+}
+
+.demo-arch .demo-arch__hopbar.is-result {
+  background: var(--color-accent-tint, #eefbcc);
+}
+
+.demo-arch .demo-arch__hopbar-head {
+  font-weight: 700;
+}
+
+.demo-arch .demo-arch__hopbar-text {
+  font-weight: 400;
+}
+
+/* Motion only for visitors who have not asked for less of it */
+@media (prefers-reduced-motion: no-preference) {
+  .demo-arch .demo-arch__node {
+    transition: opacity 0.2s;
+  }
+
+  /* narrow screens: the hop scrolls into view smoothly */
+  .demo-arch .demo-arch__scroll {
+    scroll-behavior: smooth;
+  }
+
+  /* The black rail draws from -> to; the lime dash fades in with it */
+  .demo-arch.is-hop .demo-arch__flow .demo-arch__flow-line {
+    stroke-dasharray: 1 2;
+    animation: demo-arch-draw 0.45s ease-out both;
+  }
+
+  .demo-arch.is-hop .demo-arch__flow.is-reverse .demo-arch__flow-line {
+    animation-name: demo-arch-draw-rev;
+  }
+
+  .demo-arch.is-hop .demo-arch__flow-dash {
+    animation: demo-arch-flow 0.8s linear infinite, demo-arch-fade 0.45s ease-in both;
+  }
+
+  .demo-arch.is-hop .demo-arch__flow.is-reverse .demo-arch__flow-dash {
+    animation-direction: reverse, normal;
+  }
+
+  .demo-arch.is-hop.is-paused .demo-arch__flow-dash {
+    animation-play-state: paused, running;
+  }
+
+  /* scales about the badge centre: the SVG user-space origin of this element */
+  .demo-arch .demo-arch__hopnum {
+    animation: demo-arch-pop 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+  }
+}
+
+/* Rail draw-in; a reversed edge (path runs to -> from) reveals from its far end */
+@keyframes demo-arch-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes demo-arch-draw-rev {
+  from {
+    stroke-dashoffset: -1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes demo-arch-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes demo-arch-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* No travelling animation: active edges are simply solid black with lime nodes */
 @media (prefers-reduced-motion: reduce) {
   .demo-arch .demo-arch__flow-dash,

@@ -1,0 +1,162 @@
+/*
+  HopTrail: breadcrumb of the request hops of the current demo step. Everything is scoped under .demo-hops.
+  States: done = black fill, current = lime fill + hard shadow, upcoming = white. Tokens come from styles.css.
+  The global button rules (styles.css) are overridden here with higher specificity, including :hover.
+*/
+
+.demo-hops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px) var(--space-3, 12px);
+  min-width: 0;
+  font-family: var(--font-body, ui-monospace, Consolas, monospace);
+  color: var(--color-ink, #0a0a0a);
+  /* no box of its own (transparent): the page decides where it sits and wraps it if needed */
+}
+
+.demo-hops .demo-hops__label {
+  flex: none;
+  align-self: flex-start;
+  padding-top: 7px; /* sits on the first row of chips */
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  color: var(--color-muted, #55554f);
+}
+
+.demo-hops .demo-hops__list {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px) 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.demo-hops .demo-hops__item {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Arrow between two chips: a small ink triangle drawn with borders (no glyph needed) */
+.demo-hops .demo-hops__arrow {
+  flex: none;
+  width: 0;
+  height: 0;
+  margin: 0 var(--space-2, 8px);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--color-ink, #0a0a0a);
+}
+
+.demo-hops .demo-hops__chip {
+  justify-content: flex-start;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 3px var(--space-3, 12px) 3px 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+  color: var(--color-ink, #0a0a0a);
+  background: var(--color-surface, #fff);
+  border: var(--border, 1px solid #0a0a0a);
+  box-shadow: none;
+}
+
+.demo-hops .demo-hops__num {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: 0.75rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink, #0a0a0a);
+  background: var(--color-surface-2, #e9e9e4);
+  border: var(--border, 1px solid #0a0a0a);
+}
+
+.demo-hops .demo-hops__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* done: black fill, white text */
+.demo-hops .demo-hops__chip.is-done {
+  color: var(--color-ink-contrast, #fff);
+  background: var(--color-ink, #0a0a0a);
+}
+
+.demo-hops .demo-hops__chip.is-done .demo-hops__num {
+  color: var(--color-ink-contrast, #fff);
+  background: transparent;
+  border-color: var(--color-ink-contrast, #fff);
+}
+
+/* current: lime fill, black text, hard shadow */
+.demo-hops .demo-hops__chip.is-current {
+  color: var(--color-ink, #0a0a0a);
+  background: var(--color-accent, #b5f23d);
+  box-shadow: 3px 3px 0 var(--color-ink, #0a0a0a);
+}
+
+.demo-hops .demo-hops__chip.is-current .demo-hops__num {
+  color: var(--color-accent, #b5f23d);
+  background: var(--color-ink, #0a0a0a);
+}
+
+/* hover: beat the global button:hover:not(:disabled) rule, keep each state readable */
+.demo-hops .demo-hops__chip.is-upcoming:hover {
+  color: var(--color-ink, #0a0a0a);
+  background: var(--color-accent-tint, #eefbcc);
+}
+
+.demo-hops .demo-hops__chip.is-done:hover {
+  color: var(--color-ink, #0a0a0a);
+  background: var(--color-accent, #b5f23d);
+}
+
+.demo-hops .demo-hops__chip.is-done:hover .demo-hops__num {
+  color: var(--color-ink, #0a0a0a);
+  border-color: var(--color-ink, #0a0a0a);
+}
+
+.demo-hops .demo-hops__chip.is-current:hover {
+  color: var(--color-ink, #0a0a0a);
+  background: var(--color-accent, #b5f23d);
+}
+
+@media (max-width: 560px) {
+  .demo-hops .demo-hops__label {
+    flex-basis: 100%;
+  }
+
+  .demo-hops .demo-hops__list {
+    flex-basis: 100%;
+  }
+
+  /* long hop titles shorten with an ellipsis instead of widening the row */
+  .demo-hops .demo-hops__title {
+    max-width: 14ch;
+  }
+
+  .demo-hops .demo-hops__arrow {
+    margin: 0 6px;
+  }
+}

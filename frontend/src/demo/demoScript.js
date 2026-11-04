@@ -1,6 +1,11 @@
 // Scripted, client-side simulation of one full CTF game for the "Demo playoff" page.
 // No network calls and no real secrets: every flag below is an obviously fake demo value.
 // STEPS is the story; stateAt(index) folds the step effects into the state shown by the UI.
+// Each step also plays as numbered hops, one request hop at a time:
+//   cmd  = { who, line }: the shell command a person could type to cause the step (who: alpha, beta, admin, system).
+//   hops = [{ edge, title, text, lines }]: edge is one of the step flow edges (null for the final result hop),
+//          text is one plain sentence, lines are indexes into the step log shown during that hop.
+// The hops partition the log in order (only the first hop may be empty) and every flow edge is used by a hop.
 
 export const NODES = ['browser', 'cognito', 'nginx', 'backend1', 'backend2', 'backend3', 'mongo', 'docker'];
 
@@ -35,6 +40,9 @@ const MAX_LISTED_INSTANCES = 8;
 
 const DOCKER_FLAGS = '--memory 128m --cpus 0.25 --pids-limit 64 --cap-drop ALL --security-opt no-new-privileges --read-only';
 
+// Authorization header used by the shell commands shown in the demo terminal; $ID_TOKEN is a placeholder, never a real token.
+const AUTH = '-H "Authorization: Bearer $ID_TOKEN"';
+
 export const STEPS = [
   {
     id: 'alpha-signin',
@@ -44,9 +52,9 @@ export const STEPS = [
       + 'The backend only verifies the signed token against Cognito public keys and keeps no session, which lets any replica serve this player.',
     minute: 0,
     actor: 'Alpha',
-    duration: 6500,
+    duration: 10000,
     servedBy: 'backend1',
-    flow: [['browser', 'cognito'], ['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'cognito'], ['backend1', 'mongo']],
+    flow: [['browser', 'cognito'], ['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'mongo']],
     screen: {
       title: 'Sign in',
       rows: [
@@ -60,9 +68,36 @@ export const STEPS = [
     log: [
       { kind: 'req', text: 'cognito InitiateAuth -> challenge SOFTWARE_TOKEN_MFA' },
       { kind: 'ok', text: 'cognito RespondToAuthChallenge: TOTP code accepted, ID and access tokens issued' },
-      { kind: 'req', text: 'GET /api/auth/me -> 200 (served by backend1)' },
+      { kind: 'req', text: 'GET /api/me -> 200 (served by backend1)' },
       { kind: 'ok', text: 'backend1 verified the JWT signature with cached Cognito JWKS, no session stored' },
       { kind: 'db', text: 'mongo upsert users {cognitoSub} role=player' },
+    ],
+    cmd: { who: 'alpha', line: '# browser: sign in (password + TOTP) via Cognito, then the app calls GET /api/me with the ID token' },
+    hops: [
+      {
+        edge: ['browser', 'cognito'],
+        title: 'Browser -> Cognito',
+        text: 'Alice types her password, then the 6-digit TOTP code, and Cognito answers with signed ID and access tokens.',
+        lines: [0, 1],
+      },
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'The browser calls the API through nginx, the only public door, with the ID token in the Authorization header.',
+        lines: [2],
+      },
+      {
+        edge: ['nginx', 'backend1'],
+        title: 'Nginx -> Backend 1',
+        text: 'Nginx hands the call to Backend 1, which checks the token signature against cached Cognito public keys and keeps no session.',
+        lines: [3],
+      },
+      {
+        edge: ['backend1', 'mongo'],
+        title: 'Backend 1 -> MongoDB',
+        text: 'Backend 1 creates or refreshes the profile of Alice in MongoDB, with the role player taken from the token.',
+        lines: [4],
+      },
     ],
     effects: [],
   },
@@ -74,7 +109,7 @@ export const STEPS = [
       + 'Role and team are always decided on the server, never trusted from the client.',
     minute: 1,
     actor: 'Alpha',
-    duration: 4500,
+    duration: 7800,
     servedBy: 'backend2',
     flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['backend2', 'mongo']],
     screen: {
@@ -91,6 +126,27 @@ export const STEPS = [
       { kind: 'db', text: 'mongo insert teams {name: "Demo Alpha", inviteCode, captainId, memberIds: [alice]}' },
       { kind: 'db', text: 'unique index on teams.inviteCode: a collision would be retried with a new code' },
     ],
+    cmd: { who: 'alpha', line: `curl -s localhost/api/teams ${AUTH} --json '{"name":"Demo Alpha"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice types a team name and the browser sends it to nginx together with her ID token.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Nginx passes the request to Backend 2, which validates the name and answers 201 Created once the team exists.',
+        lines: [0],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 inserts the team into MongoDB with Alice as captain and a random invite code, guarded by a unique index.',
+        lines: [1, 2],
+      },
+    ],
     effects: [],
   },
   {
@@ -101,7 +157,7 @@ export const STEPS = [
       + 'Two people joining at the same moment, even on different replicas, can never overfill a team.',
     minute: 1,
     actor: 'Alpha',
-    duration: 4500,
+    duration: 10000,
     servedBy: 'backend3',
     flow: [['browser', 'nginx'], ['nginx', 'backend3'], ['backend3', 'mongo']],
     screen: {
@@ -118,6 +174,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo findOneAndUpdate teams {inviteCode, "memberIds.2": {$exists: false}} $push memberIds' },
       { kind: 'ok', text: 'team size check and insert were one atomic operation: 2 of 3 seats used' },
     ],
+    cmd: { who: 'alpha', line: `curl -s localhost/api/teams/join ${AUTH} --json '{"inviteCode":"K7QM4D"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Bob pastes the invite code K7QM4D into the Join form and the browser posts it to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend3'],
+        title: 'Nginx -> Backend 3',
+        text: 'Nginx routes it to Backend 3, a different replica from the one that made the team, which works because replicas share no state.',
+        lines: [0],
+      },
+      {
+        edge: ['backend3', 'mongo'],
+        title: 'Backend 3 -> MongoDB',
+        text: 'Backend 3 asks MongoDB to add Bob only if the team has fewer than 3 members, as one atomic update.',
+        lines: [1],
+      },
+      {
+        edge: null,
+        title: 'Result: Bob joined Demo Alpha',
+        text: 'MongoDB confirms the seat was taken, so Demo Alpha now has 2 of 3 seats used and the browser shows Joined.',
+        lines: [2],
+      },
+    ],
     effects: [],
   },
   {
@@ -128,9 +211,9 @@ export const STEPS = [
       + 'Both teams now play at the same time, kept apart by team id checks on the server.',
     minute: 2,
     actor: 'Beta',
-    duration: 5500,
+    duration: 10000,
     servedBy: 'backend1',
-    flow: [['browser', 'cognito'], ['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'cognito'], ['backend1', 'mongo']],
+    flow: [['browser', 'cognito'], ['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'mongo']],
     screen: {
       title: 'Create team',
       rows: [
@@ -143,9 +226,36 @@ export const STEPS = [
     },
     log: [
       { kind: 'req', text: 'cognito RespondToAuthChallenge: TOTP code accepted, tokens issued' },
-      { kind: 'req', text: 'GET /api/auth/me -> 200 (served by backend1)' },
+      { kind: 'req', text: 'GET /api/me -> 200 (served by backend1)' },
       { kind: 'req', text: 'POST /api/teams -> 201 (served by backend1)' },
       { kind: 'db', text: 'mongo insert teams {name: "Demo Beta", inviteCode, captainId, memberIds: [carol]}' },
+    ],
+    cmd: { who: 'beta', line: `curl -s localhost/api/teams ${AUTH} --json '{"name":"Demo Beta"}'  # after the browser MFA sign-in` },
+    hops: [
+      {
+        edge: ['browser', 'cognito'],
+        title: 'Browser -> Cognito',
+        text: 'Carol enters her password and TOTP code at Cognito, which accepts them and issues signed tokens.',
+        lines: [0],
+      },
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'With the token in hand the browser asks nginx who she is, so the server can set up her profile.',
+        lines: [1],
+      },
+      {
+        edge: ['nginx', 'backend1'],
+        title: 'Nginx -> Backend 1',
+        text: 'Nginx forwards the team-creation request to Backend 1, which verifies the token and validates the team name.',
+        lines: [2],
+      },
+      {
+        edge: ['backend1', 'mongo'],
+        title: 'Backend 1 -> MongoDB',
+        text: 'Backend 1 inserts Demo Beta into MongoDB with Carol as captain and a fresh invite code.',
+        lines: [3],
+      },
     ],
     effects: [],
   },
@@ -157,7 +267,7 @@ export const STEPS = [
       + 'Flags are only ever compared on the server.',
     minute: 3,
     actor: 'Alpha',
-    duration: 5000,
+    duration: 10000,
     servedBy: 'backend2',
     flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['backend2', 'mongo']],
     screen: {
@@ -176,6 +286,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo find challenges {visible: true} projection excludes flagHash and flagSalt' },
       { kind: 'ok', text: 'response: 5 challenges, 0 flag fields' },
     ],
+    cmd: { who: 'alpha', line: `curl -s localhost/api/challenges ${AUTH}` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice opens the Challenges page, so the browser asks nginx for the list with her token attached.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Nginx passes the request to Backend 2, which needs nothing but the token and the database to answer.',
+        lines: [0],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 reads the visible challenges from MongoDB and leaves out the flag hash and salt fields.',
+        lines: [1],
+      },
+      {
+        edge: null,
+        title: 'Result: five challenges',
+        text: 'The reply lists 5 challenges with title, points and type, and not a single flag field.',
+        lines: [2],
+      },
+    ],
     effects: [],
   },
   {
@@ -186,7 +323,7 @@ export const STEPS = [
       + 'Sanity Check is worth 25, so Alpha gets 25 + floor(2.5) = 27 points.',
     minute: 3,
     actor: 'Alpha',
-    duration: 5500,
+    duration: 10000,
     servedBy: 'backend3',
     flow: [['browser', 'nginx'], ['nginx', 'backend3'], ['backend3', 'mongo']],
     screen: {
@@ -205,6 +342,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo findOneAndUpdate challenges $inc solveCount -> 1, so this is first blood' },
       { kind: 'ok', text: 'solve recorded: 25 + 2 first blood = 27 points for Demo Alpha' },
     ],
+    cmd: { who: 'alpha', line: `curl -s localhost/api/challenges/sanity-check/submit ${AUTH} --json '{"flag":"CTF{demo_sanity_flag}"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice pastes the flag into the Sanity Check page and the browser posts it to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend3'],
+        title: 'Nginx -> Backend 3',
+        text: 'Nginx routes the submission to Backend 3, which salts and hashes the flag and compares it with the stored hash.',
+        lines: [0],
+      },
+      {
+        edge: ['backend3', 'mongo'],
+        title: 'Backend 3 -> MongoDB',
+        text: 'Backend 3 records the solve under a unique team and challenge index and raises the solve counter to 1, which makes it first blood.',
+        lines: [1, 2],
+      },
+      {
+        edge: null,
+        title: 'Result: Correct, +27 points',
+        text: 'Alice is told the flag is correct and earns 25 points plus 2 first blood bonus points, 27 in all.',
+        lines: [3],
+      },
+    ],
     effects: [{ type: 'score', team: 'alpha', challenge: 'sanity-check', firstBlood: true }],
   },
   {
@@ -215,7 +379,7 @@ export const STEPS = [
       + 'The container starts with hard limits (128 MB, 0.25 CPU, 64 processes, no capabilities) and a flag derived from the team id, so it is unique per team.',
     minute: 4,
     actor: 'Alpha',
-    duration: 6500,
+    duration: 12200,
     servedBy: 'backend1',
     flow: [['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'mongo'], ['backend1', 'docker']],
     screen: {
@@ -235,6 +399,39 @@ export const STEPS = [
       { kind: 'docker', text: 'docker start ctf-cookie-monster-alpha labels ctf.team ctf.challenge ctf.ttl_minutes=30' },
       { kind: 'ok', text: 'flag = HMAC-SHA256(secret, teamId:challengeId), injected as env FLAG, never sent to the player' },
     ],
+    cmd: { who: 'alpha', line: `curl -s -X POST localhost/api/challenges/cookie-monster/instance ${AUTH}` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice clicks Start on Cookie Monster and the browser posts the request to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend1'],
+        title: 'Nginx -> Backend 1',
+        text: 'Nginx routes it to Backend 1, which checks that the team is allowed another container.',
+        lines: [0],
+      },
+      {
+        edge: ['backend1', 'mongo'],
+        title: 'Backend 1 -> MongoDB',
+        text: 'Backend 1 claims port 30012 in MongoDB, and a unique partial index on port means two replicas can never get the same port.',
+        lines: [1],
+      },
+      {
+        edge: ['backend1', 'docker'],
+        title: 'Backend 1 -> Docker',
+        text: 'Backend 1 asks Docker to create and start the challenge image with memory, CPU and process caps and every capability dropped.',
+        lines: [2, 3],
+      },
+      {
+        edge: null,
+        title: 'Result: a private box is running',
+        text: 'Alice only receives the address of her box, while the flag for her team stays inside the container and is never sent to her.',
+        lines: [4],
+      },
+    ],
     effects: [{ type: 'start', id: 'inst-01', team: 'alpha', challenge: 'cookie-monster', port: 30012 }],
   },
   {
@@ -245,7 +442,7 @@ export const STEPS = [
       + 'Alpha peeks at Robots Rule and then forgets about it, which the reaper will clean up later.',
     minute: 4,
     actor: 'Alpha',
-    duration: 4500,
+    duration: 10000,
     servedBy: 'backend2',
     flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['backend2', 'mongo'], ['backend2', 'docker']],
     screen: {
@@ -263,6 +460,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo insert instances {port: 30047} unique partial index on port' },
       { kind: 'docker', text: `docker create ctf/robots-rule ${DOCKER_FLAGS}` },
     ],
+    cmd: { who: 'alpha', line: `curl -s -X POST localhost/api/challenges/robots-rule/instance ${AUTH}` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice also starts Robots Rule, so the browser posts a second start request to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Nginx sends it to Backend 2, which will first check how many containers team Alpha already runs.',
+        lines: [0],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 counts the active containers of Alpha in MongoDB, finds 1 which is below the limit of 2, and then claims port 30047.',
+        lines: [1, 2],
+      },
+      {
+        edge: ['backend2', 'docker'],
+        title: 'Backend 2 -> Docker',
+        text: 'Backend 2 asks Docker for a second capped container, which fills Alpha to 2 of 2 slots so a third start would be refused.',
+        lines: [3],
+      },
+    ],
     effects: [{ type: 'start', id: 'inst-02', team: 'alpha', challenge: 'robots-rule', port: 30047 }],
   },
   {
@@ -273,7 +497,7 @@ export const STEPS = [
       + 'Its flags differ from Alpha because each one is an HMAC of that team id and challenge id.',
     minute: 5,
     actor: 'Beta',
-    duration: 6000,
+    duration: 10000,
     servedBy: 'backend3',
     flow: [['browser', 'nginx'], ['nginx', 'backend3'], ['backend3', 'mongo'], ['backend3', 'docker']],
     screen: {
@@ -291,6 +515,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo insert instances {port: 30031} and {port: 30044}, no clash with 30012 and 30047' },
       { kind: 'docker', text: 'docker create ctf/robots-rule and ctf/cookie-monster with the same limits, --cap-drop ALL, no-new-privileges' },
     ],
+    cmd: { who: 'beta', line: `for c in robots-rule cookie-monster; do curl -s -X POST localhost/api/challenges/$c/instance ${AUTH}; done` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Beta starts Robots Rule and Cookie Monster, so the browser sends two start requests to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend3'],
+        title: 'Nginx -> Backend 3',
+        text: 'Nginx routes both requests to Backend 3, which handles each one separately for the team Beta.',
+        lines: [0, 1],
+      },
+      {
+        edge: ['backend3', 'mongo'],
+        title: 'Backend 3 -> MongoDB',
+        text: 'Backend 3 claims two new ports, 30031 and 30044, which do not clash with the ports Alpha already holds.',
+        lines: [2],
+      },
+      {
+        edge: ['backend3', 'docker'],
+        title: 'Backend 3 -> Docker',
+        text: 'Backend 3 asks Docker for two containers with the same caps as the ones of Alpha, so every box is isolated and equally limited.',
+        lines: [3],
+      },
+    ],
     effects: [
       { type: 'start', id: 'inst-03', team: 'beta', challenge: 'robots-rule', port: 30031 },
       { type: 'start', id: 'inst-04', team: 'beta', challenge: 'cookie-monster', port: 30044 },
@@ -304,7 +555,7 @@ export const STEPS = [
       + 'Every attempt is stored in MongoDB, which later feeds the rate limit.',
     minute: 6,
     actor: 'Alpha',
-    duration: 4500,
+    duration: 10000,
     servedBy: 'backend1',
     flow: [['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'mongo']],
     screen: {
@@ -321,6 +572,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo insert submissions {team: alpha, challenge: cookie-monster, correct: false}' },
       { kind: 'warn', text: 'wrong flag from Demo Alpha: 1 attempt in the last 60 s' },
     ],
+    cmd: { who: 'alpha', line: `curl -s localhost/api/challenges/cookie-monster/submit ${AUTH} --json '{"flag":"CTF{cookie_monster_000000000000}"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice submits a guess for Cookie Monster and the browser posts it to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend1'],
+        title: 'Nginx -> Backend 1',
+        text: 'Nginx routes it to Backend 1, which compares the guess with the flag of Alpha and finds no match.',
+        lines: [0],
+      },
+      {
+        edge: ['backend1', 'mongo'],
+        title: 'Backend 1 -> MongoDB',
+        text: 'Backend 1 stores the wrong attempt in MongoDB, which is the data the rate limit counts later.',
+        lines: [1],
+      },
+      {
+        edge: null,
+        title: 'Result: Incorrect flag',
+        text: 'Alice only learns that the flag is incorrect, with no hint about how close it was, and one attempt is logged for the last minute.',
+        lines: [2],
+      },
+    ],
     effects: [],
   },
   {
@@ -331,7 +609,7 @@ export const STEPS = [
       + 'Solving also removes the container at once so the resources are freed.',
     minute: 8,
     actor: 'Alpha',
-    duration: 6000,
+    duration: 10000,
     servedBy: 'backend2',
     flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['backend2', 'mongo'], ['backend2', 'docker']],
     screen: {
@@ -350,6 +628,33 @@ export const STEPS = [
       { kind: 'ok', text: '100 + 10 first blood = 110, Demo Alpha now has 137 points' },
       { kind: 'docker', text: 'docker rm -f ctf-cookie-monster-alpha (stopped automatically after the solve)' },
     ],
+    cmd: { who: 'alpha', line: `curl -s localhost/api/challenges/cookie-monster/submit ${AUTH} --json '{"flag":"CTF{cookie_monster_9f3a1c7e2b40}"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice submits the flag she found inside her Cookie Monster box and the browser posts it to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Nginx routes it to Backend 2, which recomputes the flag for team Alpha and finds that it matches.',
+        lines: [0],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 raises the solve counter to 1, so Alpha is first, and awards 100 plus 10 first blood, which makes 137 points in total.',
+        lines: [1, 2],
+      },
+      {
+        edge: ['backend2', 'docker'],
+        title: 'Backend 2 -> Docker',
+        text: 'Because the challenge is solved, Backend 2 tells Docker to remove the container of Alpha so its memory and port are freed.',
+        lines: [3],
+      },
+    ],
     effects: [
       { type: 'score', team: 'alpha', challenge: 'cookie-monster', firstBlood: true },
       { type: 'stop', id: 'inst-01', reason: 'solved' },
@@ -363,7 +668,7 @@ export const STEPS = [
       + 'That flag works only for Beta, and the container is removed straight after.',
     minute: 10,
     actor: 'Beta',
-    duration: 5500,
+    duration: 10000,
     servedBy: 'backend1',
     flow: [['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'mongo'], ['backend1', 'docker']],
     screen: {
@@ -382,6 +687,33 @@ export const STEPS = [
       { kind: 'ok', text: '100 + 10 first blood = 110, Demo Beta now has 110 points' },
       { kind: 'docker', text: 'docker rm -f ctf-robots-rule-beta (stopped automatically after the solve)' },
     ],
+    cmd: { who: 'beta', line: `curl -s localhost/api/challenges/robots-rule/submit ${AUTH} --json '{"flag":"CTF{robots_rule_5b2e90d4a6c1}"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Beta finds a hint in its own Robots Rule box and the browser posts the flag it found to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend1'],
+        title: 'Nginx -> Backend 1',
+        text: 'Nginx routes it to Backend 1, which recomputes the flag for team Beta and finds that it matches.',
+        lines: [0],
+      },
+      {
+        edge: ['backend1', 'mongo'],
+        title: 'Backend 1 -> MongoDB',
+        text: 'Backend 1 raises the solve counter to 1, so Beta is first on Robots Rule, and awards 100 plus 10 first blood, 110 points.',
+        lines: [1, 2],
+      },
+      {
+        edge: ['backend1', 'docker'],
+        title: 'Backend 1 -> Docker',
+        text: 'Backend 1 tells Docker to remove the Robots Rule container of Beta right after the solve.',
+        lines: [3],
+      },
+    ],
     effects: [
       { type: 'score', team: 'beta', challenge: 'robots-rule', firstBlood: true },
       { type: 'stop', id: 'inst-03', reason: 'solved' },
@@ -395,7 +727,7 @@ export const STEPS = [
       + 'Alpha can start it because the solved Cookie Monster box freed a slot.',
     minute: 12,
     actor: 'Alpha',
-    duration: 6500,
+    duration: 10000,
     servedBy: 'backend3',
     flow: [['browser', 'nginx'], ['nginx', 'backend3'], ['backend3', 'mongo'], ['backend3', 'docker']],
     screen: {
@@ -414,6 +746,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo insert instances {port: 30058} unique partial index on port' },
       { kind: 'docker', text: `docker create ctf/login-bypass ${DOCKER_FLAGS}` },
     ],
+    cmd: { who: 'alpha', line: `curl -s -X POST localhost/api/challenges/login-bypass/instance ${AUTH}` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice starts Login Bypass and the browser sends the request to nginx as usual.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend3'],
+        title: 'Nginx -> Backend 3',
+        text: 'Nginx picks Backend 3 this time, not Backend 2 as before, and nothing is lost because replicas hold no state.',
+        lines: [0],
+      },
+      {
+        edge: ['backend3', 'mongo'],
+        title: 'Backend 3 -> MongoDB',
+        text: 'Backend 3 counts the active containers of Alpha in MongoDB, finds 1 because the solved box is gone, and then claims port 30058.',
+        lines: [1, 2],
+      },
+      {
+        edge: ['backend3', 'docker'],
+        title: 'Backend 3 -> Docker',
+        text: 'Backend 3 asks Docker for a new capped container, which fills the second slot of Alpha again.',
+        lines: [3],
+      },
+    ],
     effects: [{ type: 'start', id: 'inst-05', team: 'alpha', challenge: 'login-bypass', port: 30058 }],
   },
   {
@@ -424,7 +783,7 @@ export const STEPS = [
       + 'Nobody has solved Caesar Says yet, so Beta earns first blood there: 75 + 7 = 82.',
     minute: 14,
     actor: 'Beta',
-    duration: 6000,
+    duration: 12200,
     servedBy: 'backend2',
     flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['backend2', 'mongo']],
     screen: {
@@ -443,6 +802,39 @@ export const STEPS = [
       { kind: 'db', text: 'mongo findOneAndUpdate challenges $inc solveCount -> 1, first blood: 75 + 7 = 82 points' },
       { kind: 'ok', text: 'Demo Beta now has 217 points and leads Demo Alpha (137)' },
     ],
+    cmd: { who: 'beta', line: `for s in sanity-check caesar-says; do curl -s localhost/api/challenges/$s/submit ${AUTH} --json @$s.json; done` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Beta submits two flags in a row, so the browser sends two separate requests to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Nginx routes the Sanity Check flag to Backend 2, which checks that it is correct for team Beta.',
+        lines: [0],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 sees the solve counter go to 2, so Alpha was already first and Beta gets only the 25 base points.',
+        lines: [1],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2 (second flag)',
+        text: 'The second request, for Caesar Says, travels the same way and nginx again picks Backend 2.',
+        lines: [2],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB (second flag)',
+        text: 'Backend 2 sees the counter at 1, so Beta is first on Caesar Says and earns 75 plus 7, which puts Beta ahead with 217 points.',
+        lines: [3, 4],
+      },
+    ],
     effects: [
       { type: 'score', team: 'beta', challenge: 'sanity-check', firstBlood: false },
       { type: 'score', team: 'beta', challenge: 'caesar-says', firstBlood: true },
@@ -456,7 +848,7 @@ export const STEPS = [
       + 'The Login Bypass container is stopped automatically, freeing one of the two slots.',
     minute: 18,
     actor: 'Alpha',
-    duration: 6500,
+    duration: 10000,
     servedBy: 'backend1',
     flow: [['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'mongo'], ['backend1', 'docker']],
     screen: {
@@ -475,6 +867,33 @@ export const STEPS = [
       { kind: 'ok', text: '200 + 20 first blood = 220, Demo Alpha now has 357 points and retakes the lead' },
       { kind: 'docker', text: 'docker rm -f ctf-login-bypass-alpha (stopped automatically after the solve)' },
     ],
+    cmd: { who: 'alpha', line: `curl -s localhost/api/challenges/login-bypass/submit ${AUTH} --json '{"flag":"CTF{login_bypass_e7a30c915d28}"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Alice submits the flag for Login Bypass, the hardest challenge, and the browser posts it to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend1'],
+        title: 'Nginx -> Backend 1',
+        text: 'Nginx routes it to Backend 1, which recomputes the flag for team Alpha and finds that it matches.',
+        lines: [0],
+      },
+      {
+        edge: ['backend1', 'mongo'],
+        title: 'Backend 1 -> MongoDB',
+        text: 'Backend 1 raises the solve counter to 1, so Alpha is first, and awards 200 plus 20 first blood, which lifts Alpha to 357 points.',
+        lines: [1, 2],
+      },
+      {
+        edge: ['backend1', 'docker'],
+        title: 'Backend 1 -> Docker',
+        text: 'Backend 1 tells Docker to remove the Login Bypass container, so Alpha has a free slot again.',
+        lines: [3],
+      },
+    ],
     effects: [
       { type: 'score', team: 'alpha', challenge: 'login-bypass', firstBlood: true },
       { type: 'stop', id: 'inst-05', reason: 'solved' },
@@ -488,7 +907,7 @@ export const STEPS = [
       + 'It fails because the flag Beta needs is a different HMAC of its own team id and the challenge, so copied flags are worthless.',
     minute: 20,
     actor: 'Beta',
-    duration: 5500,
+    duration: 7800,
     servedBy: 'backend2',
     flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['backend2', 'mongo']],
     screen: {
@@ -505,6 +924,27 @@ export const STEPS = [
       { kind: 'warn', text: 'HMAC(secret, betaTeamId:challengeId) does not match the submitted flag' },
       { kind: 'db', text: 'mongo insert submissions {team: beta, challenge: cookie-monster, correct: false}' },
     ],
+    cmd: { who: 'beta', line: `curl -s localhost/api/challenges/cookie-monster/submit ${AUTH} --json '{"flag":"CTF{cookie_monster_9f3a1c7e2b40}"}'` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Beta pastes the flag that leaked from Alpha into the Cookie Monster page and the browser posts it to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Nginx routes it to Backend 2, which recomputes the flag for team Beta itself and sees that it does not match.',
+        lines: [0, 1],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 stores the failed attempt in MongoDB, where it counts toward the limit of 5 tries per minute for Beta.',
+        lines: [2],
+      },
+    ],
     effects: [],
   },
   {
@@ -515,9 +955,9 @@ export const STEPS = [
       + 'The count is a MongoDB query over recent submissions, so it holds even when guesses are spread over several replicas.',
     minute: 21,
     actor: 'Beta',
-    duration: 6000,
+    duration: 10000,
     servedBy: 'backend3',
-    flow: [['browser', 'nginx'], ['nginx', 'backend1'], ['nginx', 'backend2'], ['nginx', 'backend3'], ['backend3', 'mongo']],
+    flow: [['browser', 'nginx'], ['nginx', 'backend3'], ['backend3', 'mongo']],
     screen: {
       title: 'Cookie Monster',
       rows: [
@@ -533,6 +973,33 @@ export const STEPS = [
       { kind: 'req', text: 'POST /api/challenges/cookie-monster/submit -> 429 (served by backend3)' },
       { kind: 'err', text: '429 RATE_LIMITED 5 attempts/min/team/challenge' },
     ],
+    cmd: { who: 'beta', line: `for i in 1 2 3 4 5; do curl -s localhost/api/challenges/cookie-monster/submit ${AUTH} --json '{"flag":"CTF{demo_guess}"}'; done` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Beta fires guesses as fast as it can, and each one is a separate request to nginx.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend3'],
+        title: 'Nginx -> Backend 3',
+        text: 'Nginx spreads the quick guesses over Backends 1, 2, 3 and 1, all wrong, and the next one lands on Backend 3.',
+        lines: [0],
+      },
+      {
+        edge: ['backend3', 'mongo'],
+        title: 'Backend 3 -> MongoDB',
+        text: 'Backend 3 counts the attempts of Beta on this challenge during the last 60 seconds in MongoDB and finds 5, the maximum.',
+        lines: [1],
+      },
+      {
+        edge: null,
+        title: 'Result: 429 Too Many Requests',
+        text: 'Backend 3 refuses the guess with 429 RATE_LIMITED before it even checks the flag, and the browser shows a wait message.',
+        lines: [2, 3],
+      },
+    ],
     effects: [],
   },
   {
@@ -543,9 +1010,9 @@ export const STEPS = [
       + 'Nginx sends the next request to backend1, which answers from the same MongoDB data, so nobody is logged out and no container is lost.',
     minute: 23,
     actor: 'System',
-    duration: 6000,
+    duration: 12200,
     servedBy: 'backend1',
-    flow: [['browser', 'nginx'], ['nginx', 'backend1'], ['backend1', 'mongo']],
+    flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['nginx', 'backend1'], ['backend1', 'mongo']],
     screen: {
       title: 'Alpha refreshes My instances',
       rows: [
@@ -562,6 +1029,39 @@ export const STEPS = [
       { kind: 'db', text: 'mongo find instances {team: alpha, active} -> 1 running box, data unchanged' },
       { kind: 'ok', text: 'docker compose restarted backend2, GET /api/health OK, back in rotation' },
     ],
+    cmd: { who: 'system', line: `docker kill ctf-arena-backend-2 && curl -s localhost/api/instances ${AUTH}` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Right after a replica was stopped, Alice refreshes My instances and the browser sends the request to nginx as usual.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2 (down)',
+        text: 'Nginx first tries Backend 2, which was just stopped, the connection fails and nginx quietly retries on another replica.',
+        lines: [0, 1],
+      },
+      {
+        edge: ['nginx', 'backend1'],
+        title: 'Nginx -> Backend 1',
+        text: 'The retry reaches Backend 1, which verifies the token on its own and answers 200, so Alice never sees an error.',
+        lines: [2],
+      },
+      {
+        edge: ['backend1', 'mongo'],
+        title: 'Backend 1 -> MongoDB',
+        text: 'Backend 1 reads the running containers of Alpha from MongoDB, and the data is exactly what Backend 2 would have returned.',
+        lines: [3],
+      },
+      {
+        edge: null,
+        title: 'Result: Backend 2 rejoins',
+        text: 'Docker Compose restarts Backend 2, its health check passes and nginx puts it back into the rotation.',
+        lines: [4],
+      },
+    ],
     effects: [],
   },
   {
@@ -572,7 +1072,7 @@ export const STEPS = [
       + 'Only a token with the Cognito admin role passes requireRole, and the kill removes the container immediately.',
     minute: 26,
     actor: 'Admin',
-    duration: 6500,
+    duration: 12200,
     servedBy: 'backend3',
     flow: [['browser', 'nginx'], ['nginx', 'backend3'], ['backend3', 'cognito'], ['backend3', 'mongo'], ['backend3', 'docker']],
     screen: {
@@ -591,6 +1091,39 @@ export const STEPS = [
       { kind: 'db', text: 'mongo findOneAndUpdate instances {_id, active} status=killed' },
       { kind: 'docker', text: 'docker rm -f ctf-cookie-monster-beta (CPU held at quota, memory 41 MB of 128 MB)' },
     ],
+    cmd: { who: 'admin', line: `curl -s -X POST localhost/api/admin/instances/inst-04/kill ${AUTH}` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'The admin presses Kill on a dashboard row and the browser sends the request to nginx with the admin token.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend3'],
+        title: 'Nginx -> Backend 3',
+        text: 'Nginx routes the kill request to Backend 3, which will only act if the caller is an admin.',
+        lines: [0],
+      },
+      {
+        edge: ['backend3', 'cognito'],
+        title: 'Backend 3 -> Cognito',
+        text: 'Backend 3 checks the token against the Cognito public keys and reads the role claim, admin, so the admin-only check passes.',
+        lines: [1],
+      },
+      {
+        edge: ['backend3', 'mongo'],
+        title: 'Backend 3 -> MongoDB',
+        text: 'Backend 3 marks the instance as killed in MongoDB with one atomic update, so no other replica can stop it a second time.',
+        lines: [2],
+      },
+      {
+        edge: ['backend3', 'docker'],
+        title: 'Backend 3 -> Docker',
+        text: 'Backend 3 tells Docker to remove the Cookie Monster container of Beta at once, which ends the abusive traffic.',
+        lines: [3],
+      },
+    ],
     effects: [{ type: 'stop', id: 'inst-04', reason: 'killed' }],
   },
   {
@@ -601,7 +1134,7 @@ export const STEPS = [
       + 'Every 60 seconds the reaper claims expired instances atomically in MongoDB and removes their containers, so the Robots Rule box that Alpha forgot disappears and port 30047 is free.',
     minute: 34,
     actor: 'System',
-    duration: 6000,
+    duration: 7800,
     servedBy: null,
     flow: [['backend3', 'mongo'], ['backend3', 'docker']],
     screen: {
@@ -619,6 +1152,27 @@ export const STEPS = [
       { kind: 'docker', text: 'docker rm -f ctf-robots-rule-alpha (TTL 30 min reached)' },
       { kind: 'ok', text: 'port 30047 released, no running containers left' },
     ],
+    cmd: { who: 'system', line: `docker ps --filter label=ctf.managed=true --format '{{.Names}} {{.Status}}'` },
+    hops: [
+      {
+        edge: ['backend3', 'mongo'],
+        title: 'Backend 3 -> MongoDB',
+        text: 'Every 60 seconds the reaper in Backend 3 asks MongoDB for expired instances and atomically claims each one before touching it.',
+        lines: [0, 1],
+      },
+      {
+        edge: ['backend3', 'docker'],
+        title: 'Backend 3 -> Docker',
+        text: 'Backend 3 tells Docker to remove the forgotten Robots Rule container of Alpha, which has now lived its full 30 minutes.',
+        lines: [2],
+      },
+      {
+        edge: null,
+        title: 'Result: port 30047 is free',
+        text: 'The port is released and no containers are left running, without any player or admin lifting a finger.',
+        lines: [3],
+      },
+    ],
     effects: [{ type: 'stop', id: 'inst-02', reason: 'expired' }],
   },
   {
@@ -629,7 +1183,7 @@ export const STEPS = [
       + 'Demo Alpha wins 357 to 217, helped by first blood on three challenges.',
     minute: 35,
     actor: 'System',
-    duration: 6500,
+    duration: 10000,
     servedBy: 'backend2',
     flow: [['browser', 'nginx'], ['nginx', 'backend2'], ['backend2', 'mongo']],
     screen: {
@@ -645,6 +1199,33 @@ export const STEPS = [
       { kind: 'db', text: 'mongo aggregate solves group by team, sum(points), sort by points desc then earliest solve' },
       { kind: 'ok', text: '1. Demo Alpha 357 | 2. Demo Beta 217' },
     ],
+    cmd: { who: 'system', line: `curl -s localhost/api/leaderboard ${AUTH}` },
+    hops: [
+      {
+        edge: ['browser', 'nginx'],
+        title: 'Browser -> Nginx',
+        text: 'Anyone opens the Leaderboard page and the browser asks nginx for the current ranking.',
+        lines: [],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Nginx routes the request to Backend 2, which keeps no scores in memory and so has to compute them.',
+        lines: [0],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 groups all stored solves by team in MongoDB, sums the points and sorts by points, then by earliest solve.',
+        lines: [1],
+      },
+      {
+        edge: null,
+        title: 'Result: Alpha 357, Beta 217',
+        text: 'The browser receives the ranking and shows Demo Alpha first with 357 points and Demo Beta second with 217.',
+        lines: [2],
+      },
+    ],
     effects: [],
   },
   {
@@ -655,13 +1236,9 @@ export const STEPS = [
       + 'All state lives in MongoDB or Cognito, so a replica can be added or lost without changing the outcome.',
     minute: 35,
     actor: 'System',
-    duration: 6500,
+    duration: 12200,
     servedBy: null,
-    flow: [
-      ['browser', 'cognito'], ['browser', 'nginx'],
-      ['nginx', 'backend1'], ['nginx', 'backend2'], ['nginx', 'backend3'],
-      ['backend1', 'mongo'], ['backend2', 'mongo'], ['backend3', 'mongo'],
-    ],
+    flow: [['browser', 'cognito'], ['nginx', 'backend2'], ['backend2', 'mongo'], ['backend2', 'docker']],
     screen: {
       title: 'Demo complete',
       rows: [
@@ -679,6 +1256,39 @@ export const STEPS = [
       { kind: 'ok', text: 'flags are per team and never sent to players' },
       { kind: 'ok', text: 'containers were capped and always cleaned up (solve, admin kill, TTL reaper)' },
       { kind: 'ok', text: 'rate limit held across replicas because attempts are counted in MongoDB' },
+    ],
+    cmd: { who: 'system', line: '# recap: nothing new to type, every guarantee above came from the commands already shown' },
+    hops: [
+      {
+        edge: ['browser', 'cognito'],
+        title: 'Browser -> Cognito',
+        text: 'Every sign-in went through Cognito, which demanded a password and a TOTP code before it issued any token.',
+        lines: [0],
+      },
+      {
+        edge: ['nginx', 'backend2'],
+        title: 'Nginx -> Backend 2',
+        text: 'Any replica could serve any request, even Backend 2 after its crash, because it keeps no session or counter in memory.',
+        lines: [1],
+      },
+      {
+        edge: ['backend2', 'mongo'],
+        title: 'Backend 2 -> MongoDB',
+        text: 'Backend 2 keeps all state in MongoDB, and each team has its own flag that is only checked on the server, so copying one is useless.',
+        lines: [2],
+      },
+      {
+        edge: ['backend2', 'docker'],
+        title: 'Backend 2 -> Docker',
+        text: 'Every container that Backend 2 starts has hard limits and is always removed, by a solve, an admin kill or the reaper.',
+        lines: [3],
+      },
+      {
+        edge: null,
+        title: 'Result: the rate limit held',
+        text: 'The limit of 5 guesses per minute held across all replicas, because attempts are counted in MongoDB and not in memory.',
+        lines: [4],
+      },
     ],
     effects: [],
   },
@@ -771,5 +1381,7 @@ export function stateAt(index) {
     lines,
     activeEdges: step ? step.flow.map((edge) => [...edge]) : [],
     servedBy: step ? step.servedBy : null,
+    hops: step ? step.hops : [],
+    cmd: step ? step.cmd : null,
   };
 }

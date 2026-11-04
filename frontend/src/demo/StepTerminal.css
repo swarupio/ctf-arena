@@ -1,0 +1,257 @@
+/*
+  StepTerminal: the per-step shell terminal of the demo playoff. Scoped under .demo-term.
+  It is the one dark surface of the page. Kind colours are the same contrast-checked ones EventLog uses.
+  All motion lives in the no-preference block at the bottom, so reduced-motion users get the final static state.
+*/
+
+.demo-term {
+  min-width: 0;
+  color: #e8e8e3;
+  background: var(--color-ink, #0a0a0a);
+  border: var(--border, 1px solid #0a0a0a);
+  font-family: var(--font-body, ui-monospace, Consolas, monospace);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+/* ---------- Title strip ---------- */
+.demo-term .demo-term__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  padding: 6px var(--space-3, 12px);
+  background: #1c1c1a;
+  border-bottom: 1px solid #34342f;
+}
+
+.demo-term .demo-term__dots {
+  display: flex;
+  flex: none;
+  gap: 5px;
+}
+
+.demo-term .demo-term__dots span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  background: #55554f;
+  border: 1px solid #8a8a83;
+}
+
+.demo-term .demo-term__dots span:nth-child(3) {
+  background: var(--color-accent, #b5f23d);
+  border-color: var(--color-accent, #b5f23d);
+}
+
+.demo-term .demo-term__title {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #e8e8e3;
+}
+
+.demo-term .demo-term__status {
+  flex: none;
+  padding: 0 var(--space-2, 8px);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.7;
+  white-space: nowrap;
+  color: var(--color-accent, #b5f23d);
+  border: 1px solid currentColor;
+}
+
+.demo-term .demo-term__dot {
+  display: inline-block;
+}
+
+/* ---------- Body ---------- */
+.demo-term .demo-term__body {
+  height: 300px;
+  max-height: 300px;
+  padding: var(--space-3, 12px) 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: #e8e8e3;
+  background: var(--color-ink, #0a0a0a);
+  scrollbar-color: #6b6b64 var(--color-ink, #0a0a0a);
+}
+
+.demo-term .demo-term__body:focus-visible {
+  outline: 3px solid var(--color-accent, #b5f23d);
+  outline-offset: -3px;
+}
+
+.demo-term .demo-term__line {
+  padding: 1px var(--space-3, 12px);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.demo-term .demo-term__fresh {
+  margin-top: var(--space-1, 4px);
+}
+
+.demo-term .demo-term__prompt {
+  font-weight: 700;
+  color: var(--color-accent, #b5f23d);
+}
+
+.demo-term .demo-term__typed {
+  color: #e8e8e3;
+}
+
+.demo-term .demo-term__comment {
+  color: #9b9b95;
+}
+
+.demo-term .demo-term__caret {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.1em;
+  vertical-align: text-bottom;
+  background: var(--color-accent, #b5f23d);
+}
+
+/* ---------- Output rows ---------- */
+.demo-term .demo-term__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2, 8px);
+  padding: 1px var(--space-3, 12px) 1px calc(var(--space-3, 12px) - 3px);
+  border-left: 3px solid transparent;
+}
+
+/* earlier hops: still readable, but they step back */
+.demo-term .demo-term__row.is-past {
+  opacity: 0.7;
+}
+
+/* the hop being played: lighter background and a lime rail */
+.demo-term .demo-term__row.is-current {
+  background: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--color-accent, #b5f23d);
+}
+
+/* hop number, shown on the first output row of each hop */
+.demo-term .demo-term__gut {
+  flex: none;
+  width: 1.5ch;
+  text-align: right;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #9b9b95;
+}
+
+.demo-term .demo-term__row.is-current .demo-term__gut {
+  color: var(--color-accent, #b5f23d);
+}
+
+.demo-term .demo-term__kind {
+  flex: none;
+  min-width: 6.5ch;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--demo-term-kind, #e8e8e3);
+  border: 1px solid currentColor;
+}
+
+.demo-term .demo-term__kind--req {
+  --demo-term-kind: #9ec5ff;
+}
+
+.demo-term .demo-term__kind--db {
+  --demo-term-kind: #c4b5fd;
+}
+
+.demo-term .demo-term__kind--docker {
+  --demo-term-kind: #7dd3fc;
+}
+
+.demo-term .demo-term__kind--ok {
+  --demo-term-kind: #b5f23d;
+}
+
+.demo-term .demo-term__kind--warn {
+  --demo-term-kind: #fcd34d;
+}
+
+.demo-term .demo-term__kind--err {
+  --demo-term-kind: #ff9b9b;
+}
+
+.demo-term .demo-term__text {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* All motion, only when the visitor has not asked for less of it */
+@media (prefers-reduced-motion: no-preference) {
+  .demo-term .demo-term__row {
+    transition: opacity 0.25s, background-color 0.25s;
+  }
+
+  .demo-term .demo-term__row.is-current {
+    animation: demo-term-in 0.35s ease-out both;
+    animation-delay: calc(var(--demo-term-i, 0) * 110ms);
+  }
+
+  .demo-term .demo-term__caret {
+    animation: demo-term-blink 1s steps(1, end) infinite;
+  }
+
+  /* while the command is being typed the caret stays solid */
+  .demo-term .demo-term__caret.is-typing {
+    animation: none;
+  }
+
+  .demo-term .demo-term__dot {
+    animation: demo-term-pulse 2s steps(1, end) infinite;
+  }
+}
+
+@keyframes demo-term-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes demo-term-pulse {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes demo-term-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
