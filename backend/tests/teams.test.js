@@ -8,6 +8,8 @@ import { installTeamStore } from './helpers/teamStore.js';
 
 vi.mock('../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 vi.mock('../src/services/scoringService.js', () => ({ teamScore: vi.fn() }));
+// The join attempt limiter has its own tests (tests/security/joinLimit.test.js); here it never blocks.
+vi.mock('../src/services/attemptLimiter.js', () => ({ consumeAttempt: vi.fn() }));
 vi.mock('../src/services/instanceService.js', () => ({
   instanceService: { stopTeamInstances: vi.fn().mockResolvedValue(undefined) },
 }));
