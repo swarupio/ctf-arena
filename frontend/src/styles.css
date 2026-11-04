@@ -5,6 +5,22 @@
   Lime is only used as a fill (never as text colour on a light surface) so contrast stays high.
   Page-specific rules live next to the pages (pages/*.css); every colour, space and font comes from here.
 */
+/* Fonts are served from /fonts (Latin subsets, SIL OFL) so the page works offline and under the strict Nginx CSP. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Jersey 10';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/jersey10-latin.woff2') format('woff2');
+}
+
 :root {
   color-scheme: light;
 

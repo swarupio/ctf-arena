@@ -18,6 +18,9 @@ services:
   backend:
     build: ./backend
     env_file: .env
+    environment:
+      # Docker hosts without IPv6 make Node's default dual-stack connect time out on Cognito's JWKS URL (every login 401s).
+      NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
     # Not published to the host: only Nginx (same network) can reach the backend on 4000.
     expose:
       - "4000"

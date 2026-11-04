@@ -1,0 +1,180 @@
+/* Architecture diagram for the demo playoff. Everything is scoped under .demo-arch. */
+
+.demo-arch {
+  position: relative;
+  width: 100%;
+  background-color: var(--color-bg, #f4f4f1);
+  background-image:
+    linear-gradient(var(--color-surface-2, #e9e9e4) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-surface-2, #e9e9e4) 1px, transparent 1px);
+  background-size: 20px 20px;
+  font-family: var(--font-body, ui-monospace, Consolas, monospace);
+}
+
+/* Narrow screens: keep the text legible and let the diagram scroll sideways inside its box. */
+.demo-arch .demo-arch__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.demo-arch .demo-arch__svg {
+  display: block;
+  width: 100%;
+  min-width: 560px;
+  height: auto;
+}
+
+.demo-arch .demo-arch__svg text {
+  font-family: var(--font-body, ui-monospace, Consolas, monospace);
+  font-size: 11px;
+  fill: var(--color-ink, #0a0a0a);
+  user-select: none;
+}
+
+/* Idle links: always drawn, light grey */
+.demo-arch .demo-arch__link {
+  fill: none;
+  stroke: var(--color-line-soft, #c9c9c2);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+/* Active links: thick black rail with a travelling lime dash on top */
+.demo-arch .demo-arch__flow-line {
+  fill: none;
+  stroke: var(--color-ink, #0a0a0a);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.demo-arch .demo-arch__flow-dash,
+.demo-arch .demo-arch__legend-dash {
+  fill: none;
+  stroke: var(--color-accent, #b5f23d);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 14;
+  stroke-linejoin: round;
+}
+
+/* One loop = 4 dash periods (4 x 20), so the 1.2s loop is seamless. */
+.demo-arch .demo-arch__flow-dash {
+  animation: demo-arch-flow 1.2s linear infinite;
+}
+
+.demo-arch .demo-arch__flow.is-reverse .demo-arch__flow-dash {
+  animation-direction: reverse;
+}
+
+.demo-arch.is-paused .demo-arch__flow-dash {
+  animation-play-state: paused;
+}
+
+@keyframes demo-arch-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -80;
+  }
+}
+
+/* Nodes */
+.demo-arch .demo-arch__shadow {
+  fill: var(--color-ink, #0a0a0a);
+  opacity: 0;
+}
+
+.demo-arch .demo-arch__box {
+  fill: var(--color-surface, #fff);
+  stroke: var(--color-ink, #0a0a0a);
+  stroke-width: 2;
+  transition: fill 0.15s;
+}
+
+.demo-arch .demo-arch__icon rect {
+  fill: var(--color-ink, #0a0a0a);
+}
+
+.demo-arch .demo-arch__svg text.demo-arch__label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.demo-arch .demo-arch__svg text.demo-arch__sub {
+  fill: var(--color-muted, #55554f);
+}
+
+.demo-arch .demo-arch__svg text.demo-arch__caption {
+  fill: var(--color-muted, #55554f);
+  /* halo keeps captions readable where a grey link or grid line passes behind */
+  paint-order: stroke fill;
+  stroke: var(--color-bg, #f4f4f1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.demo-arch .demo-arch__node.is-active .demo-arch__shadow,
+.demo-arch .demo-arch__node.is-served .demo-arch__shadow {
+  opacity: 1;
+}
+
+.demo-arch .demo-arch__node.is-served .demo-arch__box {
+  fill: var(--color-accent-tint, #eefbcc);
+}
+
+.demo-arch .demo-arch__node.is-active .demo-arch__box {
+  fill: var(--color-accent, #b5f23d);
+}
+
+/* ANSWERING badge on the replica that served the request */
+.demo-arch .demo-arch__badge rect {
+  fill: var(--color-accent, #b5f23d);
+  stroke: var(--color-ink, #0a0a0a);
+  stroke-width: 2;
+}
+
+.demo-arch .demo-arch__svg .demo-arch__badge text {
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* Label chips on active edges: terminal style, lime on black */
+.demo-arch .demo-arch__chips rect {
+  fill: var(--color-ink, #0a0a0a);
+}
+
+.demo-arch .demo-arch__svg .demo-arch__chips text {
+  fill: var(--color-accent, #b5f23d);
+  font-weight: 700;
+}
+
+.demo-arch .demo-arch__svg .demo-arch__legend text {
+  fill: var(--color-muted, #55554f);
+}
+
+/* Screen-reader-only summary of the current flow */
+.demo-arch .demo-arch__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* No travelling animation: active edges are simply solid black with lime nodes */
+@media (prefers-reduced-motion: reduce) {
+  .demo-arch .demo-arch__flow-dash,
+  .demo-arch .demo-arch__legend-dash {
+    animation: none;
+    display: none;
+  }
+
+  .demo-arch .demo-arch__box {
+    transition: none;
+  }
+}

@@ -9,6 +9,7 @@ import ChallengeDetail from './pages/ChallengeDetail.jsx';
 import ChallengeAdmin from './pages/ChallengeAdmin.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import Demo from './pages/Demo.jsx';
 
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
@@ -21,6 +22,7 @@ export default function App() {
       {['signup', 'confirm', 'login', 'mfa-setup', 'mfa'].map((mode) => (
         <Route key={mode} path={mode} element={<AuthPage key={mode} mode={mode} />} />
       ))}
+      <Route path="demo" element={<Demo />} />
       <Route element={<ProtectedRoute />}>
         <Route path="challenges" element={<ChallengeList />} />
         <Route path="challenges/:id" element={<ChallengeDetail />} />
