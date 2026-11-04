@@ -67,6 +67,12 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
       throw new AppError(409, 'INSTANCE_LIMIT', `Your team can run at most ${config.MAX_INSTANCES_PER_TEAM} instances.`);
     }
     const instance = await claimPort({ team, user, challenge });
+    // The check above is not atomic: parallel starts of different challenges can all pass it. Counting again after
+    // our own claim is stored means at most MAX_INSTANCES_PER_TEAM claims survive; the others give their port back.
+    if (await Instance.countDocuments({ teamId: team._id, status: { $in: ACTIVE_STATUSES } }) > config.MAX_INSTANCES_PER_TEAM) {
+      await Instance.updateOne({ _id: instance._id }, { $set: { status: 'failed', stoppedAt: new Date() } });
+      throw new AppError(409, 'INSTANCE_LIMIT', `Your team can run at most ${config.MAX_INSTANCES_PER_TEAM} instances.`);
+    }
     try {
       const containerId = await docker.createInstance({
         instanceId: instance._id, teamId: team._id, challengeId: challenge._id,

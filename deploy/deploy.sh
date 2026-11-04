@@ -3,7 +3,7 @@
 # Used by the first manual deploy (docs/AZURE_SETUP.md) and by the GitHub Actions deploy job.
 #
 #   bash deploy/deploy.sh
-#   SEED_CHALLENGES=1 bash deploy/deploy.sh      # also register challenges in MongoDB (first deploy)
+#   SEED_CHALLENGES=1 bash deploy/deploy.sh      # also register challenges (and Arena Terminal codes) in MongoDB
 #   REPLICAS=5 bash deploy/deploy.sh             # scale the backend (default: 3 from docker-compose.yml)
 #
 # It does NOT run "git pull". The caller pulls first, so this file is never replaced while bash is
@@ -12,7 +12,7 @@
 # Steps:
 #   1. build the frontend into frontend/dist inside a Node 20 container (no Node needed on the VM)
 #   2. build one image ctf/<slug> per challenges/<slug>/Dockerfile (unchanged ones are cache hits)
-#   3. optionally register challenges/*/challenge.json in MongoDB
+#   3. optionally register challenges/*/challenge.json and the Arena Terminal challenges in MongoDB
 #   4. docker compose up -d --build
 #   5. recreate Nginx if nginx.conf changed (see the note there)
 #   6. wait until http://127.0.0.1:<port>/api/health says ok; exit 1 if it never does
@@ -62,6 +62,9 @@ if [ "${SEED_CHALLENGES:-0}" = "1" ]; then
   docker compose run --rm --no-deps \
     -v "$ROOT/challenges:/challenges:ro" \
     backend node src/scripts/seedChallenges.js
+  # Arena Terminal: one challenge row per code of every terminal mode (same as "npm run seed:terminal").
+  # It reads nothing from disk, so no mount is needed. Also repeatable.
+  docker compose run --rm --no-deps backend node src/scripts/seedTerminal.js
 fi
 
 # --- 4. stack ---------------------------------------------------------------------------------

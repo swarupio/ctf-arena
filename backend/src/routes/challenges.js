@@ -11,6 +11,7 @@ import Submission from '../models/Submission.js';
 import { AppError } from '../utils/AppError.js';
 import { hashSubmission, verifyFlag } from '../services/flagService.js';
 import { instanceService, serializeInstance } from '../services/instanceService.js';
+import { integrityService } from '../services/integrityService.js';
 import { recordSolve } from '../services/scoringService.js';
 import { getTeamContext } from '../services/teamContext.js';
 
@@ -100,19 +101,23 @@ router.post('/:id/submit', playerOnly, async (req, res) => {
     throw new AppError(409, 'CONFLICT', 'Your team has already solved this challenge.');
   }
   // Rate limit is counted in MongoDB so it holds across every backend replica.
-  const recent = await Submission.countDocuments({
+  const attempts = () => Submission.countDocuments({
     teamId: team._id, challengeId: challenge._id, createdAt: { $gte: new Date(Date.now() - RATE_WINDOW_MS) },
   });
-  if (recent >= RATE_LIMIT) {
-    throw new AppError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.');
-  }
+  const limited = () => new AppError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.');
+  if (await attempts() >= RATE_LIMIT) { throw limited(); }
 
   const correct = verifyFlag(challenge, { secret: env.FLAG_SECRET, teamId: team._id, submitted: flag });
   await Submission.create({
     teamId: team._id, userId: user._id, challengeId: challenge._id,
     correct, submittedHash: hashSubmission(flag),
   });
+  // Parallel requests can all pass the check above before any of them is stored. Counting again after our own
+  // insert closes that window: the k-th stored attempt sees at least k rows, so at most RATE_LIMIT get an answer.
+  // The 429 says nothing about correctness, so a burst cannot be used to test more than RATE_LIMIT guesses.
+  if (await attempts() > RATE_LIMIT) { throw limited(); }
   if (!correct) {
+    await integrityService.checkSubmittedFlag({ flag, user }); // copied decoy flags leave a signal (docs/FAIR_PLAY.md)
     return res.json({ correct: false, pointsAwarded: 0, firstBlood: false, message: 'Incorrect flag. Keep trying!' });
   }
 

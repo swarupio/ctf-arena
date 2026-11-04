@@ -3,7 +3,11 @@
 Base path: `/api`. JSON in, JSON out.
 Implementation status: every endpoint in this file is implemented and mounted: Health, identity and Teams
 (Phase 1), Challenges, Instances and `/admin/challenges` (Phase 2), Leaderboard and `/admin/stats`,
-`/admin/instances`, `/admin/teams` (Phase 3). Paths that are not listed here return 404 `NOT_FOUND`.
+`/admin/instances`, `/admin/teams` (Phase 3), and the Arena Terminal game under `/terminal` (see
+`docs/TERMINAL_GAME.md`) and the fair-play review endpoints under `/admin/integrity` (see `docs/FAIR_PLAY.md`).
+Paths that are not listed here return 404 `NOT_FOUND`, with one deliberate exception: a few public decoy paths answer
+200 with invented data (and a tainted flag) so that scrapers and automated agents give themselves away. They are not
+part of the contract, no client may call them, and they are not listed here on purpose (see `docs/FAIR_PLAY.md`).
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
@@ -23,7 +27,8 @@ Every response includes the header `X-Served-By: <replica hostname>` (added by `
 { "error": { "code": "TEAM_FULL", "message": "This team already has 3 members." } }
 ```
 Common codes: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `VALIDATION_ERROR` 400,
-`CONFLICT` 409, `RATE_LIMITED` 429, `SERVER_ERROR` 500.
+`CONFLICT` 409, `RATE_LIMITED` 429, `SERVER_ERROR` 500. Also used: `NO_TEAM` 404, `TEAM_BANNED` 403,
+`TERMINAL_NOT_SEEDED` 503, `SLOW_DOWN` 429 (terminal `exec` pacing, see below).
 
 Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2), **H** = Shubham (Phase 3).
 
@@ -53,16 +58,19 @@ opening the HTTP listener; an initial connection failure exits with code 1.
 JSON request bodies are limited to 100 KB. Invalid JSON returns 400
 `VALIDATION_ERROR`; oversized bodies return 413 `VALIDATION_ERROR`.
 Unknown routes return 404 `NOT_FOUND`; unexpected failures return 500
-`SERVER_ERROR` with a generic message and no internal details.
+`SERVER_ERROR` with a generic message and no internal details (the server logs only `[error] METHOD path ErrorName code`, never the
+message, stack or query string). Other client errors from the body parser (unsupported charset or encoding, aborted upload) are 4xx
+`VALIDATION_ERROR` with a fixed message (415 for an unsupported charset). Every `/api` response carries `Cache-Control: no-store`; there
+are no CORS headers (the API is same-origin behind Nginx). The security review and its test matrix are in `docs/SECURITY_AUDIT.md`.
 
 ## Teams
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
 | POST | `/teams` | player | S | Body `{ name }` (3-24 chars, unique). Creates team, user becomes captain. Returns team with `inviteCode`. 409 if user already has a team. |
-| POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members. |
+| POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members, 429 `RATE_LIMITED` after 10 attempts per 15 minutes per account. |
 | GET | `/teams/me` | player | S | `{ id, name, inviteCode, members:[{id,displayName}], score }` |
-| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted and its instances are stopped; otherwise the next member becomes captain if the captain leaves. |
+| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted and its instances are stopped; otherwise the next member becomes captain if the captain leaves. 403 `TEAM_BANNED` for a banned team (a ban cannot be escaped by leaving). |
 
 Create returns 201; join and GET return 200, all with the GET `/teams/me` shape
 above. `score` is the sum of the team's `solves.points` (0 without solves). Banned teams remain readable and include
@@ -86,12 +94,12 @@ available seat and an unassigned user; failed claims roll back both documents.
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| GET | `/challenges` | player | G | List visible challenges. Item: `{ id, slug, title, category, difficulty, points, type, solveCount, solvedByMyTeam }` |
-| GET | `/challenges/:id` | player | G | Adds `description`, `attachments:[{name,url}]`, `hasInstance`, `myInstance` (see below) |
+| GET | `/challenges` | player, admin | G | List visible challenges. Item: `{ id, slug, title, category, difficulty, points, type, solveCount, solvedByMyTeam }` |
+| GET | `/challenges/:id` | player, admin | G | Adds `description`, `attachments:[{name,url}]`, `hasInstance`, `myInstance` (see below) |
 | POST | `/challenges/:id/submit` | player | G | Body `{ flag }`. Response `{ correct:boolean, pointsAwarded:number, firstBlood:boolean, message }`. 429 after 5 tries per minute per team per challenge. 409 if already solved. |
 
 Phase 2 implementation notes (Challenges):
-- Admins get 403 on player routes (roles are exact). Hidden challenges and malformed ids return 404 `NOT_FOUND`.
+- Admins may browse (the two GET routes) but get 403 on submit and instance routes (roles are exact). Hidden challenges and malformed ids return 404 `NOT_FOUND`.
 - Players without a team can list and read challenges (`solvedByMyTeam` is false). Submit and instance routes need a team: 404 `NO_TEAM`; banned teams get 403 `TEAM_BANNED`.
 - Submit body is strict `{ flag }` (1-200 chars). A wrong flag returns 200 with `correct: false`. A correct flag returns 200 with `pointsAwarded` (base points, plus 10% on first blood, rounded down) and `firstBlood`. The rate limit (5 per minute per team per challenge) is counted in MongoDB, so it holds across replicas. A team that already solved it gets 409 `CONFLICT`, including the losing side of a double click.
 - Correct submissions stop the team's instance of that challenge.
@@ -115,15 +123,78 @@ Leaving a team as its last member stops that team's instances.
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| GET | `/leaderboard` | player | H | `[{ rank, teamId, teamName, points, solves, lastSolveAt }]`, banned teams hidden |
-| GET | `/leaderboard/timeline` | player | H | `{ teams:[{ teamId, teamName, points:[{ t, score }] }] }` (top 10 teams) |
+| GET | `/leaderboard` | player, admin | H | `[{ rank, teamId, teamName, points, solves, lastSolveAt }]`, banned teams hidden |
+| GET | `/leaderboard/timeline` | player, admin | H | `{ teams:[{ teamId, teamName, points:[{ t, score }] }] }` (top 10 teams) |
 
 Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderboard.js`):
-- Both endpoints are `player` only (admins get 403, no token 401) and need no team, so team-less and banned-team players can read them. Banned and deleted teams are hidden.
+- Both endpoints accept `player` and `admin` (no token 401) and need no team, so team-less and banned-team players can read them. Banned and deleted teams are hidden.
 - `rank` is the 1-based position. Order: points desc, then earliest `lastSolveAt`, then team name (case-insensitive), then team id, so ties are deterministic on every replica. Teams with no solves are appended with `points: 0`, `solves: 0`, `lastSolveAt: null`. `lastSolveAt` is an ISO string.
 - Optional query `?limit=1..500` truncates the list after ranking (default: all teams). Anything else in the query string is ignored; an invalid `limit` is 400 `VALIDATION_ERROR`.
 - Timeline: teams are in rank order (top 10 including zero-solve teams). Each `points` array starts with `{ t, score: 0 }` at the time of the earliest solve shown (the current time if there are no solves yet), then one entry per solve in `solvedAt` order with the running total (`solves.points`, bonus included). A chart should hold a score flat until the next entry.
 - Responses contain only the fields above: no invite codes, member lists, emails, user ids or flag material. Nothing is cached in the process, so any replica returns the same data.
+
+## Terminal (Arena Terminal game)
+
+A Unix-terminal CTF mode (design and engine contract: `docs/TERMINAL_GAME.md`). Players type commands into a
+**virtual** shell and find hidden codes (flags) in three modes: `easy`, `medium`, `hard`. All routes are mounted at
+`/api/terminal` and need `Authorization: Bearer <ID token>`.
+
+| Method | Path | Auth | Owner | Description |
+|--------|------|------|-------|-------------|
+| GET | `/terminal/modes` | player, admin | API | `[{ mode, title, tagline, difficulty, codes, solved, points, pointsEarned, lore }]` |
+| GET | `/terminal/:mode/progress` | player, admin | API | `{ mode, total, solved:[{ n, title, points, firstBlood }], remaining }` |
+| POST | `/terminal/:mode/exec` | player, admin | API | Body `{ command, cwd }`. Response `{ output, cwd, exit, effect? }` |
+| POST | `/terminal/:mode/complete` | player, admin | API | Body `{ partial, cwd }`. Response `{ matches: string[] }` (at most 50) |
+| POST | `/terminal/:mode/submit` | player | API | Body `{ flag }`. Response `{ correct, code?, title?, alreadySolved?, pointsAwarded, firstBlood, message, solved, total }` |
+
+Notes:
+- **Roles.** `modes`, `progress`, `exec` and `complete` accept `player` and `admin`; `submit` is `player` only (an admin
+  gets 403 `FORBIDDEN`). No token is 401 `UNAUTHENTICATED`.
+- **Mode.** `:mode` must be `easy`, `medium` or `hard`; anything else is 404 `NOT_FOUND` (before the body is validated).
+- **Teams.** Flags are per team, so `exec`, `complete` and `submit` need a team for players: 404 `NO_TEAM` without one,
+  403 `TEAM_BANNED` for a banned team. Admins need no team: they explore with a preview flag set that no team can submit.
+  `modes` and `progress` are read-only and also work for players without a team or with a banned team (`solved` is 0 and
+  `solved: []` without a team), like `GET /challenges`.
+- **Not seeded.** The game uses the `challenges` documents created by `npm run seed:terminal`. When a mode has none
+  (or an admin hid all of them), `exec`, `submit` and `progress` return 503 `TERMINAL_NOT_SEEDED` with the message
+  `Run npm run seed:terminal.`; `modes` still lists the mode from its definition.
+- **Validation.** Every body is `.strict()` (unknown keys are 400 `VALIDATION_ERROR`). `command` is a string of at most
+  300 characters (it may be empty), `partial` and `cwd` at most 200, `flag` 1-200 after trimming. `cwd` is optional: a
+  missing, relative or malformed `cwd` (or one that does not exist in the virtual filesystem) falls back to the mode's
+  home directory. The `cwd` in the response is normalized; send it back on the next call. The server keeps no session.
+- **`exec`** runs the command line in the JavaScript shell engine (`backend/src/terminal/shell.js`) over an in-memory
+  filesystem: nothing real is executed. Output is deterministic, so every replica prints the same bytes. `effect` is
+  one of `clear`, `matrix`, `reboot`, `confetti` and is omitted when the command has none. The output may contain the
+  calling team's own flags (that is the game); another team's flags never validate.
+- **`exec` pacing (fair play).** For players only (admins are exempt), before the command runs: a command less than
+  **300 ms** after the same user's previous executed command, or the 51st or later command within one UTC minute, is
+  429 `SLOW_DOWN` with the message `Easy there, speed typist. Give each command a moment.` (nothing runs, and a command
+  rejected for the 300 ms floor is not counted and does not move the clock). Clients should show the message and let the
+  user retry. The counters live in MongoDB (`terminalactivities`), so every replica applies the same rule. Commands
+  such as `ai-verify` get a believable reply instead of running; this is deliberate and is described in
+  `docs/FAIR_PLAY.md`. Nothing here ever bans anyone.
+- **`submit` and decoy flags.** A wrong flag that equals a tainted decoy flag (one handed out by a decoy path or a canary
+  reply) gets the same 200 incorrect answer as any wrong flag; only an admin-visible signal is recorded. The same applies
+  to `POST /challenges/:id/submit`.
+- **`modes`** has one entry per mode. `codes` is the number of codes, `points` their total, `solved` and `pointsEarned`
+  are my team's solved count and earned points (first-blood bonus included), `lore` is the boot text (plain lines).
+- **`progress`** lists only solved codes. The `title` of a code is shown only after the team solved it (the UI shows
+  `???` until then); `points` is what the team earned for it and `firstBlood` whether it was the first team.
+- **`submit`** compares the flag in constant time against the team's expected flags of every code of the mode. A
+  wrong flag is 200 `{ correct:false, pointsAwarded:0, firstBlood:false, message, solved, total }` (no `code`/`title`).
+  A correct flag records a solve exactly like `POST /challenges/:id/submit` (points, +10% first blood, leaderboard) and
+  returns `code`, `title`, `pointsAwarded`, `firstBlood`. A code the team already solved (including the losing side of a
+  double click) is 200 `{ correct:true, alreadySolved:true, code, title, pointsAwarded:0, firstBlood:false, ... }`,
+  not an error. At most **10 attempts per minute per team per mode** (all codes of the mode together), counted in
+  MongoDB over `submissions`; the 11th is 429 `RATE_LIMITED`. Wrong attempts are stored against the mode's first code.
+- **No leaks.** No response contains a flag, flag hash, expected flag or the submitted flag, except the team's own
+  flags inside `exec` output when the game prints them. `solved` titles come from the mode definition.
+- A terminal challenge an admin hid (`visible: false`) is switched off for the game: it is not counted in `codes` or
+  `total`, `submit` does not accept it, and its `{{flag:N}}` token prints a placeholder that never validates.
+- Terminal challenges also exist as normal `challenges` documents with `type: "terminal"` and `category: "terminal"`
+  (they appear in `GET /challenges`; the web UI shows one promo card instead of the cards). Their flags follow the
+  dynamic per-team format of docker challenges, so `POST /challenges/:id/submit` would accept them too; the Terminal
+  page uses `/terminal/:mode/submit`.
 
 ## Admin (role `admin`)
 
@@ -138,11 +209,45 @@ Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderbo
 | POST | `/admin/instances/:id/kill` | H | Force stop |
 | GET | `/admin/teams` | H | All teams with score and ban state |
 | PATCH | `/admin/teams/:id/ban` | H | Body `{ banned: true|false }` |
+| GET | `/admin/integrity` | fair play | Users ranked by fair-play risk with their signals. Query `limit` 1-200 (default 50) |
+| DELETE | `/admin/integrity/:userId` | fair play | Dismiss (delete) that user's signals. 204 |
 
 Admin responses never contain a flag or hash. They return the challenge fields plus `hasFlag` (static only),
-`visible`, `solveCount` and `createdAt`. `PUT` takes the same body as create; for static challenges
-omitting `flag` keeps the stored hash. `image` must start with `ctf/`. Duplicate slugs return 409 `CONFLICT`.
-Deleting a challenge stops its instances; existing solves are kept.
+`terminal` (`{ mode, code }` for Arena Terminal challenges, otherwise `null`), `visible`, `solveCount` and `createdAt`.
+Attachment `url` must be a same-site path starting with a single `/` or an `http(s)://` URL without spaces or control characters (anything else, such as `javascript:`, `data:` or `//host`, is 400 `VALIDATION_ERROR`). `PUT` takes the same body as create; for static challenges omitting `flag` keeps the stored hash. `image` must start
+with `ctf/`. Duplicate slugs return 409 `CONFLICT`. Deleting a challenge stops its instances; existing solves are kept.
+
+Terminal challenges (`type: "terminal"`, `category: "terminal"`) are listed like any other, but they are created only by
+`npm run seed:terminal`: `POST` with `type` or `category` `terminal` is 400 `VALIDATION_ERROR`. An admin may `PUT` one
+(for example `points`, `visible`, `title`) by sending the same fields with `type: "terminal"` and `category: "terminal"`;
+its `slug` cannot change (the flag derives from it), it cannot be converted to or from another type, and a `flag` is
+rejected (nothing is stored). Re-running the seed resets `title`, `description`, `points` and `difficulty` to the mode
+definition and keeps `visible` and `solveCount`.
+
+**Fair-play review (`/admin/integrity`)** (design and thresholds: `docs/FAIR_PLAY.md`)
+
+`GET /admin/integrity?limit=50` returns 200, highest risk first (ties: most recent signal, then user id):
+```json
+[{ "userId": "665f...", "displayName": "Alice", "teamName": "Rustaceans", "risk": 7,
+   "signals": [
+     { "kind": "tainted-flag", "detail": "from:Bob", "count": 1, "severity": 3,
+       "firstAt": "2026-11-04T12:06:00.000Z", "lastAt": "2026-11-04T12:06:00.000Z" },
+     { "kind": "honeypot-endpoint", "detail": "/api/v1/flags", "count": 2, "severity": 2,
+       "firstAt": "2026-11-04T12:01:00.000Z", "lastAt": "2026-11-04T12:05:00.000Z" } ] },
+ { "userId": null, "displayName": "anonymous scrapers", "teamName": null, "risk": 12, "signals": [ "..." ] }]
+```
+- `risk` is the sum over the user's signals of `severity * min(count, 5)`. `signals` are ordered by severity, then
+  most recent. `kind` is one of `honeypot-endpoint`, `tainted-flag`, `terminal-canary`, `terminal-velocity`,
+  `terminal-cadence`, `automation-ua`; `detail` is short context (a decoy path, `from:<display name | self | anonymous>`
+  for a reused decoy flag, `<mode>:<first 60 chars>` for a canary command, a user-agent family such as `curl` or
+  `missing`). `teamName` is `null` without a team.
+- Signals of callers that are not signed-in users (keyed by a salted address hash) appear as ONE entry with
+  `userId: null` and `displayName: "anonymous scrapers"`, merged per kind and detail, counts only. No emails, address
+  hashes or flags are ever returned. `limit` outside 1-200 or not an integer is 400 `VALIDATION_ERROR`.
+- `DELETE /admin/integrity/:userId` deletes every signal recorded for that user (it does not touch other users'
+  signals about the same flags) and returns 204 with no body, also when there was nothing to delete. A malformed id is
+  404 `NOT_FOUND`. Both routes need the exact `admin` role: no token 401 `UNAUTHENTICATED`, players 403 `FORBIDDEN`.
+- Signals are evidence for a human decision. Nothing in the platform bans, hides or penalises anyone automatically.
 
 **Phase 3 implementation notes (stats, instances, teams)**
 - All five routes need the exact `admin` role: no token 401 `UNAUTHENTICATED`, players 403 `FORBIDDEN`.
@@ -219,7 +324,8 @@ anything. A banned team already gets 403 `TEAM_BANNED` on the submit and instanc
   "visible": true
 }
 ```
-`category`: `web | crypto | forensics | misc | pwn`. `difficulty`: `easy | medium | hard`. `type`: `static | docker`.
+`category`: `web | crypto | forensics | misc | pwn` (plus `terminal`, update only). `difficulty`: `easy | medium | hard`.
+`type`: `static | docker` (plus `terminal`, update only; see above).
 
 ---
 
@@ -227,5 +333,5 @@ anything. A banned team already gets 403 `TEAM_BANNED` on the submit and instanc
 - Validate with `zod`; return `VALIDATION_ERROR` with details.
 - Validation details are carried in `error.message`; there is no separate `details` field.
 - Players never receive `flag`, `flagHash`, or other teams' data except the leaderboard fields above.
-- A banned team gets `403 TEAM_BANNED` on submit and instance routes.
+- A banned team gets `403 TEAM_BANNED` on submit and instance routes (and on terminal `exec`, `complete` and `submit`).
 - Changing this file is a contract change: tell the group.
