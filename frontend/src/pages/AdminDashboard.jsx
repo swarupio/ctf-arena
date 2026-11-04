@@ -4,6 +4,7 @@ import {
   REFRESH_MS, adminErrorMessage, banPrompt, challengeLabel, formatNumber, formatPercent, formatTimeLeft,
   killPrompt, nameOrDeleted, replicaRows, requestTotal, startPolling,
 } from './adminHelpers.js';
+import AdminIntegrity from './AdminIntegrity.jsx';
 import './AdminDashboard.css';
 
 export default function AdminDashboard() {
@@ -165,5 +166,8 @@ export default function AdminDashboard() {
           </tr>)}</tbody>
         </table>
       </div>}
+
+    <h2>Fair play</h2>
+    <AdminIntegrity />
   </section>;
 }

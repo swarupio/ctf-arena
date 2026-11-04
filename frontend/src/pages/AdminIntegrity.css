@@ -1,0 +1,69 @@
+/* Admin "Fair play" panel. Builds on the adm-* table pieces from AdminDashboard.css (scroll card, table,
+   stacked cards below 760px); everything new is prefixed fp-. Colours, spacing and fonts come from styles.css. */
+.fp-admin { display: grid; gap: var(--space-4); min-width: 0; }
+.fp-admin > * { min-width: 0; }
+
+.fp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-5); }
+.fp-intro { margin: 0; max-width: 68ch; font-size: 0.875rem; color: var(--color-muted); }
+.fp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); font-size: 0.8125rem; color: var(--color-muted); }
+
+/* Keep the (empty) live region in the accessibility tree so notices are announced, but out of the grid flow. */
+.fp-live:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.fp-live .notice, .fp-admin > .error { margin: 0; }
+
+/* Risk pips: five small blocks, filled from the left. Colour is a second cue; the label carries the meaning. */
+.fp-risk { display: inline-flex; align-items: center; gap: var(--space-2); }
+.fp-pips { display: inline-flex; gap: 3px; }
+.fp-pip { width: 10px; height: 16px; background: var(--color-surface); border: var(--border); }
+.fp-pip-on { background: var(--color-accent); }
+.fp-risk-medium .fp-pip-on { background: var(--color-ink); }
+.fp-risk-high .fp-pip-on { background: var(--color-danger); border-color: var(--color-danger); }
+.fp-risk-num { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Signals: a wrapping list of chips (kind, count, last seen) with severity on the left edge. */
+.adm-table td.fp-signals { min-width: 16rem; white-space: normal; text-align: left; }
+.fp-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.fp-chip {
+  display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-2); max-width: 100%;
+  padding: 2px var(--space-2); font-size: 0.8125rem; line-height: 1.5; overflow-wrap: anywhere;
+  background: var(--color-surface); border: var(--border); border-left-width: 6px; cursor: help;
+}
+.fp-sev-low { border-left-color: var(--color-line-soft); }
+.fp-sev-medium { border-left-color: var(--color-accent); }
+.fp-sev-high { border-left-color: var(--color-danger); background: var(--color-danger-tint); }
+.fp-chip-kind { font-weight: 700; }
+.fp-chip-count { font-variant-numeric: tabular-nums; }
+.fp-chip-time { color: var(--color-muted); }
+.fp-none { color: var(--color-muted); }
+
+.fp-evidence { display: grid; gap: var(--space-3); margin: var(--space-3) 0 0; padding: var(--space-3); list-style: none; font-size: 0.8125rem; background: var(--color-surface-2); border: 1px dashed var(--color-ink); }
+.fp-evidence li { display: grid; gap: var(--space-1); min-width: 0; padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-line-soft); overflow-wrap: anywhere; }
+.fp-evidence li:last-child { padding-bottom: 0; border-bottom: 0; }
+.fp-evidence-meta { color: var(--color-muted); }
+.fp-detail { display: block; padding: 2px var(--space-2); font-family: var(--font-body); background: var(--color-surface); border: 1px solid var(--color-line-soft); }
+
+.fp-buttons { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.adm-table td.adm-actions .fp-buttons button { white-space: nowrap; }
+
+/* "What the signals mean" */
+.fp-legend { background: var(--color-surface); border: var(--border); }
+.fp-legend summary { display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-4); font-weight: 700; cursor: pointer; }
+.fp-legend[open] summary { border-bottom: var(--border); background: var(--color-surface-2); }
+.fp-legend dl { display: block; margin: 0; background: transparent; border: 0; }
+.fp-legend-row { display: grid; grid-template-columns: minmax(150px, 14rem) minmax(0, 1fr); border-top: 1px solid var(--color-line-soft); }
+.fp-legend-row:first-child { border-top: 0; }
+.fp-legend dt, .fp-legend dd { border-top: 0; font-size: 0.8125rem; }
+.fp-legend dt { font-weight: 700; color: var(--color-ink); background: transparent; }
+.fp-legend dd { color: var(--color-muted); }
+.fp-legend-note { margin: 0; padding: var(--space-3) var(--space-4); font-size: 0.8125rem; color: var(--color-muted); border-top: 1px solid var(--color-line-soft); }
+
+@media (max-width: 760px) {
+  .fp-toolbar { align-items: flex-start; }
+  /* In the stacked-card layout the signals sit under their label instead of beside it. */
+  .adm-table td.fp-signals { flex-direction: column; align-items: stretch; min-width: 0; text-align: left; }
+  .adm-table td.fp-signals::before { margin-bottom: var(--space-1); }
+  .adm-table td.adm-actions { justify-content: flex-end; }
+  .fp-legend-row { grid-template-columns: minmax(0, 1fr); }
+  .fp-legend dt { padding-bottom: 0; }
+  .fp-legend dd { padding-top: var(--space-1); }
+}

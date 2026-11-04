@@ -36,6 +36,7 @@ function LayoutContent() {
       <nav aria-label="Main navigation">
         <NavLink to="/demo">Demo</NavLink>
         <NavLink to="/challenges">Challenges</NavLink>
+        {user && <NavLink to="/terminal">Terminal</NavLink>}
         <NavLink to="/leaderboard">Leaderboard</NavLink>
         <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>
         {user?.role === 'admin' && <><NavLink to="/admin" end>Admin</NavLink><NavLink to="/admin/challenges">Manage challenges</NavLink></>}
@@ -49,6 +50,6 @@ function LayoutContent() {
       {error && <p role="alert" className="error">{error}</p>}
       <Outlet />
     </main>
-    <footer className="site-footer"><span>Mini CTF Arena</span><span className="replica">{replica ? `Served by ${replica}` : 'No API response yet'}</span></footer>
+    <footer className="site-footer"><span>Mini CTF Arena</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><span className="replica">{replica ? `Served by ${replica}` : 'No API response yet'}</span></footer>
   </div>;
 }

@@ -1,4 +1,20 @@
-export const CATEGORY_ORDER = ['web', 'crypto', 'forensics', 'pwn', 'misc'];
+export const CATEGORY_ORDER = ['web', 'crypto', 'forensics', 'pwn', 'misc', 'terminal'];
+
+// Terminal-game codes are challenges too (docs/TERMINAL_GAME.md section 9), but they are played inside the terminal,
+// so the card grid hides them and shows one promo card. `regular` are the cards; the rest feeds the promo.
+export const isTerminalChallenge = (challenge) => challenge?.type === 'terminal';
+
+export function splitTerminalChallenges(challenges) {
+  const terminal = challenges.filter(isTerminalChallenge);
+  return {
+    regular: challenges.filter((challenge) => !isTerminalChallenge(challenge)),
+    terminal: {
+      count: terminal.length,
+      solved: terminal.filter((challenge) => challenge.solvedByMyTeam).length,
+      points: terminal.reduce((sum, challenge) => sum + (Number(challenge.points) || 0), 0),
+    },
+  };
+}
 
 // Groups challenges by category in a stable order, easiest (fewest points) first.
 export function groupByCategory(challenges) {
