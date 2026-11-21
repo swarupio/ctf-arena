@@ -18,7 +18,7 @@ const ids = (rows, field) => [...new Set(rows.map((row) => String(row[field])).f
 export async function getFeed({ limit = FEED_DEFAULT } = {}) {
   const n = Math.min(Math.max(1, limit), FEED_MAX);
   const [solves, awards, newTeams] = await Promise.all([
-    Solve.find().sort({ solvedAt: -1 }).limit(n).select('teamId challengeId firstBlood solvedAt').lean(),
+    Solve.find({ adjustment: { $ne: true } }).sort({ solvedAt: -1 }).limit(n).select('teamId challengeId firstBlood solvedAt').lean(),
     Achievement.find().sort({ awardedAt: -1 }).limit(n).select('userId key awardedAt').lean(),
     Team.find({ banned: { $ne: true } }).sort({ _id: -1 }).limit(n).select('name createdAt').lean(),
   ]);
@@ -86,7 +86,7 @@ export async function getProfile(userId, now = new Date()) {
   if (!user) { return null; }
   const [team, solves, awards] = await Promise.all([
     user.teamId ? Team.findById(user.teamId).select('name banned').lean() : null,
-    Solve.find({ userId }).sort({ solvedAt: -1 }).select('challengeId solvedAt firstBlood').lean(),
+    Solve.find({ userId, adjustment: { $ne: true } }).sort({ solvedAt: -1 }).select('challengeId solvedAt firstBlood').lean(),
     Achievement.find({ userId }).select('key awardedAt').lean(),
   ]);
   const recent = solves.slice(0, RECENT_SOLVES);

@@ -18,7 +18,7 @@ export function createAdminService({ instances = defaultInstances } = {}) {
     const [users, teams, solves, submissions, wrong, activeInstances, replicas] = await Promise.all([
       User.countDocuments({}),
       Team.countDocuments({}),
-      Solve.countDocuments({}),
+      Solve.countDocuments({ adjustment: { $ne: true } }),
       Submission.countDocuments({}),
       Submission.countDocuments({ correct: false }),
       Instance.countDocuments({ status: { $in: ACTIVE_STATUSES } }),
@@ -100,7 +100,7 @@ export function createAdminService({ instances = defaultInstances } = {}) {
   async function listTeams() {
     const [teams, totals] = await Promise.all([
       Team.find({}, 'name memberIds banned'),
-      Solve.aggregate([{ $group: { _id: '$teamId', score: { $sum: '$points' }, solves: { $sum: 1 } } }]),
+      Solve.aggregate([{ $group: { _id: '$teamId', score: { $sum: '$points' }, solves: { $sum: { $cond: [{ $eq: ['$adjustment', true] }, 0, 1] } } } }]),
     ]);
     const totalsByTeam = new Map(totals.map((row) => [String(row._id), row]));
     return teams

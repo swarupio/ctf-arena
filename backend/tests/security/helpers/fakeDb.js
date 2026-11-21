@@ -106,6 +106,11 @@ function evaluate(expression, doc) {
       return new Date(new Date(evaluate(startDate, doc)).getTime() + amount * 60_000);
     }
     if (operator === '$literal') { return expression.$literal; }
+    if (operator === '$eq') { const [a, b] = evaluate(expression.$eq, doc); return sameValue(a, b); }
+    if (operator === '$cond') {
+      const [test, yes, no] = expression.$cond;
+      return evaluate(evaluate(test, doc) ? yes : no, doc);
+    }
     throw new Error(`fakeDb: unsupported expression ${operator}`);
   }
   return expression;

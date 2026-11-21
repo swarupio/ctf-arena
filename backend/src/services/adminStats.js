@@ -1,5 +1,6 @@
 // Dashboard overview: totals, daily time series, top teams, challenge difficulty and wrong-flag rates, terminal game
 // statistics, instances. Aggregations only (no full scans into memory except the capped terminal solve list).
+import { env } from '../config/env.js';
 import Challenge from '../models/Challenge.js';
 import Instance, { ACTIVE_STATUSES } from '../models/Instance.js';
 import Solve from '../models/Solve.js';
@@ -11,7 +12,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const TERMINAL_SOLVE_CAP = 50000;
 const realSolves = { adjustment: { $ne: true } };
 
-export const dockerEnabled = () => String(process.env.DOCKER_ENABLED ?? 'true').toLowerCase() !== 'false';
+// Validated once at startup (config/env.js); read per call so it always reflects the loaded configuration.
+export const dockerEnabled = () => env.DOCKER_ENABLED;
 const round = (value, digits = 4) => Number(value.toFixed(digits));
 const rate = (part, whole) => (whole === 0 ? 0 : round(part / whole));
 

@@ -52,6 +52,11 @@ describe('GET /api/players/:id/profile', () => {
     ]));
   });
 
+  it('excludes manual score adjustments from the solve list and counters', async () => {
+    await get(`/players/${oid(1)}/profile`).expect(200);
+    expect(Solve.find).toHaveBeenCalledWith({ userId: oid(1), adjustment: { $ne: true } });
+  });
+
   it('returns a public-safe profile with no emails, flags, ids of others or invite codes', async () => {
     const { body } = await get(`/players/${oid(1)}/profile`).expect(200);
     expect(body).toMatchObject({ id: oid(1), displayName: 'neo', team: { name: 'Zion' }, solves: 2, firstBloods: 1 });
@@ -108,6 +113,12 @@ describe('GET /api/feed', () => {
     Challenge.find.mockReturnValue(query(challenges));
     Team.find.mockImplementation((filter) => query(filter?._id ? teamRows : teams));
   };
+
+  it('reads only real solves, so adjustments cannot push solves out of the bounded window', async () => {
+    setup();
+    await get('/feed').expect(200);
+    expect(Solve.find).toHaveBeenCalledWith({ adjustment: { $ne: true } });
+  });
 
   it('merges events newest first with team names and challenge titles only', async () => {
     setup({

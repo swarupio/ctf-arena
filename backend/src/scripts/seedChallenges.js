@@ -25,7 +25,7 @@ export async function loadDefinitions(directory = root) {
 }
 
 // True when this file is the script node was started with. Comparing file URLs built by pathToFileURL works
-// for POSIX paths (the Azure VM) and Windows drive paths alike; a hand-built 'file:///' string does not.
+// for POSIX paths (a Linux server or container) and Windows drive paths alike; a hand-built 'file:///' string does not.
 export function isEntryPoint(moduleUrl, entry = process.argv[1]) {
   return Boolean(entry) && moduleUrl === pathToFileURL(resolve(entry)).href;
 }

@@ -90,6 +90,8 @@ describe('GET /admin/stats', () => {
       requestsByReplica: { 'backend-1': 120, 'backend-2': 80 },
     });
     expect(Submission.countDocuments).toHaveBeenCalledWith({ correct: false });
+    // Manual score adjustments are Solve rows but not solves.
+    expect(Solve.countDocuments).toHaveBeenCalledWith({ adjustment: { $ne: true } });
   });
 
   it('counts only starting, running and stopping instances as active', async () => {
@@ -208,7 +210,7 @@ describe('GET /admin/teams', () => {
     ]);
     expectNoSecrets(body);
     expect(Solve.aggregate).toHaveBeenCalledWith([
-      { $group: { _id: '$teamId', score: { $sum: '$points' }, solves: { $sum: 1 } } },
+      { $group: { _id: '$teamId', score: { $sum: '$points' }, solves: { $sum: { $cond: [{ $eq: ['$adjustment', true] }, 0, 1] } } } },
     ]);
   });
 

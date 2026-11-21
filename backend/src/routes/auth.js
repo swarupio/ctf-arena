@@ -21,6 +21,8 @@ async function profile(user) {
     displayName: user.displayName,
     role: user.role,
     team,
+    // Additive: lets the UI show the ban message (the account can still sign in and read /api/me).
+    ...(user.banned ? { banned: true } : {}),
   };
 }
 
@@ -34,14 +36,21 @@ async function upsertUser({ cognitoSub, email, role }, displayName) {
   }
   // Reads are far cheaper than writes: only touch the document when something actually changes.
   if (displayName === undefined) {
-    const existing = await User.findOne({ cognitoSub }, '_id email role displayName teamId', { lean: true });
+    const existing = await User.findOne({ cognitoSub }, '_id email role displayName teamId banned', { lean: true });
     if (existing && existing.email === email && existing.role === role) { return existing; }
   }
-  return User.findOneAndUpdate(
-    { cognitoSub },
-    { $set, $setOnInsert },
-    { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true, lean: true },
-  );
+  const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true, lean: true };
+  if (displayName === undefined) { return User.findOneAndUpdate({ cognitoSub }, { $set, $setOnInsert }, options); }
+  // A banned account cannot change its public name. The filter costs nothing; the unique cognitoSub index turns the
+  // would-be upsert of an existing banned user into a duplicate-key error, which is checked only on that rare path.
+  try {
+    return await User.findOneAndUpdate({ cognitoSub, banned: { $ne: true } }, { $set, $setOnInsert }, options);
+  } catch (error) {
+    if (error.code === 11000 && error.keyPattern?.cognitoSub && await User.exists({ cognitoSub, banned: true })) {
+      throw new AppError(403, 'USER_BANNED', 'Your account has been banned.');
+    }
+    throw error;
+  }
 }
 
 router.get('/me', auth, async (req, res) => {

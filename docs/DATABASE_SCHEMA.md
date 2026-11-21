@@ -129,7 +129,7 @@ which uses the index above.
 | adjustment | B | default false. `true` marks a **manual score adjustment** by an admin (Admin API v2): `challengeId` is a fresh random ObjectId that matches no challenge, `userId` is the admin, `points` may be negative |
 | reason | S | max 200; set on adjustments only |
 
-Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline, `{ teamId: 1, points: 1, solvedAt: 1 }` (covers the leaderboard `$group` and the team score without reading solve documents).
+Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline, `{ teamId: 1, points: 1, solvedAt: 1, adjustment: 1 }` (covers the leaderboard `$group` and the team score without reading solve documents; an older index without `adjustment` may remain in existing databases and can be dropped).
 Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves; adjustments never collide because each has its own random `challengeId`), `{ solvedAt: 1 }` for the timeline.
 Team score is still the sum of `points`, so adjustments count everywhere without query changes. Code that counts "solves" must
 filter `adjustment: { $ne: true }` (the admin API does; the public leaderboard's `solves` counter does not yet).
@@ -239,7 +239,7 @@ Read on demand by every replica; nothing is cached in a process.
 ## Leaderboard query (H)
 ```js
 Solve.aggregate([
-  { $group: { _id: '$teamId', points: { $sum: '$points' }, solves: { $sum: 1 }, lastSolveAt: { $max: '$solvedAt' } } },
+  { $group: { _id: '$teamId', points: { $sum: '$points' }, solves: { $sum: { $cond: [{ $eq: ['$adjustment', true] }, 0, 1] } }, lastSolveAt: { $max: '$solvedAt' } } },
   { $sort: { points: -1, lastSolveAt: 1 } },
   { $lookup: { from: 'teams', localField: '_id', foreignField: '_id', as: 'team' } },
   { $unwind: '$team' },

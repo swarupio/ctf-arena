@@ -27,7 +27,7 @@ Every response includes the header `X-Served-By: <replica hostname>` (added by `
 { "error": { "code": "TEAM_FULL", "message": "This team already has 3 members." } }
 ```
 Common codes: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `VALIDATION_ERROR` 400,
-`CONFLICT` 409, `RATE_LIMITED` 429, `SERVER_ERROR` 500. Also used: `NO_TEAM` 404, `TEAM_BANNED` 403,
+`CONFLICT` 409, `RATE_LIMITED` 429, `SERVER_ERROR` 500. Also used: `NO_TEAM` 404, `TEAM_BANNED` 403, `USER_BANNED` 403,
 `TERMINAL_NOT_SEEDED` 503, `SLOW_DOWN` 429 (terminal `exec` pacing, see below), `FORENSICS_NOT_SEEDED` 503 and
 `STAGE_LOCKED` 403 (Forensics Desk, see below).
 
@@ -40,8 +40,8 @@ Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2)
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
 | GET | `/health` | none | S | `{ "status":"ok", "db":"up", "replica":"backend-2" }` |
-| GET | `/me` | any | S | Current user: `{ id, email, displayName, role, team: { id, name } or null }` |
-| PATCH | `/me` | any | S | Body `{ displayName }` (3-30 chars) |
+| GET | `/me` | any | S | Current user: `{ id, email, displayName, role, team: { id, name } or null }`, plus `banned: true` (additive, only present for a banned account so the UI can show the ban message; `/me` itself keeps working) |
+| PATCH | `/me` | any | S | Body `{ displayName }` (3-30 chars). 403 `USER_BANNED` for a banned account |
 
 GET `/me` upserts by the verified Cognito `sub`, refreshing email and role from
 the token on every call. On creation, displayName defaults to the email part
@@ -68,10 +68,10 @@ are no CORS headers (the API is same-origin behind Nginx). The security review a
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| POST | `/teams` | player | S | Body `{ name }` (3-24 chars, unique). Creates team, user becomes captain. Returns team with `inviteCode`. 409 if user already has a team. |
-| POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members, 429 `RATE_LIMITED` after 10 attempts per 15 minutes per account. |
+| POST | `/teams` | player | S | Body `{ name }` (3-24 chars, unique). Creates team, user becomes captain. Returns team with `inviteCode`. 409 if user already has a team. 403 `USER_BANNED` for a banned account. |
+| POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members, 429 `RATE_LIMITED` after 10 attempts per 15 minutes per account. 403 `USER_BANNED` for a banned account. |
 | GET | `/teams/me` | player | S | `{ id, name, inviteCode, members:[{id,displayName}], score }` |
-| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted and its instances are stopped; otherwise the next member becomes captain if the captain leaves. 403 `TEAM_BANNED` for a banned team (a ban cannot be escaped by leaving). |
+| POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted and its instances are stopped; otherwise the next member becomes captain if the captain leaves. 403 `TEAM_BANNED` for a banned team (a ban cannot be escaped by leaving). 403 `USER_BANNED` for a banned account. |
 
 Create returns 201; join and GET return 200, all with the GET `/teams/me` shape
 above. `score` is the sum of the team's `solves.points` (0 without solves). Banned teams remain readable and include
@@ -124,7 +124,7 @@ Leaving a team as its last member stops that team's instances.
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| GET | `/leaderboard` | player, admin | H | `[{ rank, teamId, teamName, points, solves, lastSolveAt }]`, banned teams hidden |
+| GET | `/leaderboard` | player, admin | H | `[{ rank, teamId, teamName, points, solves, lastSolveAt }]`, banned teams hidden. `points` includes admin score adjustments; `solves` counts real solves only |
 | GET | `/leaderboard/timeline` | player, admin | H | `{ teams:[{ teamId, teamName, points:[{ t, score }] }] }` (top 10 teams) |
 
 Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderboard.js`):
@@ -320,6 +320,13 @@ Terminal challenges (`type: "terminal"`, `category: "terminal"`) are listed like
 its `slug` cannot change (the flag derives from it), it cannot be converted to or from another type, and a `flag` is
 rejected (nothing is stored). Re-running the seed resets `title`, `description`, `points` and `difficulty` to the mode
 definition and keeps `visible` and `solveCount`.
+
+Game challenges (`type: "game"`, for example the Cipher Lab levels) define their own points, flags and rules in code, so
+an admin may `PUT` only `title`, `description` and `visible` (any subset, at least one). The body is not the full create
+body: other definition fields (`slug`, `category`, `difficulty`, `points`, `type`, `image`, `internalPort`,
+`attachments`) are accepted only when they equal the stored value (a form may echo the whole object back); a different
+value, a `flag` or an unknown key is 400 `VALIDATION_ERROR`. Game challenges also cannot be duplicated, imported over
+(`mode: "update"` reports an error for them) or exported.
 
 **Fair-play review (`/admin/integrity`)** (design and thresholds: `docs/FAIR_PLAY.md`)
 
@@ -574,8 +581,9 @@ integrity review). Code: `backend/src/routes/admin/*`, `backend/src/services/adm
 days. `integrity` counts fair-play signal rows of the user (details: `/admin/integrity/users`).
 
 `PATCH /admin/users/:id/ban` body `{ "banned": true, "reason": "optional, max 200" }` -> 200 `{ id, displayName, banned }`.
-A banned user gets 403 `USER_BANNED` on challenge submit, instance start and every terminal route that needs a team context
-(`exec`, `complete`, `submit`); the user can still sign in and read. Admins cannot be banned (409 `CANNOT_BAN_ADMIN`).
+A banned user gets 403 `USER_BANNED` on challenge submit, instance start/extend/stop, every terminal route that needs a team context
+(`exec`, `complete`, `submit`), Cipher Lab hints/answers, team create/join/leave and `PATCH /me`; the user can still sign in and read
+(`GET /me` returns `banned: true`, challenges, leaderboard, `GET /teams/me`). Admins cannot be banned (409 `CANNOT_BAN_ADMIN`).
 
 `POST /admin/users/:id/remove-from-team` body `{}` -> 200 `{ teamId, teamName, userId, displayName, remaining, captainId }`.
 If the user was the captain, the first remaining member becomes captain; an emptied team stays (delete it with

@@ -1,6 +1,7 @@
 // Challenge definition schemas shared by the admin routes (create, update, import). Moved out of
 // routes/admin/challenges.js unchanged so the import endpoint validates exactly like POST /admin/challenges.
 import { z } from 'zod';
+import { AppError } from '../utils/AppError.js';
 import { hashStaticFlag } from './flagService.js';
 
 export const base = z.object({
@@ -54,6 +55,38 @@ export const createSchema = base.superRefine(notCreatable).superRefine(dockerNee
 export const updateSchema = base.superRefine(terminalRules).superRefine(dockerNeedsImage);
 // Import: like create, but a static challenge may come without a flag (exports never contain one).
 export const importItemSchema = base.superRefine(notCreatable).superRefine(dockerNeedsImage);
+
+// Game challenges (type 'game', for example Cipher Lab levels) define their own points, flags and mechanics in code.
+// An admin may only change what players read or whether it is listed: title, description and visible. The other
+// definition fields may be echoed back unchanged (a form that sends the whole object still works); a different
+// value, a flag or any unknown key is rejected, and so is an empty update.
+const GAME_EDITABLE = ['title', 'description', 'visible'];
+const GAME_ECHO = ['slug', 'category', 'difficulty', 'points', 'type', 'image', 'internalPort', 'attachments'];
+export const gameUpdateSchema = z.object({
+  title: base.shape.title.optional(),
+  description: z.string().max(20000).optional(),
+  visible: z.boolean().optional(),
+  ...Object.fromEntries(GAME_ECHO.map((key) => [key, z.unknown().optional()])),
+}).strict().superRefine((value, context) => {
+  if (!GAME_EDITABLE.some((key) => value[key] !== undefined)) {
+    context.addIssue({ code: 'custom', path: [], message: 'send at least one of title, description, visible' });
+  }
+});
+
+// Returns the $set for a game challenge, or throws 400 naming the field that may not change.
+export function gameChanges(existing, input) {
+  const stored = (key) => (key === 'attachments'
+    ? (existing.attachments ?? []).map(({ name, url }) => ({ name, url }))
+    : existing[key]);
+  for (const key of GAME_ECHO) {
+    // null (as adminView prints a missing image or port) means the same as absent.
+    if (input[key] === undefined || (input[key] === null && (stored(key) ?? null) === null)) { continue; }
+    if (JSON.stringify(input[key]) !== JSON.stringify(stored(key) ?? undefined)) {
+      throw new AppError(400, 'VALIDATION_ERROR', `${key}: cannot be changed for game challenges (only title, description and visible)`);
+    }
+  }
+  return Object.fromEntries(GAME_EDITABLE.filter((key) => input[key] !== undefined).map((key) => [key, input[key]]));
+}
 
 // Admin responses also omit flag material: nothing ever echoes a flag or hash back.
 export function adminView(challenge) {

@@ -108,8 +108,8 @@ export const toFact = (challenge) => ({
 
 // Reads the facts with a few small lean queries, all on indexed fields.
 export async function loadFacts({ userId, teamId }) {
-  const userSolves = await Solve.find({ userId }).select('challengeId solvedAt firstBlood').lean();
-  const teamSolves = teamId ? await Solve.find({ teamId }).select('challengeId').lean() : [];
+  const userSolves = await Solve.find({ userId, adjustment: { $ne: true } }).select('challengeId solvedAt firstBlood').lean();
+  const teamSolves = teamId ? await Solve.find({ teamId, adjustment: { $ne: true } }).select('challengeId').lean() : [];
   const ids = [...new Set([...userSolves, ...teamSolves].map((solve) => String(solve.challengeId)))];
   const rows = ids.length ? await Challenge.find({ _id: { $in: ids } }).select('category difficulty type terminal.mode').lean() : [];
   const challenges = Object.fromEntries(rows.map((row) => [String(row._id), toFact(row)]));

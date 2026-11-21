@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import app from '../../src/app.js';
+import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
 import { replicaCounter } from '../../src/middleware/requestCounter.js';
 import {
@@ -10,6 +11,8 @@ import {
 } from './harness.js';
 
 vi.mock('../../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
+// A mutable copy of the validated env, so tests can switch DOCKER_ENABLED (the real env object is frozen).
+vi.mock('../../src/config/env.js', async (importOriginal) => ({ env: { ...(await importOriginal()).env } }));
 vi.mock('../../src/models/User.js', async () => (await import('./harness.js')).mockModel('User'));
 vi.mock('../../src/models/Team.js', async () => (await import('./harness.js')).mockModel('Team'));
 vi.mock('../../src/models/Challenge.js', async () => (await import('./harness.js')).mockModel('Challenge'));
@@ -50,7 +53,7 @@ afterAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   resetModels();
-  delete process.env.DOCKER_ENABLED;
+  env.DOCKER_ENABLED = true;
   getCognitoVerifier.mockReturnValue({
     verify: vi.fn(async (sub) => ({ sub, email: `${sub}@example.com`, 'cognito:groups': [sub === 'admin' ? 'admin' : 'player'] })),
   });
@@ -161,7 +164,7 @@ describe('stats overview', () => {
 
   it('reports 0 active instances without querying when Docker is disabled', async () => {
     arrange();
-    process.env.DOCKER_ENABLED = 'false';
+    env.DOCKER_ENABLED = false;
     const { body } = await api('get', '/admin/stats/overview').expect(200);
     expect(body.instances).toEqual({ dockerEnabled: false, active: 0 });
     expect(body.totals.activeInstances).toBe(0);
@@ -442,7 +445,7 @@ describe('challenges', () => {
     models.Challenge.find.mockImplementation(() => chain([stored(1), stored(2, { type: 'docker', image: 'ctf/x', internalPort: 80, flagHash: undefined })]));
     const res = await api('get', '/admin/challenges/export').expect(200);
     expect(res.headers['content-disposition']).toContain('challenges.json');
-    expect(models.Challenge.find.mock.calls.at(-1)[0]).toEqual({ type: { $ne: 'terminal' } });
+    expect(models.Challenge.find.mock.calls.at(-1)[0]).toEqual({ type: { $nin: ['terminal', 'game'] } });
     expect(res.body).toMatchObject({ version: 1 });
     expect(res.body.challenges[0]).toEqual({
       slug: 'chal-1', title: 'Chal 1', category: 'web', difficulty: 'easy', points: 100, description: 'd', type: 'static',
@@ -506,6 +509,70 @@ describe('challenges', () => {
     await api('post', `/admin/challenges/${oid(1)}/duplicate`, { body: { slug: 'Bad Slug' } }).expect(400);
     models.Challenge.findById.mockImplementation(() => chain(stored(1, { type: 'terminal' })));
     await api('post', `/admin/challenges/${oid(1)}/duplicate`, { body: {} }).expect(400);
+  });
+
+  describe('game challenges (type game): only title, description and visible are editable', () => {
+    const game = (extra = {}) => stored(5, { type: 'game', category: 'crypto', points: 50, flagHash: undefined, flagSalt: undefined, attachments: [], ...extra });
+    const put = (body) => api('put', `/admin/challenges/${oid(5)}`, { body });
+    beforeEach(() => {
+      models.Challenge.findById.mockImplementation(() => chain(game()));
+      models.Challenge.findOneAndUpdate.mockImplementation((filter, update) => chain(game(update.$set)));
+    });
+
+    it('updates title, description and visible with $set of exactly those fields', async () => {
+      const { body } = await put({ title: 'Renamed', description: 'New text', visible: false }).expect(200);
+      expect(body).toMatchObject({ id: oid(5), title: 'Renamed', description: 'New text', visible: false, type: 'game', points: 50 });
+      expect(models.Challenge.findOneAndUpdate.mock.calls[0][1]).toEqual({ $set: { title: 'Renamed', description: 'New text', visible: false } });
+      expect(lastAudit()).toMatchObject({ action: 'challenge.update', targetId: oid(5) });
+      noSecrets(body);
+    });
+
+    it('accepts a single field, and the whole object echoed back unchanged (as adminView prints it)', async () => {
+      await put({ visible: false }).expect(200);
+      expect(models.Challenge.findOneAndUpdate.mock.calls[0][1]).toEqual({ $set: { visible: false } });
+      await put({
+        slug: 'chal-5', title: 'Same shape', category: 'crypto', difficulty: 'easy', points: 50, description: 'd', type: 'game',
+        image: null, internalPort: null, attachments: [], visible: true,
+      }).expect(200);
+      expect(models.Challenge.findOneAndUpdate.mock.calls[1][1]).toEqual({ $set: { title: 'Same shape', description: 'd', visible: true } });
+    });
+
+    it.each([
+      ['points', { points: 9999 }], ['type', { type: 'static' }], ['slug', { slug: 'other' }], ['category', { category: 'web' }],
+      ['difficulty', { difficulty: 'hard' }], ['image', { image: 'ctf/x' }], ['attachments', { attachments: [{ name: 'a', url: '/a' }] }],
+    ])('rejects a changed %s with 400 and writes nothing', async (field, extra) => {
+      const { body } = await put({ title: 'x', ...extra }).expect(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.message).toContain(field);
+      expect(models.Challenge.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a flag', { title: 'x', flag: 'CTF{nope}' }], ['an unknown key', { title: 'x', solveCount: 0 }],
+      ['an empty update', {}], ['only echoed fields', { points: 50, type: 'game' }], ['a blank title', { title: '  ' }],
+      ['a non-boolean visible', { visible: 'yes' }],
+    ])('rejects %s with 400 and writes nothing', async (name, bodyValue) => {
+      await put(bodyValue).expect(400);
+      expect(models.Challenge.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('is not converted by an update that claims another type, nor imported over, nor duplicated, nor exported', async () => {
+      await put({ slug: 'chal-5', title: 'x', category: 'crypto', difficulty: 'easy', points: 50, type: 'static', flag: 'CTF{x}' }).expect(400);
+      models.Challenge.findOne.mockImplementation(() => chain({ type: 'game' }));
+      const { body } = await api('post', '/admin/challenges/import', { body: { mode: 'update', challenges: [
+        { slug: 'chal-5', title: 'x', category: 'crypto', difficulty: 'easy', points: 1, type: 'static', flag: 'CTF{x}' },
+      ] } }).expect(200);
+      expect(body.errors).toEqual([expect.objectContaining({ slug: 'chal-5', message: 'game challenges cannot be imported' })]);
+      await api('post', `/admin/challenges/${oid(5)}/duplicate`, { body: {} }).expect(400);
+      expect(models.Challenge.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(models.Challenge.create).not.toHaveBeenCalled();
+    });
+
+    it('still requires an admin and answers 404 for an unknown id', async () => {
+      await api('put', `/admin/challenges/${oid(5)}`, { as: 'player', body: { title: 'x' } }).expect(403);
+      models.Challenge.findById.mockImplementation(() => chain(null));
+      await put({ title: 'x' }).expect(404);
+    });
   });
 
   it('returns per-challenge submission stats', async () => {
@@ -702,7 +769,7 @@ describe('instances', () => {
   });
 
   it('only closes the record when Docker is disabled', async () => {
-    process.env.DOCKER_ENABLED = 'false';
+    env.DOCKER_ENABLED = false;
     models.Instance.findOneAndUpdate.mockResolvedValue({ _id: oid(60) });
     await api('post', `/admin/instances/${oid(60)}/kill`).expect(204);
     expect(instanceMock.stop).not.toHaveBeenCalled();
