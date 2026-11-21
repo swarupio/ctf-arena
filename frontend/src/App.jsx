@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
 
@@ -9,17 +9,28 @@ const Home = lazy(() => import('./pages/Home.jsx'));
 const Team = lazy(() => import('./pages/Team.jsx'));
 const ChallengeList = lazy(() => import('./pages/ChallengeList.jsx'));
 const ChallengeDetail = lazy(() => import('./pages/ChallengeDetail.jsx'));
-const ChallengeAdmin = lazy(() => import('./pages/ChallengeAdmin.jsx'));
 const Terminal = lazy(() => import('./pages/Terminal.jsx'));
 const TerminalPlay = lazy(() => import('./pages/TerminalPlay.jsx'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard.jsx'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
 const FairPlay = lazy(() => import('./pages/FairPlay.jsx'));
 
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 
 const CipherLab = lazy(() => import('./pages/CipherLab.jsx'));
+
+// The admin area: a layout chunk plus one chunk per section, none of it in the entry bundle.
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout.jsx'));
+const AdminOverview = lazy(() => import('./pages/admin/Overview.jsx'));
+const AdminUsers = lazy(() => import('./pages/admin/Users.jsx'));
+const AdminTeams = lazy(() => import('./pages/admin/Teams.jsx'));
+const AdminChallenges = lazy(() => import('./pages/admin/Challenges.jsx'));
+const AdminActivity = lazy(() => import('./pages/admin/Activity.jsx'));
+const AdminIntegrity = lazy(() => import('./pages/admin/Integrity.jsx'));
+const AdminInstances = lazy(() => import('./pages/admin/Instances.jsx'));
+const AdminAudit = lazy(() => import('./pages/admin/Audit.jsx'));
+const AdminSettings = lazy(() => import('./pages/admin/Settings.jsx'));
+const AdminExports = lazy(() => import('./pages/admin/Exports.jsx'));
 
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
@@ -46,8 +57,19 @@ export default function App() {
         <Route path="profile/:id" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
       </Route>
       <Route element={<ProtectedRoute admin />}>
-        <Route path="admin" element={<AdminDashboard />} />
-        <Route path="admin/challenges" element={<ChallengeAdmin />} />
+        <Route path="admin" element={<AdminLayout />}>
+          <Route index element={<AdminOverview />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="teams" element={<AdminTeams />} />
+          <Route path="challenges" element={<AdminChallenges />} />
+          <Route path="activity" element={<AdminActivity />} />
+          <Route path="integrity" element={<AdminIntegrity />} />
+          <Route path="instances" element={<AdminInstances />} />
+          <Route path="audit" element={<AdminAudit />} />
+          <Route path="settings" element={<AdminSettings />} />
+          <Route path="exports" element={<AdminExports />} />
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Route>
       </Route>
       <Route path="*" element={<Placeholder title="Page not found" />} />
     </Route>

@@ -5,6 +5,7 @@ import { authMessage } from '../auth/logic.js';
 import { TeamProvider, useTeam } from './TeamContext.jsx';
 import { PixelFlag } from './PixelArt.jsx';
 import CelebrationHost from '../components/CelebrationHost.jsx';
+import AnnouncementBanner from '../components/AnnouncementBanner.jsx';
 
 export default function Layout() {
   const { user } = useAuth();
@@ -32,6 +33,7 @@ function LayoutContent() {
   }
   return <div className="app">
     <a className="skip-link" href="#main">Skip to content</a>
+    <AnnouncementBanner />
     <header className="site-header">
       <Link className="brand" to="/"><PixelFlag className="brand-flag" /><span>CTF Arena</span></Link>
       <nav aria-label="Main navigation">
@@ -42,7 +44,7 @@ function LayoutContent() {
         <NavLink to="/leaderboard">Leaderboard</NavLink>
         <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>
         {user && <NavLink to="/profile">Profile</NavLink>}
-        {user?.role === 'admin' && <><NavLink to="/admin" end>Admin</NavLink><NavLink to="/admin/challenges">Manage challenges</NavLink></>}
+        {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
       </nav>
       <div className="account">
         {loading ? <span>Loading…</span> : user ? <><span className="email" title={user.email}>{user.email}</span><button className="secondary small" onClick={logout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button></> : <><span className="session-status">[ Not logged in ]</span><Link className="button secondary small" to="/login">Login</Link><Link className="button small" to="/signup">Sign up</Link></>}
