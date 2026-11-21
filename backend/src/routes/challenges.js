@@ -9,6 +9,7 @@ import Instance, { ACTIVE_STATUSES } from '../models/Instance.js';
 import Solve from '../models/Solve.js';
 import Submission from '../models/Submission.js';
 import { AppError } from '../utils/AppError.js';
+import { achievementService } from '../services/achievementService.js';
 import { hashSubmission, verifyFlag } from '../services/flagService.js';
 import { instanceService, serializeInstance } from '../services/instanceService.js';
 import { integrityService } from '../services/integrityService.js';
@@ -126,7 +127,9 @@ router.post('/:id/submit', playerOnly, async (req, res) => {
     throw new AppError(409, 'CONFLICT', 'Your team has already solved this challenge.');
   }
   await instanceService.stopTeamChallenge(team._id, challenge._id).catch(() => {});
+  const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id }); // cosmetic; never throws
   return res.json({
+    ...(badges.length ? { badges } : {}),
     correct: true,
     pointsAwarded: solve.points,
     firstBlood: solve.firstBlood,

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { authMessage } from '../auth/logic.js';
 import { TeamProvider, useTeam } from './TeamContext.jsx';
 import { PixelFlag } from './PixelArt.jsx';
+import CelebrationHost from '../components/CelebrationHost.jsx';
 
 export default function Layout() {
   const { user } = useAuth();
@@ -39,6 +40,7 @@ function LayoutContent() {
         {user && <NavLink to="/terminal">Terminal</NavLink>}
         <NavLink to="/leaderboard">Leaderboard</NavLink>
         <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>
+        {user && <NavLink to="/profile">Profile</NavLink>}
         {user?.role === 'admin' && <><NavLink to="/admin" end>Admin</NavLink><NavLink to="/admin/challenges">Manage challenges</NavLink></>}
       </nav>
       <div className="account">
@@ -50,6 +52,7 @@ function LayoutContent() {
       {error && <p role="alert" className="error">{error}</p>}
       <Outlet />
     </main>
+    <CelebrationHost />
     <footer className="site-footer"><span>Mini CTF Arena</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><span className="replica">{replica ? `Served by ${replica}` : 'No API response yet'}</span></footer>
   </div>;
 }

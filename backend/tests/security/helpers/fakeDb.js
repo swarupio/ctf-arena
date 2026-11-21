@@ -481,6 +481,7 @@ const NAMES = {
   CheatSignal: { mongoName: 'cheatsignals' },
   TaintedFlag: { mongoName: 'taintedflags', unique: [{ fields: ['hash'] }] },
   TerminalActivity: { mongoName: 'terminalactivities' },
+  Achievement: { mongoName: 'achievements', unique: [{ fields: ['userId', 'key'] }] },
 };
 
 for (const [name, options] of Object.entries(NAMES)) { database.collection(name).configure(options); }

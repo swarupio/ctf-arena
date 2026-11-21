@@ -25,6 +25,7 @@ vi.mock('../../src/models/User.js', async () => (await import('./helpers/fakeDb.
 vi.mock('../../src/models/Team.js', async () => (await import('./helpers/fakeDb.js')).modelModule('Team'));
 vi.mock('../../src/models/Challenge.js', async () => (await import('./helpers/fakeDb.js')).modelModule('Challenge'));
 vi.mock('../../src/models/Instance.js', async () => (await import('./helpers/fakeDb.js')).modelModule('Instance'));
+vi.mock('../../src/models/Achievement.js', async () => (await import('./helpers/fakeDb.js')).modelModule('Achievement'));
 vi.mock('../../src/models/Solve.js', async () => (await import('./helpers/fakeDb.js')).modelModule('Solve'));
 vi.mock('../../src/models/Submission.js', async () => (await import('./helpers/fakeDb.js')).modelModule('Submission'));
 vi.mock('../../src/models/ReplicaStat.js', async () => (await import('./helpers/fakeDb.js')).modelModule('ReplicaStat'));
@@ -65,6 +66,11 @@ const TABLE = [
 
   ['GET', '/api/leaderboard', 'any'],
   ['GET', '/api/leaderboard/timeline', 'any'],
+
+  ['GET', '/api/feed', 'any'],
+  ['GET', '/api/daily', 'any'],
+  ['GET', '/api/players/:id/profile', 'any'],
+  ['GET', '/api/me/achievements', 'any'],
 
   ['GET', '/api/terminal/modes', 'any'],
   ['GET', '/api/terminal/:mode/progress', 'any'],

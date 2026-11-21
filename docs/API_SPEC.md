@@ -329,6 +329,22 @@ anything. A banned team already gets 403 `TEAM_BANNED` on the submit and instanc
 
 ---
 
+## Achievements, profile, feed and daily spotlight (cosmetic)
+
+None of these change points or ranking (`docs/ACHIEVEMENTS.md`). All need a token (`player` or `admin`, no team needed).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/players/:id/profile` | Public-safe profile: `{ id, displayName, team: { name } or null, solves, firstBloods, streak: { current, best }, badges: [{ key, name, description, icon, unlocked, awardedAt }], recentSolves: [{ category, difficulty, firstBlood, solvedAt }] }`. No email, flag, invite code, points or challenge titles. Malformed or unknown id is 404. A banned team's name is hidden. |
+| GET | `/me/achievements` | The caller's catalog: `{ id, unlocked, total, streak, badges }` (same badge shape). |
+| GET | `/feed?limit=1..50` | Newest public events (default 20): `{ type: solve or first_blood or badge or team, at, team, challenge or badge }`. Team names and challenge titles only; banned teams and hidden challenges are skipped. `Cache-Control: private, max-age=5`. Invalid `limit` is 400. |
+| GET | `/daily` | `{ date, bonusLabel, resetsAt, challenge: { id, slug, title, category, difficulty, points } or null }`. Deterministic per UTC day. `Cache-Control: private, max-age=60`. |
+
+`POST /challenges/:id/submit` and `POST /terminal/:mode/submit` may add an optional `badges: [{ key, name, description, icon }]`
+to a correct answer when new badges were just earned. The field is absent otherwise.
+
+---
+
 ## Rules every endpoint follows
 - Validate with `zod`; return `VALIDATION_ERROR` with details.
 - Validation details are carried in `error.message`; there is no separate `details` field.

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
@@ -13,6 +14,8 @@ import Leaderboard from './pages/Leaderboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import Demo from './pages/Demo.jsx';
 import FairPlay from './pages/FairPlay.jsx';
+
+const Profile = lazy(() => import('./pages/Profile.jsx'));
 
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
@@ -34,6 +37,8 @@ export default function App() {
         <Route path="terminal/:mode" element={<TerminalPlay />} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
+        <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
+        <Route path="profile/:id" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
       </Route>
       <Route element={<ProtectedRoute admin />}>
         <Route path="admin" element={<AdminDashboard />} />

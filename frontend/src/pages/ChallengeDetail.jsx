@@ -4,6 +4,7 @@ import {
   extendInstance, getChallenge, startInstance, stopInstance, submitFlag,
 } from '../api/challenges.js';
 import { challengeErrorMessage, formatCountdown, isExpired } from './challengeHelpers.js';
+import { announce } from './socialHelpers.js';
 import './Challenge.css';
 
 export default function ChallengeDetail() {
@@ -54,6 +55,7 @@ export default function ChallengeDetail() {
     try {
       const outcome = await submitFlag(id, flag.trim());
       setResult(outcome);
+      announce(outcome); // cosmetic celebration (first blood / first flag / new badge)
       if (outcome.correct) { setFlag(''); await load(); }
     } catch (failure) { setError(challengeErrorMessage(failure)); }
     finally { lock.current = false; setBusy(false); }
