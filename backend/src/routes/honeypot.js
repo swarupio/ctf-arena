@@ -63,8 +63,10 @@ function decoy(path) {
     res.set('Cache-Control', 'no-store');
     try {
       const caller = await integrityService.identifyCaller(req);
-      integrityService.recordSignal({ ...caller, kind: 'honeypot-endpoint', severity: 2, detail: path });
+      const written = integrityService.recordSignal({ ...caller, kind: 'honeypot-endpoint', severity: 2, detail: path });
       const flags = await integrityService.issueTaintedFlags({ subjectKey: caller.subjectKey, slugs: SLUGS });
+      // Serverless only: give the signal write a moment to land before the function can be frozen (bounded, never fails).
+      await integrityService.waitIfServerless(written);
       res.json(BODIES[path]({ flags, secret: (label, length) => fakeSecret(caller.subjectKey, label, length) }));
     } catch {
       // Whatever went wrong, the answer is generic: no stack, no message, no hint that this is a trap.

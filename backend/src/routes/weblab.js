@@ -6,6 +6,7 @@ import { auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { labBySlug } from '../games/weblab/index.js';
 import { integrityService } from '../services/integrityService.js';
+import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
   hintFor, labDetail, loadRows, overview, requireOpen, sendRequest, submitFlag, teamIdOf, teamProgress,
@@ -91,6 +92,7 @@ router.post('/labs/:slug/request', anyRole, async (req, res) => {
 router.post('/labs/:slug/submit', playerOnly, async (req, res) => {
   const lab = labFrom(req.params);
   const { flag } = validate(submitBody, req.body);
+  await assertSubmissionsOpen();
   const { user, team } = await getTeamContext(req.user);
   const rows = await loadRows();
   const row = requireOpen(lab, rows, await teamProgress(team, rows), { preview: false });

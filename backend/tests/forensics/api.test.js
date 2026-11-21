@@ -11,6 +11,7 @@ import Team from '../../src/models/Team.js';
 import User from '../../src/models/User.js';
 import { forensicsDefinitions } from '../../src/scripts/seedForensics.js';
 import { expectedFlagFor } from '../../src/services/flagService.js';
+import { integrityService } from '../../src/services/integrityService.js';
 import { hasFirstBloodBonus } from '../../src/services/scoringService.js';
 import { FORENSICS_MAX_POINTS, TRACKS, TRACK_IDS, answerOf, makeContext } from '../../src/forensics/tracks.js';
 
@@ -21,6 +22,10 @@ vi.mock('../../src/models/Challenge.js', () => ({ default: { find: vi.fn(), find
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), create: vi.fn(), aggregate: vi.fn(), updateOne: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn() } }));
 vi.mock('../../src/models/AttemptCounter.js', () => ({ default: { findOneAndUpdate: vi.fn(), create: vi.fn() } }));
+vi.mock('../../src/services/integrityService.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, integrityService: { ...actual.integrityService, checkSubmittedFlag: vi.fn() } };
+});
 
 const oid = (n) => String(n).padStart(24, '0');
 const TEAM_A = oid(2);
@@ -170,6 +175,9 @@ describe('no answer leakage', () => {
     expect(wrong.body).toMatchObject({ correct: false, pointsAwarded: 0, firstBlood: false });
     expect(JSON.stringify(wrong.body)).not.toContain(truth('easy', 1));
     expect(wrong.body.flag).toBeUndefined();
+    // A wrong answer may be a pasted decoy flag: the fair-play lookup runs, and only on wrong answers.
+    expect(integrityService.checkSubmittedFlag).toHaveBeenCalledOnce();
+    expect(integrityService.checkSubmittedFlag).toHaveBeenCalledWith({ flag: '1.2.3.4', user: expect.objectContaining({ _id: oid(1) }) });
     expect(Submission.create.mock.calls[0][0].submittedHash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(Submission.create.mock.calls[0][0])).not.toContain('1.2.3.4');
     const right = await answer('easy', 2, truth('easy', 2)).expect(200);

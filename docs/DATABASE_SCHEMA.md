@@ -243,7 +243,7 @@ Read on demand by every replica; nothing is cached in a process.
 |-------|------|-------|
 | key | S | required, **unique index**, always `platform` |
 | registrationOpen | B | default true. Published through `GET /announcement`; not enforced by the API (sign-up is in Cognito) |
-| submissionsFrozen | B | default false. Enforced: both submit routes answer 423 `SUBMISSIONS_FROZEN` |
+| submissionsFrozen | B | default false. Enforced: every answer route (challenges, terminal, Cipher Lab, Crackme, Web Exploit Lab, Forensics, OSINT) answers 423 `SUBMISSIONS_FROZEN` |
 | announcement.text | S | max 500, empty = no banner |
 | announcement.level | S | `info`, `warning`, `critical` |
 | updatedBy | S | email of the last admin who saved |

@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { AppError } from '../utils/AppError.js';
+import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
   loadAllRows, loadRows, notSeeded, submitAnswer, summarizeTrack, teamKey, teamSolves, trackView,
@@ -82,6 +83,7 @@ router.post('/tracks/:track/stages/:n/answer', playerOnly, async (req, res) => {
   const track = trackFrom(req.params);
   const { n } = validate(stageParams, req.params);
   const { answer } = validate(answerBody, req.body);
+  await assertSubmissionsOpen();
   const { user, team } = await getTeamContext(req.user);
   const rows = await loadRows(track.id);
   res.json(await submitAnswer({ track, rows, team, user, stageNo: n, answer }));

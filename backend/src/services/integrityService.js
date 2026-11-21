@@ -27,6 +27,7 @@ export const DETAIL_MAX = 120;
 export const CANARY_DETAIL_CHARS = 60;
 export const RISK_COUNT_CAP = 5;
 export const DB_TIMEOUT_MS = 1000;
+export const SERVERLESS_WRITE_WAIT_MS = 1500; // how long a serverless response waits for its signal writes
 const MAX_SCAN = 5000; // admin review reads at most this many signal rows (newest first)
 
 export const SEVERITY = Object.freeze({
@@ -167,6 +168,16 @@ function background(task) {
     })
     .finally(() => pending.delete(run));
   pending.add(run);
+  return run;
+}
+
+// On serverless hosts (Vercel) the instance may be frozen right after the response, which would drop a write still in
+// flight. There, signal writes are awaited for at most SERVERLESS_WRITE_WAIT_MS before answering; elsewhere (a long
+// lived process) they stay fire-and-forget. Failures and timeouts are swallowed: the answer never depends on this.
+async function waitIfServerless(...writes) {
+  const list = writes.filter(Boolean);
+  if (!process.env.VERCEL || list.length === 0) { return; }
+  try { await withTimeout(Promise.allSettled(list), SERVERLESS_WRITE_WAIT_MS); } catch { /* best effort */ }
 }
 
 // Resolves when every fire-and-forget write started so far has finished. Tests call it; production does not need to.
@@ -193,9 +204,10 @@ async function upsertSignal({ subjectKey, userId = null, kind, severity = SEVERI
   }
 }
 
+// Returns the write's promise (it never rejects) so a serverless caller can wait for it; others ignore it.
 function recordSignal(signal) {
-  if (!active()) { return; }
-  background(() => upsertSignal(signal));
+  if (!active()) { return undefined; }
+  return background(() => upsertSignal(signal));
 }
 
 // ---- tainted flags ----------------------------------------------------------------------------------------------
@@ -222,7 +234,7 @@ async function checkSubmittedFlag({ flag, user }) {
     if (!found || found === TIMED_OUT) { return; }
     const own = String(user._id);
     const source = found.subjectKey === own ? 'self' : (String(found.subjectKey).startsWith('ip:') ? 'anonymous' : found.subjectKey);
-    recordSignal({ subjectKey: own, userId: user._id, kind: 'tainted-flag', detail: `from:${source}` });
+    await waitIfServerless(recordSignal({ subjectKey: own, userId: user._id, kind: 'tainted-flag', detail: `from:${source}` }));
   } catch {
     // The lookup is best effort; the answer to the player is unaffected.
   }
@@ -275,7 +287,16 @@ async function inspectExec({ req, user, mode, command }) {
   const slowDown = { slowDown: true, message: SLOW_DOWN_MESSAGE };
   if (activity?.throttled) { return slowDown; }
 
-  const note = (kind, detail) => recordSignal({ subjectKey, userId, kind, detail });
+  const writes = [];
+  const note = (kind, detail) => { writes.push(recordSignal({ subjectKey, userId, kind, detail })); };
+  try {
+    return await decideExec({ req, mode, command, activity, slowDown, note, subjectKey });
+  } finally {
+    await waitIfServerless(...writes);
+  }
+}
+
+async function decideExec({ req, mode, command, activity, slowDown, note, subjectKey }) {
   const family = automationFamily(req.get?.('user-agent'));
   if (family) { note('automation-ua', family); }
 
@@ -391,4 +412,5 @@ export const integrityService = {
   listRisk,
   dismiss,
   flush,
+  waitIfServerless,
 };

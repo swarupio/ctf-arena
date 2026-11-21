@@ -445,7 +445,7 @@ describe('challenges', () => {
     models.Challenge.find.mockImplementation(() => chain([stored(1), stored(2, { type: 'docker', image: 'ctf/x', internalPort: 80, flagHash: undefined })]));
     const res = await api('get', '/admin/challenges/export').expect(200);
     expect(res.headers['content-disposition']).toContain('challenges.json');
-    expect(models.Challenge.find.mock.calls.at(-1)[0]).toEqual({ type: { $nin: ['terminal', 'game'] } });
+    expect(models.Challenge.find.mock.calls.at(-1)[0]).toEqual({ type: { $nin: ['terminal', 'game', 'weblab', 'forensics', 'reversing', 'osint'] } });
     expect(res.body).toMatchObject({ version: 1 });
     expect(res.body.challenges[0]).toEqual({
       slug: 'chal-1', title: 'Chal 1', category: 'web', difficulty: 'easy', points: 100, description: 'd', type: 'static',
@@ -572,6 +572,36 @@ describe('challenges', () => {
       await api('put', `/admin/challenges/${oid(5)}`, { as: 'player', body: { title: 'x' } }).expect(403);
       models.Challenge.findById.mockImplementation(() => chain(null));
       await put({ title: 'x' }).expect(404);
+    });
+  });
+
+  describe.each(['game', 'weblab', 'forensics', 'reversing', 'osint'])('code-defined %s rows are protected like game rows', (type) => {
+    const row = () => stored(6, { type, category: 'crypto', points: 50, flagHash: undefined, flagSalt: undefined, attachments: [] });
+    beforeEach(() => {
+      models.Challenge.findById.mockImplementation(() => chain(row()));
+      models.Challenge.findOne.mockImplementation(() => chain({ type }));
+      models.Challenge.findOneAndUpdate.mockImplementation((filter, update) => chain({ ...row(), ...update.$set }));
+    });
+
+    it('PUT edits only title, description and visible; rejects points and conversion', async () => {
+      const put = (body) => api('put', `/admin/challenges/${oid(6)}`, { body });
+      await put({ title: 'Renamed', visible: false }).expect(200);
+      expect(models.Challenge.findOneAndUpdate.mock.calls[0][1]).toEqual({ $set: { title: 'Renamed', visible: false } });
+      await put({ title: 'x', points: 9999 }).expect(400);
+      await put({ slug: 'chal-6', title: 'x', category: 'crypto', difficulty: 'easy', points: 50, type: 'static', flag: 'CTF{x}' }).expect(400);
+      expect(models.Challenge.findOneAndUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('import update, duplicate are refused and export excludes the type', async () => {
+      const { body } = await api('post', '/admin/challenges/import', { body: { mode: 'update', challenges: [
+        { slug: 'chal-6', title: 'x', category: 'crypto', difficulty: 'easy', points: 1, type: 'static', flag: 'CTF{x}' },
+      ] } }).expect(200);
+      expect(body.errors).toEqual([expect.objectContaining({ slug: 'chal-6', message: `${type} challenges cannot be imported` })]);
+      await api('post', `/admin/challenges/${oid(6)}/duplicate`, { body: {} }).expect(400);
+      models.Challenge.find.mockImplementation(() => chain([]));
+      await api('get', '/admin/challenges/export').expect(200);
+      expect(models.Challenge.find.mock.calls.at(-1)[0].type.$nin).toContain(type);
+      expect(models.Challenge.create).not.toHaveBeenCalled();
     });
   });
 
