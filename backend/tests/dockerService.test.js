@@ -70,12 +70,35 @@ describe('dockerService', () => {
     const service = createDockerService({ docker, limits });
     await service.ensureNetwork();
     expect(docker.createNetwork).toHaveBeenCalledWith(expect.objectContaining({ Name: 'ctf-challenges' }));
+    expect(docker.createNetwork.mock.calls[0][0]).toMatchObject({
+      Driver: 'bridge', Labels: { 'ctf.managed': 'true' }, Options: { 'com.docker.network.bridge.enable_icc': 'false' },
+    });
     docker.createNetwork.mockRejectedValue(Object.assign(new Error('exists'), { statusCode: 409 }));
     await expect(service.ensureNetwork()).resolves.toBeUndefined();
     docker.listNetworks.mockResolvedValue([{ Name: 'ctf-challenges' }]);
     docker.createNetwork.mockClear();
     await service.ensureNetwork();
     expect(docker.createNetwork).not.toHaveBeenCalled();
+  });
+
+  it('warns once (and never deletes) when an existing network still allows inter-container traffic', async () => {
+    const written = [];
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => { written.push(String(chunk)); return true; });
+    const docker = fakeDocker();
+    docker.listNetworks.mockResolvedValue([{ Name: 'ctf-challenges', Options: {} }]);
+    docker.removeNetwork = vi.fn();
+    const service = createDockerService({ docker, limits });
+    await service.ensureNetwork();
+    await service.ensureNetwork();
+    expect(written.filter((line) => line.includes('enable_icc'))).toHaveLength(1);
+    expect(written[0]).toContain('docs/SECURITY.md');
+    expect(docker.createNetwork).not.toHaveBeenCalled();
+    expect(docker.removeNetwork).not.toHaveBeenCalled();
+    written.length = 0;
+    docker.listNetworks.mockResolvedValue([{ Name: 'ctf-challenges', Options: { 'com.docker.network.bridge.enable_icc': 'false' } }]);
+    await createDockerService({ docker, limits }).ensureNetwork();
+    expect(written).toEqual([]);
+    spy.mockRestore();
   });
 
   it('lists only managed containers that carry an instance label', async () => {

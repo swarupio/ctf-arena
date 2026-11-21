@@ -56,10 +56,13 @@ export const updateSchema = base.superRefine(terminalRules).superRefine(dockerNe
 // Import: like create, but a static challenge may come without a flag (exports never contain one).
 export const importItemSchema = base.superRefine(notCreatable).superRefine(dockerNeedsImage);
 
-// Game challenges (type 'game', for example Cipher Lab levels) define their own points, flags and mechanics in code.
+// Game challenges (type 'game', 'weblab', 'forensics', 'reversing' or 'osint', for example Cipher Lab levels) define their own points, flags and mechanics in code.
 // An admin may only change what players read or whether it is listed: title, description and visible. The other
 // definition fields may be echoed back unchanged (a form that sends the whole object still works); a different
 // value, a flag or any unknown key is rejected, and so is an empty update.
+// Every row type whose definition lives in code (not only 'game'): they all get the same protection.
+export const CODE_DEFINED_TYPES = Object.freeze(['game', 'weblab', 'forensics', 'reversing', 'osint']);
+export const isCodeDefined = (type) => CODE_DEFINED_TYPES.includes(type);
 const GAME_EDITABLE = ['title', 'description', 'visible'];
 const GAME_ECHO = ['slug', 'category', 'difficulty', 'points', 'type', 'image', 'internalPort', 'attachments'];
 export const gameUpdateSchema = z.object({

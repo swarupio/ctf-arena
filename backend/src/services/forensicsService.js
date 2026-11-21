@@ -12,6 +12,7 @@ import {
 } from '../forensics/tracks.js';
 import { consumeAttempt } from './attemptLimiter.js';
 import { expectedFlagFor, hashSubmission } from './flagService.js';
+import { integrityService } from './integrityService.js';
 import { recordSolve } from './scoringService.js';
 import { safeEqualText } from '../forensics/core.js';
 
@@ -126,6 +127,8 @@ export async function submitAnswer({ track, rows, team, user, stageNo, answer })
     teamId: team._id, userId: user._id, challengeId: row._id, correct, submittedHash: hashSubmission(submitted),
   });
   if (!correct) {
+    // A pasted decoy flag (docs/FAIR_PLAY.md) leaves a signal; the reply is identical either way.
+    await integrityService.checkSubmittedFlag({ flag: answer, user });
     return { correct: false, pointsAwarded: 0, firstBlood: false, message: wrongMessage(submitted), solved: solved.size, total };
   }
   // Fixed points straight from the definition: a stored row can never raise the documented maximum.

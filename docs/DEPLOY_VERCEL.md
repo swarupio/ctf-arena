@@ -63,6 +63,23 @@ MONGODB_URI='<atlas uri>' npm run seed:challenges                # static + dock
 ```
 Create an admin as in `docs/SETUP.md` section 7 (Cognito group `admin`).
 
+**Index guard.** With autoIndex off, a database that never had `npm run db:indexes` run silently loses its unique
+constraints (double solves, duplicate team names, a broken attempt limiter). The backend therefore checks, read-only,
+that the critical unique indexes exist (`Solve(teamId,challengeId)`, `Team(name)`, `Team(inviteCode)`,
+`User(cognitoSub)`, `AttemptCounter(key)`, `TaintedFlag(hash)`, `CheatSignal(subjectKey,kind,detail)` and the partial
+`Instance(port)`):
+- `GET /api/health` returns `"indexes": "ok"` or `"indexes": "missing"` (no names, so nothing leaks publicly). Point your
+  uptime monitor at it and alert on `missing`. The field is absent while the database is down. The result is cached for
+  5 minutes per function instance, so the check adds no query to normal routes; after you run `db:indexes` it flips
+  to `ok` within that time.
+- On the first connect of each function instance a non-test environment writes one line to the log starting with
+  `[indexes] WARNING` that lists the missing indexes and says to run `npm run db:indexes`.
+The guard only reads index lists; it never creates indexes.
+
+**Fair-play signals on Vercel.** A serverless function can be frozen right after it responds, so the honeypot, canary
+and decoy-flag signal writes are awaited (at most 1.5 s, failures ignored) before the response when `VERCEL` is set.
+Locally they stay fire-and-forget.
+
 ## 6. Run Docker challenges locally
 Docker challenges need a Docker daemon, so run the full stack on a laptop (Docker Desktop):
 ```bash

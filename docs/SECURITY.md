@@ -46,6 +46,25 @@ Labels: { 'ctf.instance': '<id>', 'ctf.team': '<teamId>' },
 Env: ['FLAG=<team flag>']
 ```
 
+### Challenge network isolation
+`dockerService.ensureNetwork` creates `ctf-challenges` with `com.docker.network.bridge.enable_icc=false`, so challenge
+containers (different teams, different challenges) cannot talk to each other; published ports still work through the
+host. A network that already exists keeps its old options: the backend never deletes it (it may hold running
+containers) and logs a one-line warning once per process if `enable_icc` is not `false`. To fix it: stop the challenge
+containers, `docker network rm ctf-challenges`, and let the backend recreate it.
+
+Egress caveat: `enable_icc=false` does not stop a container from reaching the host, the LAN or, on a cloud VM, the
+metadata service (`169.254.169.254`, which can hand out the VM's credentials). Optional hardening for cloud VMs: drop
+that traffic in the `DOCKER-USER` chain (replace `172.20.0.0/16` with the subnet from
+`docker network inspect ctf-challenges`):
+```bash
+sudo iptables -I DOCKER-USER -s 172.20.0.0/16 -d 169.254.169.254 -j DROP
+sudo iptables -I DOCKER-USER -s 172.20.0.0/16 -d 10.0.0.0/8 -j DROP        # private ranges, adjust to your VPC
+sudo iptables -I DOCKER-USER -s 172.20.0.0/16 -d 192.168.0.0/16 -j DROP
+```
+Rules in `DOCKER-USER` survive Docker restarts but not reboots unless saved (`iptables-persistent`). Challenges that must
+reach the internet keep working; add a stricter `-j DROP` default only if none of them needs it.
+
 ## 4. Secrets handling
 - Only `.env.example` is committed.
 - Share real values privately, never in screenshots.

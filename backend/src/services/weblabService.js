@@ -164,7 +164,7 @@ export async function submitFlag({ lab, row, team, user, submitted }) {
   if (!correct) {
     return { correct: false, pointsAwarded: 0, firstBlood: false, message: quipFor(submitted) };
   }
-  const solve = await recordSolve({ challenge: row, teamId: team._id, userId: user._id });
+  const solve = await recordSolve({ challenge: { ...row, points: lab.points }, teamId: team._id, userId: user._id });
   // null: the team already had this lab (double click or another replica). Not an error, and worth no points.
   if (!solve) {
     return { correct: true, alreadySolved: true, pointsAwarded: 0, firstBlood: false, message: 'Your team already cashed this bounty.', ...cosmetics(lab) };

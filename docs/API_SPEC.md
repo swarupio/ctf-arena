@@ -39,7 +39,7 @@ Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2)
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| GET | `/health` | none | S | `{ "status":"ok", "db":"up", "replica":"backend-2" }` |
+| GET | `/health` | none | S | `{ "status":"ok", "db":"up", "replica":"backend-2", "indexes":"ok" }`. `indexes` is additive: `ok` or `missing` (the critical unique indexes of solves, teams, users, attempt counters, decoy flags, signals and instance ports; names are only in the server log, never in the response). The field is absent when the database is down or the check fails or times out; the route never fails because of it. Cached for 5 minutes. Fix `missing` with `npm run db:indexes`. |
 | GET | `/me` | any | S | Current user: `{ id, email, displayName, role, team: { id, name } or null }`, plus `banned: true` (additive, only present for a banned account so the UI can show the ban message; `/me` itself keeps working) |
 | PATCH | `/me` | any | S | Body `{ displayName }` (3-30 chars). 403 `USER_BANNED` for a banned account |
 
@@ -379,12 +379,13 @@ its `slug` cannot change (the flag derives from it), it cannot be converted to o
 rejected (nothing is stored). Re-running the seed resets `title`, `description`, `points` and `difficulty` to the mode
 definition and keeps `visible` and `solveCount`.
 
-Game challenges (`type: "game"`, for example the Cipher Lab levels) define their own points, flags and rules in code, so
+Code-defined game challenges (`type` `game`, `weblab`, `forensics`, `reversing` or `osint`, for example the Cipher Lab levels and Web Exploit Lab labs) define their own points, flags and rules in code, so
 an admin may `PUT` only `title`, `description` and `visible` (any subset, at least one). The body is not the full create
 body: other definition fields (`slug`, `category`, `difficulty`, `points`, `type`, `image`, `internalPort`,
 `attachments`) are accepted only when they equal the stored value (a form may echo the whole object back); a different
-value, a `flag` or an unknown key is 400 `VALIDATION_ERROR`. Game challenges also cannot be duplicated, imported over
-(`mode: "update"` reports an error for them) or exported.
+value, a `flag` or an unknown key is 400 `VALIDATION_ERROR`. These challenges also cannot be duplicated, imported over
+(`mode: "update"` reports an error for them) or exported, and a `PUT` that tries to convert one to another type is 400.
+Terminal challenges keep the behaviour described above.
 
 **Fair-play review (`/admin/integrity`)** (design and thresholds: `docs/FAIR_PLAY.md`)
 
@@ -809,9 +810,13 @@ summaries (primitives and short strings, secret-looking keys dropped). `ip` is t
 `announcement.text` 0-500 chars (empty hides the banner), `level` is `info | warning | critical`. Defaults: registration
 open, not frozen, no banner.
 
-- **`submissionsFrozen`** is enforced server side: `POST /challenges/:id/submit` and `POST /terminal/:mode/submit` answer
+- **`submissionsFrozen`** is enforced server side on every answer route: `POST /challenges/:id/submit`,
+  `POST /terminal/:mode/submit`, `POST /cipherlab/levels/:id/answer`, `POST /crackme/levels/:id/answer`,
+  `POST /weblab/labs/:slug/submit`, `POST /forensics/tracks/:track/stages/:n/answer` and
+  `POST /osint/cases/:track/questions/:n/answer` answer
   423 `SUBMISSIONS_FROZEN` (the check runs right after body validation, so a frozen platform also leaves no attempt
-  records). Browsing, instances and the terminal `exec` stay available. The settings read has a 2 s timeout and fails open:
+  records). Browsing, hints, instances, the terminal `exec` and the Web Exploit Lab simulator (`/weblab/labs/:slug/request`,
+  which never records a solve) stay available. The settings read has a 2 s timeout and fails open:
   if the read fails, the submission continues.
 - **`registrationOpen`** is stored and published only. Sign-up happens in Cognito (outside this API), so the backend cannot
   block it; the web app should hide its sign-up form when it is `false`. Closing Cognito self-sign-up is a follow-up.
@@ -840,6 +845,6 @@ comma, quote or newline are quoted with doubled quotes. Numbers and booleans are
 - Validation details are carried in `error.message`; there is no separate `details` field.
 - Players never receive `flag`, `flagHash`, or other teams' data except the leaderboard fields above.
 - A banned team gets `403 TEAM_BANNED` on submit and instance routes (and on terminal `exec`, `complete` and `submit`).
-  A banned user gets `403 USER_BANNED` on the same routes. While submissions are frozen (`/admin/settings`) the two
-  submit routes answer `423 SUBMISSIONS_FROZEN`.
+  A banned user gets `403 USER_BANNED` on the same routes. While submissions are frozen (`/admin/settings`) every
+  answer route (challenges, terminal and all games) answers `423 SUBMISSIONS_FROZEN`.
 - Changing this file is a contract change: tell the group.

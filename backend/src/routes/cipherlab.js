@@ -6,6 +6,7 @@ import {
 } from '../games/cipherlab/service.js';
 import { auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { getTeamContext } from '../services/teamContext.js';
 import { AppError } from '../utils/AppError.js';
 import { validate } from './challenges.js';
@@ -55,6 +56,7 @@ router.post('/levels/:id/hints', playerOnly, async (req, res) => {
 router.post('/levels/:id/answer', playerOnly, async (req, res) => {
   const id = levelId(req.params);
   const { answer } = validate(answerBody, req.body);
+  await assertSubmissionsOpen();
   const { user, team } = await getTeamContext(req.user);
   const entries = await loadGame();
   res.json(await submitAnswer({ entries, entry: findEntry(entries, id), team, user, answer }));

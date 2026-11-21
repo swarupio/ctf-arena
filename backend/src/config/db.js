@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { warnIfIndexesMissing } from '../services/indexGuard.js';
 
 // One connection per process. On Vercel a warm function instance serves many requests, so the in-flight
 // connect is cached on globalThis and shared; a failed attempt is forgotten so the next request retries.
@@ -25,7 +26,11 @@ export async function connectDB(uri) {
   if (mongoose.connection?.readyState === 1) { return; }
   if (!cache.promise) {
     cache.promise = mongoose.connect(uri, { ...baseOptions, ...serverlessOptions, autoIndex: autoIndexEnabled() })
-      .then(() => { process.stdout.write('MongoDB connected\n'); })
+      .then(() => {
+        process.stdout.write('MongoDB connected\n');
+        // Diagnostics only, not awaited: one loud line when the unique indexes were never built.
+        warnIfIndexesMissing().catch(() => {});
+      })
       .finally(() => { cache.promise = null; });
   }
   await cache.promise;

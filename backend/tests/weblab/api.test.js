@@ -243,6 +243,13 @@ describe('submitting flags', () => {
     expect(Solve.updateOne).not.toHaveBeenCalled();
   });
 
+  it('takes points from the lab definition, never from the stored row', async () => {
+    rowOf('sqli-login').points = 9999;
+    const res = await submit('sqli-login', flagOf('sqli-login'));
+    expect(res.body).toMatchObject({ correct: true, pointsAwarded: 30 });
+    expect(solves[0]).toMatchObject({ points: 30 });
+  });
+
   it('double submit and parallel submits score once', async () => {
     const flag = flagOf('sqli-login');
     const again = await Promise.all([submit('sqli-login', flag), submit('sqli-login', flag), submit('sqli-login', flag)]);

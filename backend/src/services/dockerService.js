@@ -8,17 +8,33 @@ const loadDocker = () => createRequire(import.meta.url)('dockerode');
 
 export const CHALLENGE_NETWORK = 'ctf-challenges';
 export const MANAGED_LABEL = 'ctf.managed';
+// Containers of different teams must not reach each other over the bridge (docs/SECURITY.md).
+export const ICC_OPTION = 'com.docker.network.bridge.enable_icc';
 
 const IMAGE_PATTERN = /^ctf\/[a-z0-9][a-z0-9._-]*(?::[A-Za-z0-9._-]+)?$/;
 
 // All Docker access for challenges goes through here. Callers pass only validated values;
 // there is no way to supply a command, volume or arbitrary env from outside.
 export function createDockerService({ docker = new (loadDocker())(), limits = env } = {}) {
+  let warnedIcc = false;
+
   async function ensureNetwork() {
     const existing = await docker.listNetworks({ filters: { name: [CHALLENGE_NETWORK] } });
-    if (existing.some((network) => network.Name === CHALLENGE_NETWORK)) { return; }
+    const found = existing.find((network) => network.Name === CHALLENGE_NETWORK);
+    if (found) {
+      // An existing network keeps the options it was created with. Never delete it automatically: it may hold
+      // running challenge containers. Tell the owner once per process.
+      if (found.Options?.[ICC_OPTION] !== 'false' && !warnedIcc) {
+        warnedIcc = true;
+        process.stderr.write(`[docker] network ${CHALLENGE_NETWORK} allows container-to-container traffic (${ICC_OPTION} is not false). Stop the challenge containers, then remove and recreate it (docker network rm ${CHALLENGE_NETWORK}); see docs/SECURITY.md.
+`);
+      }
+      return;
+    }
     try {
-      await docker.createNetwork({ Name: CHALLENGE_NETWORK, Driver: 'bridge', Labels: { [MANAGED_LABEL]: 'true' } });
+      await docker.createNetwork({
+        Name: CHALLENGE_NETWORK, Driver: 'bridge', Labels: { [MANAGED_LABEL]: 'true' }, Options: { [ICC_OPTION]: 'false' },
+      });
     } catch (error) {
       // Another replica created it first.
       if (error.statusCode !== 409) { throw error; }
