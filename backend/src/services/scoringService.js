@@ -18,6 +18,10 @@ export async function teamScore(teamId) {
   return row?.score ?? 0;
 }
 
+// Terminal challenges are worth exactly their listed points: every team gets its own flags and puzzle values, so there
+// is no shared race to be "first" at, and the mode totals shown in the UI (docs/TERMINAL_GAME.md section 8) are a hard cap.
+export const hasFirstBloodBonus = (challenge) => challenge?.type !== 'terminal';
+
 // Records one solve. Returns null when the team already solved it (unique index),
 // otherwise { points, firstBlood, score }. Safe against double clicks on any replica.
 export async function recordSolve({ challenge, teamId, userId }) {
@@ -33,7 +37,7 @@ export async function recordSolve({ challenge, teamId, userId }) {
   const updated = await Challenge.findOneAndUpdate(
     { _id: challenge._id }, { $inc: { solveCount: 1 } }, { new: true },
   );
-  const firstBlood = updated?.solveCount === 1;
+  const firstBlood = hasFirstBloodBonus(challenge) && updated?.solveCount === 1;
   const points = awardFor(challenge.points, firstBlood);
   if (firstBlood) {
     await Solve.updateOne({ teamId, challengeId: challenge._id }, { $set: { points, firstBlood: true } });

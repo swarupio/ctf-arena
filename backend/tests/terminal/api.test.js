@@ -389,7 +389,7 @@ describe('GET /terminal/modes', () => {
     }
     const easy = body[0];
     expect(easy.solved).toBe(2);
-    expect(easy.pointsEarned).toBe(44 + definitionCode('easy', 2).points);
+    expect(easy.pointsEarned).toBe(definitionCode('easy', 1).points + definitionCode('easy', 2).points); // legacy 44 is clamped to 40
     expect(body[1]).toMatchObject({ solved: 1, pointsEarned: definitionCode('medium', 1).points });
     expect(body[2]).toMatchObject({ solved: 0, pointsEarned: 0 });
     // Code titles (only meaningful once solved) are not part of this response at all.
@@ -430,7 +430,7 @@ describe('GET /terminal/:mode/progress', () => {
     expect(body).toEqual({
       mode: 'easy', total, remaining: total - 2,
       solved: [
-        { n: 1, title: definitionCode('easy', 1).title, points: 44, firstBlood: true },
+        { n: 1, title: definitionCode('easy', 1).title, points: definitionCode('easy', 1).points, firstBlood: false }, // legacy bonus row clamped
         { n: 2, title: definitionCode('easy', 2).title, points: definitionCode('easy', 2).points, firstBlood: false },
       ],
     });

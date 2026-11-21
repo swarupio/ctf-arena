@@ -20,6 +20,9 @@ export const MAX_MATCHES = 50;
 const EFFECTS = new Set(['clear', 'matrix', 'reboot', 'confetti']);
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
+// Points a solve can count for: never more than the challenge's listed points (guards rows written by older versions).
+const capped = (solve, challenge) => Math.min(solve.points, challenge.points);
+
 const sum = (items, pick) => items.reduce((total, item) => total + pick(item), 0);
 
 export function notSeeded() {
@@ -59,6 +62,16 @@ export async function loadModeChallenges(definition, { required = true } = {}) {
 export async function loadChallengesByMode(definitions) {
   const docs = await Challenge.find({ type: 'terminal', visible: true }).lean();
   return new Map(definitions.map((definition) => [definition.mode, gameCodes(definition, docs)]));
+}
+
+// Idempotent repair for rows written when terminal solves still got the first-blood bonus (mode totals were exceeded).
+export async function repairTerminalSolves() {
+  const challenges = await Challenge.find({ type: 'terminal' }, '_id points').lean();
+  const results = await Promise.all(challenges.map((challenge) => Solve.updateMany(
+    { challengeId: challenge._id, $or: [{ points: { $ne: challenge.points } }, { firstBlood: true }] },
+    { $set: { points: challenge.points, firstBlood: false } },
+  )));
+  return sum(results, (result) => result.modifiedCount ?? 0);
 }
 
 export async function teamSolves(team, challenges) {
@@ -131,7 +144,7 @@ export function summarizeMode(definition, challenges, solves) {
     codes: seeded ? challenges.length : definition.codes.length,
     solved: solved.length,
     points: seeded ? sum(challenges, (c) => c.points) : sum(definition.codes, (c) => c.points),
-    pointsEarned: sum(solved, (challenge) => mine.get(String(challenge._id)).points),
+    pointsEarned: sum(solved, (challenge) => capped(mine.get(String(challenge._id)), challenge)),
     lore: [...definition.lore],
   };
 }
@@ -142,7 +155,7 @@ export function progressView(definition, challenges, solves) {
     .filter((challenge) => mine.has(String(challenge._id)))
     .map((challenge) => {
       const solve = mine.get(String(challenge._id));
-      return { n: challenge.terminal.code, title: codeTitle(definition, challenge), points: solve.points, firstBlood: Boolean(solve.firstBlood) };
+      return { n: challenge.terminal.code, title: codeTitle(definition, challenge), points: capped(solve, challenge), firstBlood: false };
     });
   return { mode: definition.mode, total: challenges.length, solved, remaining: challenges.length - solved.length };
 }
