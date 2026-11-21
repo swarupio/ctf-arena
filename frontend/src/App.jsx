@@ -29,6 +29,10 @@ const lazyPage = (element) => <Suspense fallback={<p role="status">Loading...</p
 const ForensicsDesk = lazy(() => import('./pages/ForensicsDesk.jsx'));
 const ForensicsCase = lazy(() => import('./pages/ForensicsCase.jsx'));
 
+// Crackme Arcade (reverse engineering) is lazy-loaded too; its VM and debugger only download when a player opens it.
+const CrackmeArcade = lazy(() => import('./pages/CrackmeArcade.jsx'));
+const CrackmeLevel = lazy(() => import('./pages/CrackmeLevel.jsx'));
+
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
@@ -52,6 +56,8 @@ export default function App() {
         <Route path="weblab/:slug" element={lazyPage(<WebLabPlay />)} />
         <Route path="forensics" element={lazyPage(<ForensicsDesk />)} />
         <Route path="forensics/:track" element={lazyPage(<ForensicsCase />)} />
+        <Route path="reversing" element={lazyPage(<CrackmeArcade />)} />
+        <Route path="reversing/:levelId" element={lazyPage(<CrackmeLevel />)} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
         <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />

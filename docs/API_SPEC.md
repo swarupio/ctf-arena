@@ -293,6 +293,29 @@ the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/a
 - The flag is the proof of the solve; it is not submitted anywhere else (`POST /challenges/:id/submit` rejects
   forensics rows).
 
+## Crackme Arcade (reverse-engineering game)
+
+Design, ISA, levels and points: `docs/CRACKME_ARCADE.md`. Mounted at `/api/crackme`; all routes need
+`Authorization: Bearer <ID token>`. Level ids are `e1`-`e4`, `m1`-`m4`, `h1`-`h4`, `i1`-`i4` (anything else is 404
+`NOT_FOUND`). Backed by `challenges` rows with `type: "reversing"` created by `npm run seed:crackme` (503
+`CRACKME_NOT_SEEDED` before that).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/crackme/overview` | player, admin | `{ maxPoints, pointsEarned, solved, total, streak, tracks:[{ id, title, difficulty, story, hintsAllowed, total, solved, maxPoints, pointsEarned, complete, levels:[{ id, n, title, points, boss, status: solved\|open\|locked, solvedAt, hintsTotal }] }] }` |
+| GET | `/crackme/levels/:id` | player, admin | This team's cabinet: `{ id, track, n, title, briefing, points, boss, status, program:[[mnemonic, operand?]], inputMax, vm:{ version, codeBase, memSize, stackMax, codeMax, maxSteps }, hintsAllowed, hintsTotal, hints:[opened texts] }`. 403 `LEVEL_LOCKED` until the previous cabinet of the track is solved |
+| POST | `/crackme/levels/:id/hints` | player | Body `{}`. Opens the next hint: `{ index, hint, used, total }`. Free; logged for admins. 403 `NO_HINTS` on the insane track, 409 `NO_MORE_HINTS` |
+| POST | `/crackme/levels/:id/answer` | player | Body `{ answer }` (1-32 printable ASCII characters, strict). The server runs the VM on it. Wrong: `{ correct:false, pointsAwarded:0, firstBlood:false, message, streak:0 }`. Right: `{ correct:true, alreadySolved, pointsAwarded, firstBlood:false, flag, message, streak, trackComplete, nextLevelId }` |
+| GET | `/crackme/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, levelId, hint, at }]` |
+
+Notes:
+- Programs are derived per team from `HMAC(FLAG_SECRET, "crackme:" + teamId + ":" + levelId)`; the accepted input and the
+  flag are never sent, except the caller's own flag in the response to a correct answer. Admins see the preview
+  cabinet (`admin-preview`) and cannot answer or open hints.
+- Attempts: 8 per team per level per minute (429 `RATE_LIMITED`, counted in MongoDB, every attempt counts). Points are
+  fixed per level and never include a first-blood bonus; the maximum for the whole game is 1905.
+- The browser debugger runs the same `vm.js` with `DBG = 1`; the server verdict always uses `DBG = 0`.
+
 ## Admin (role `admin`)
 
 | Method | Path | Owner | Description |
