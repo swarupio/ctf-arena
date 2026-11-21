@@ -120,6 +120,7 @@ function hexdump(c) {
   c.rc.tick(1 + (data.length >> 10));
   const skip = parseNumber(opts.s) ?? 0;
   const length = parseNumber(opts.n);
+  if (Number.isNaN(skip) || Number.isNaN(length)) { c.err(`hexdump: invalid ${Number.isNaN(skip) ? 'skip' : 'length'} value\n`); return 1; }
   const base = skip;
   data = data.subarray(Math.min(skip, data.length), length === undefined ? undefined : Math.min(skip, data.length) + length);
   const out = [];
@@ -178,6 +179,7 @@ function od(c) {
   c.rc.tick(1 + (data.length >> 10));
   const skip = parseNumber(opts.j) ?? 0;
   const limit = parseNumber(opts.N);
+  if (Number.isNaN(skip) || Number.isNaN(limit)) { c.err('od: invalid number\n'); return 1; }
   const bytes = data.subarray(Math.min(skip, data.length), limit === undefined ? undefined : Math.min(skip, data.length) + limit);
   const radix = opts.A === 'x' ? 16 : opts.A === 'd' ? 10 : 8;
   const offsetOf = (n) => (opts.A === 'n' ? '' : n.toString(radix).padStart(7, '0'));

@@ -50,6 +50,12 @@ describe('capOutput', () => {
     expect(result.text.startsWith('line number 0\nline number 1\n')).toBe(true);
   });
 
+  it('does not split an emoji when cutting a long line', () => {
+    const result = capOutput(`${'a'.repeat(LIMITS.MAX_OUT_LINE - 1)}\u{1F600}${'b'.repeat(50)}`);
+    expect(result.text).toBe(`${'a'.repeat(LIMITS.MAX_OUT_LINE - 1)}... (line truncated)`);
+    expect(/[\ud800-\udbff](?![\udc00-\udfff])/.test(result.text)).toBe(false);
+  });
+
   it('cuts single lines at 2000 characters', () => {
     const result = capOutput(`${'a'.repeat(5000)}\nshort`);
     const [first, second] = result.text.split('\n');

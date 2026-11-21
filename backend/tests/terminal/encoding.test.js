@@ -92,6 +92,15 @@ describe('xxd, hexdump, od, strings', () => {
     expect(await out('echo 48656c6c6f | xxd -r -p | md5sum')).toBe(`${createHash('md5').update('Hello').digest('hex')}  -`);
   });
 
+  it('rejects a non numeric skip or length instead of printing NaN', async () => {
+    for (const line of ['hexdump -s /home/guest/notes.txt', 'hexdump -n abc notes.txt', 'od -j x notes.txt', 'od -N -3 notes.txt']) {
+      const result = await run(line);
+      expect(result.output, line).toMatch(/invalid/);
+      expect(result.output, line).not.toMatch(/NaN/);
+      expect(result.exit, line).toBe(1);
+    }
+  });
+
   it('prints canonical hexdump', async () => {
     expect(await out('hexdump -C bin.dat')).toBe('00000000  00 01 02 03 ff 41 42 43  44 45 00                 |.....ABCDE.|\n0000000b');
     expect(await out('printf "%032d" 0 | hexdump -C | head -n 3')).toContain('00000000  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 30  |0000000000000000|');

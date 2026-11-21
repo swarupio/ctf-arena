@@ -51,7 +51,8 @@ const hasAnsi = (text) => text.includes('\x1b[');
 
 function clipLine(line) {
   if (line.length <= LIMITS.MAX_OUT_LINE) return line;
-  const clipped = line.slice(0, LIMITS.MAX_OUT_LINE).replace(ANSI_TAIL, '');
+  // Never end on half of a surrogate pair (an emoji cut in two shows as a broken character in the browser).
+  const clipped = line.slice(0, LIMITS.MAX_OUT_LINE).replace(/[\ud800-\udbff]$/, '').replace(ANSI_TAIL, '');
   return `${clipped}${hasAnsi(clipped) ? '\x1b[0m' : ''}${LINE_TRUNCATED_NOTE}`;
 }
 
