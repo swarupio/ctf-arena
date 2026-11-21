@@ -13,6 +13,7 @@
     "seed": "node src/scripts/seed.js",
     "seed:challenges": "node src/scripts/seedChallenges.js",
     "seed:terminal": "node src/scripts/seedTerminal.js",
+    "seed:cipherlab": "node src/scripts/seedCipherLab.js",
     "seed:demo": "node src/scripts/seedDemo.js"
   },
   "dependencies": {

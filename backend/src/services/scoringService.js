@@ -5,6 +5,10 @@ export const FIRST_BLOOD_RATE = 0.1;
 
 export const firstBloodBonus = (points) => Math.floor(points * FIRST_BLOOD_RATE);
 
+// Challenge types that never pay a first-blood bonus: their points are fixed so documented maximums hold.
+const NO_FIRST_BLOOD_TYPES = new Set(['game']);
+export const hasFirstBloodBonus = (challenge) => !NO_FIRST_BLOOD_TYPES.has(challenge.type);
+
 // Fixed points, plus a 10% bonus for the first team to solve a challenge.
 export function awardFor(points, firstBlood) {
   return firstBlood ? points + firstBloodBonus(points) : points;
@@ -33,7 +37,7 @@ export async function recordSolve({ challenge, teamId, userId }) {
   const updated = await Challenge.findOneAndUpdate(
     { _id: challenge._id }, { $inc: { solveCount: 1 } }, { new: true },
   );
-  const firstBlood = updated?.solveCount === 1;
+  const firstBlood = hasFirstBloodBonus(challenge) && updated?.solveCount === 1;
   const points = awardFor(challenge.points, firstBlood);
   if (firstBlood) {
     await Solve.updateOne({ teamId, challengeId: challenge._id }, { $set: { points, firstBlood: true } });
