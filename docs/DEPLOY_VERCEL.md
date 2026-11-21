@@ -32,7 +32,7 @@ Set these in Project Settings > Environment Variables (Production, and Preview i
 | `FLAG_SECRET` | yes | private random value, 32+ characters (`openssl rand -hex 32`); must not be the `.env.example` placeholder (`NODE_ENV` is `production` on Vercel). Changing it changes every team flag. |
 | `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | yes | the backend token verifier |
 | `VITE_COGNITO_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID` | yes | same values; public, used by the frontend build |
-| `DOCKER_ENABLED` | no | defaults to `false` on Vercel. Do not set it to `true` there (no Docker daemon exists). |
+| `DOCKER_ENABLED` | no | defaults to `false` on Vercel (`true`, `false`, `1` or `0` are accepted; anything else stops startup). Do not set it to `true` there (no Docker daemon exists). |
 | `PORT`, `PUBLIC_HOST`, `CHALLENGE_*`, `INSTANCE_TTL_MINUTES`, `MAX_INSTANCES_PER_TEAM` | no | only used by Docker mode; inert defaults apply on Vercel |
 
 Never commit real values. If a variable is missing or invalid the API answers `503 SERVICE_UNAVAILABLE` and the

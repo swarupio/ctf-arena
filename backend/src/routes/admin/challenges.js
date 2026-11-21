@@ -5,7 +5,7 @@ import Challenge from '../../models/Challenge.js';
 import { AppError } from '../../utils/AppError.js';
 import { recordAudit } from '../../services/adminAudit.js';
 import {
-  adminView, createSchema, fields, updateSchema,
+  adminView, createSchema, fields, gameChanges, gameUpdateSchema, updateSchema,
 } from '../../services/adminChallengeSchema.js';
 import {
   challengeFilter, challengesQuery, duplicateBody, exportChallenges, getChallengeStats, importBody, importChallenges,
@@ -74,9 +74,17 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const id = objectId(req.params.id);
-  const data = validate(updateSchema, req.body);
   const existing = await Challenge.findById(id);
   if (!existing) { throw new AppError(404, 'NOT_FOUND', 'Challenge not found.'); }
+  // Game challenges: only title, description and visible (the game defines points, flags and rules itself).
+  if (existing.type === 'game') {
+    const $set = gameChanges(existing, validate(gameUpdateSchema, req.body));
+    const before = adminView(existing);
+    const challenge = await Challenge.findOneAndUpdate({ _id: id }, { $set }, { new: true, runValidators: true });
+    await recordAudit(req, { action: 'challenge.update', targetType: 'challenge', targetId: id, before, after: adminView(challenge) });
+    return res.json(adminView(challenge));
+  }
+  const data = validate(updateSchema, req.body);
   // A terminal challenge is tied to its mode, code and slug (its flag derives from the slug): those stay fixed.
   const wasTerminal = existing.type === 'terminal';
   if (wasTerminal !== (data.type === 'terminal')) {

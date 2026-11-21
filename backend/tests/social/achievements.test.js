@@ -172,6 +172,15 @@ describe('evaluate (idempotent awarding)', () => {
     expect(options).toEqual({ upsert: true });
   });
 
+  it('never counts manual score adjustments as solves (user and team reads exclude them)', async () => {
+    await evaluate({ userId: 'u1', teamId: 't1' });
+    const filters = Solve.find.mock.calls.map(([filter]) => filter);
+    expect(filters).toEqual([
+      { userId: 'u1', adjustment: { $ne: true } },
+      { teamId: 't1', adjustment: { $ne: true } },
+    ]);
+  });
+
   it('treats a duplicate key race as already awarded', async () => {
     Achievement.updateOne.mockRejectedValue(Object.assign(new Error('dup'), { code: 11000 }));
     expect(await evaluate({ userId: 'u1', teamId: 't1' })).toEqual([]);

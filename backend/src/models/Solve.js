@@ -15,7 +15,7 @@ const solveSchema = new mongoose.Schema({
 // Blocks double solves, including double clicks handled by different replicas.
 solveSchema.index({ teamId: 1, challengeId: 1 }, { unique: true });
 solveSchema.index({ solvedAt: 1 });
-// Covers the leaderboard $group and teamScore: scanned from the index alone, without fetching solve documents.
-solveSchema.index({ teamId: 1, points: 1, solvedAt: 1 });
+// Covers the leaderboard $group (points, solves counter, lastSolveAt) and teamScore: scanned from the index alone, without fetching solve documents.
+solveSchema.index({ teamId: 1, points: 1, solvedAt: 1, adjustment: 1 });
 
 export default mongoose.model('Solve', solveSchema);

@@ -6,7 +6,7 @@ import User from '../src/models/User.js';
 
 // Use the existing auth middleware with the same verifier mock as auth.test.js.
 vi.mock('../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
-vi.mock('../src/models/User.js', () => ({ default: { findOneAndUpdate: vi.fn(), findOne: vi.fn() } }));
+vi.mock('../src/models/User.js', () => ({ default: { findOneAndUpdate: vi.fn(), findOne: vi.fn(), exists: vi.fn() } }));
 
 const claims = { sub: 'cognito-alice', email: 'alice@example.com', 'cognito:groups': ['player'] };
 let verify;
@@ -19,11 +19,16 @@ beforeEach(() => {
   getCognitoVerifier.mockReturnValue({ verify });
   // Emulate insert-only defaults and updates without opening a MongoDB connection.
   User.findOne.mockImplementation(async (filter) => users.get(filter.cognitoSub) ?? null);
+  User.exists.mockImplementation(async (filter) => (users.get(filter.cognitoSub)?.banned === Boolean(filter.banned) ? { _id: 'x' } : null));
   User.findOneAndUpdate.mockImplementation(async (filter, update) => {
     let user = users.get(filter.cognitoSub);
+    // A filter that excludes the existing document makes the upsert insert a duplicate cognitoSub.
+    if (user && filter.banned?.$ne === true && user.banned) {
+      throw Object.assign(new Error('E11000 duplicate key'), { code: 11000, keyPattern: { cognitoSub: 1 } });
+    }
     if (!user) {
       user = {
-        _id: '507f1f77bcf86cd799439011', ...filter, teamId: null,
+        _id: '507f1f77bcf86cd799439011', cognitoSub: filter.cognitoSub, teamId: null,
         ...update.$setOnInsert,
       };
       users.set(filter.cognitoSub, user);
@@ -132,6 +137,36 @@ describe('current user profile', () => {
       id: '507f1f77bcf86cd799439011', email: claims.email,
       displayName: 'alice', role: 'player', team: null,
     });
+  });
+
+  it('reports banned: true additively for a banned user, who can still read /api/me', async () => {
+    await getMe().expect(200);
+    expect((await getMe().expect(200)).body).not.toHaveProperty('banned');
+    users.get(claims.sub).banned = true;
+    const response = await getMe().expect(200);
+    expect(response.body).toMatchObject({ id: '507f1f77bcf86cd799439011', email: claims.email, banned: true });
+  });
+
+  it('reads the banned flag in the existing lean projection (no extra query)', async () => {
+    await getMe().expect(200);
+    await getMe().expect(200);
+    expect(User.findOne).toHaveBeenCalledWith(
+      { cognitoSub: claims.sub }, '_id email role displayName teamId banned', { lean: true },
+    );
+    expect(User.exists).not.toHaveBeenCalled();
+  });
+
+  it('blocks a banned user from changing the display name with 403 USER_BANNED', async () => {
+    await getMe().expect(200);
+    users.get(claims.sub).banned = true;
+    const response = await patchMe({ displayName: 'Sneaky' }).expect(403);
+    expect(response.body.error.code).toBe('USER_BANNED');
+    expect(users.get(claims.sub).displayName).toBe('alice');
+  });
+
+  it('does not run the extra ban lookup when PATCH succeeds', async () => {
+    await patchMe({ displayName: 'Alice Smith' }).expect(200);
+    expect(User.exists).not.toHaveBeenCalled();
   });
 
   it('hides internal database errors', async () => {

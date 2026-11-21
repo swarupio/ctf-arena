@@ -11,6 +11,9 @@ let cacheTtlMs = process.env.NODE_ENV === 'test' ? 0 : 5000;
 let cached = null;
 export function configureRankingCache({ ttlMs }) { cacheTtlMs = ttlMs; cached = null; }
 
+// Manual score adjustments (Solve rows with adjustment: true) add to points but are not solves.
+const REAL_SOLVE_COUNT = { $sum: { $cond: [{ $eq: ['$adjustment', true] }, 0, 1] } };
+
 const time = (value) => new Date(value).getTime();
 const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -29,7 +32,7 @@ export function compareStanding(a, b) {
 // $project keeps only the team name, so invite codes and member lists never leave the database layer.
 function solvedTeams() {
   return Solve.aggregate([
-    { $group: { _id: '$teamId', points: { $sum: '$points' }, solves: { $sum: 1 }, lastSolveAt: { $max: '$solvedAt' } } },
+    { $group: { _id: '$teamId', points: { $sum: '$points' }, solves: REAL_SOLVE_COUNT, lastSolveAt: { $max: '$solvedAt' } } },
     { $sort: { points: -1, lastSolveAt: 1 } },
     { $lookup: { from: 'teams', localField: '_id', foreignField: '_id', as: 'team' } },
     { $unwind: '$team' },

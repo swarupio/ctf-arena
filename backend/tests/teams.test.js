@@ -295,3 +295,47 @@ describe('team input and authorization', () => {
     expect(User.db.transaction).not.toHaveBeenCalled();
   });
 });
+
+describe('banned users (User.banned)', () => {
+  const ban = (sub) => {
+    const user = [...store.users.values()].find((entry) => entry.cognitoSub === sub);
+    user.banned = true;
+    return user;
+  };
+
+  it('cannot create a team: 403 USER_BANNED and nothing is written', async () => {
+    store.addUser('alice');
+    ban('alice');
+    expect((await create('alice').expect(403)).body.error.code).toBe('USER_BANNED');
+    expect(store.teams.size).toBe(0);
+    expect(Team.create).not.toHaveBeenCalled();
+  });
+
+  it('cannot join a team: 403 USER_BANNED and the team is unchanged', async () => {
+    const { team } = setup();
+    store.addUser('bob');
+    ban('bob');
+    expect((await join('bob').expect(403)).body.error.code).toBe('USER_BANNED');
+    expect(store.teams.get(team._id).memberIds).toHaveLength(1);
+    expect(Team.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('cannot leave a team: 403 USER_BANNED and membership is kept', async () => {
+    const { team } = setup(2);
+    ban('alice');
+    expect((await leave('alice').expect(403)).body.error.code).toBe('USER_BANNED');
+    expect(store.teams.get(team._id).memberIds).toHaveLength(2);
+  });
+
+  it('can still read GET /teams/me (read-only)', async () => {
+    setup();
+    ban('alice');
+    await api('get', '/teams/me').expect(200);
+  });
+
+  it('adds no queries: the check reads the document the upsert already returned', async () => {
+    store.addUser('alice');
+    await create('alice').expect(201);
+    expect(User.findOne).not.toHaveBeenCalled();
+  });
+});

@@ -23,7 +23,7 @@ describe('isEntryPoint (run-directly guard of npm run seed:challenges)', () => {
   });
 
   // Regression: the old guard compared with a hand-built `file:///${argv[1]}`, which on Linux is
-  // `file:////app/...` and never matched, so the seed silently did nothing on the Azure VM.
+  // `file:////app/...` and never matched, so the seed silently did nothing on a Linux server.
   it.skipIf(process.platform === 'win32')('matches a POSIX path such as the one inside the backend image', () => {
     expect(isEntryPoint('file:///app/src/scripts/seedChallenges.js', '/app/src/scripts/seedChallenges.js')).toBe(true);
     expect(`file:///${'/app/src/scripts/seedChallenges.js'}`).not.toBe(pathToFileURL('/app/src/scripts/seedChallenges.js').href);

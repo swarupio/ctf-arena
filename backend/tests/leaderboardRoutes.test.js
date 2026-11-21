@@ -54,10 +54,21 @@ describe('GET /api/leaderboard', () => {
     expect((await api('').expect(200)).body.map((t) => t.teamName)).toEqual(first);
   });
 
+  it('counts only real solves in `solves` while points still include manual adjustments', async () => {
+    await api('').expect(200);
+    const [pipeline] = Solve.aggregate.mock.calls[0];
+    const { points, solves } = pipeline[0].$group;
+    // Points sum every row (adjustments included); the solves counter adds 0 for adjustment rows and 1 otherwise.
+    expect(points).toEqual({ $sum: '$points' });
+    expect(solves).toEqual({ $sum: { $cond: [{ $eq: ['$adjustment', true] }, 0, 1] } });
+    // No $match stage may drop adjustment rows before the $group (that would change the points totals).
+    expect(pipeline.some((stage) => stage.$match && 'adjustment' in stage.$match)).toBe(false);
+  });
+
   it('asks the database for the contract aggregation and hides banned teams', async () => {
     await api('').expect(200);
     const [pipeline] = Solve.aggregate.mock.calls[0];
-    expect(pipeline[0]).toEqual({ $group: { _id: '$teamId', points: { $sum: '$points' }, solves: { $sum: 1 }, lastSolveAt: { $max: '$solvedAt' } } });
+    expect(pipeline[0]).toEqual({ $group: { _id: '$teamId', points: { $sum: '$points' }, solves: { $sum: { $cond: [{ $eq: ['$adjustment', true] }, 0, 1] } }, lastSolveAt: { $max: '$solvedAt' } } });
     expect(pipeline[1]).toEqual({ $sort: { points: -1, lastSolveAt: 1 } });
     expect(pipeline[2].$lookup).toMatchObject({ from: 'teams', localField: '_id', foreignField: '_id' });
     expect(pipeline).toContainEqual({ $match: { 'team.banned': { $ne: true } } });

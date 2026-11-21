@@ -18,6 +18,7 @@ const nameSchema = z.object({ name: z.string().trim().min(3).max(24) }).strict()
 const inviteSchema = z.object({ inviteCode: z.string().trim().regex(/^[A-HJ-NP-Z2-9]{6}$/) }).strict();
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const conflict = () => new AppError(409, 'CONFLICT', 'You already belong to a team.');
+const banned = () => new AppError(403, 'USER_BANNED', 'Your account has been banned.');
 const noTeam = () => new AppError(404, 'NO_TEAM', 'You do not belong to a team.');
 
 function validate(schema, body) {
@@ -87,6 +88,7 @@ router.post('/', async (req, res) => {
     try {
       const result = await transaction(async (Team, session) => {
         const user = await currentUser(req.user, session);
+        if (user.banned) { throw banned(); }
         if (user.teamId) { throw conflict(); }
         const [team] = await Team.create([{
           name, inviteCode, captainId: user._id, memberIds: [user._id],
@@ -116,6 +118,7 @@ router.post('/join', async (req, res) => {
   });
   const result = await transaction(async (Team, session) => {
     const user = await currentUser(req.user, session);
+    if (user.banned) { throw banned(); }
     if (user.teamId) { throw conflict(); }
     const team = await Team.findOneAndUpdate({
       inviteCode, 'memberIds.2': { $exists: false }, memberIds: { $ne: user._id },
@@ -146,6 +149,7 @@ router.post('/me/leave', async (req, res) => {
   let disbandedTeamId = null;
   await transaction(async (Team, session) => {
     const user = await User.findOne({ cognitoSub: req.user.cognitoSub }, null, { session });
+    if (user?.banned) { throw banned(); }
     if (!user?.teamId) { throw noTeam(); }
     const team = await Team.findById(user.teamId, null, { session });
     if (!team || !team.memberIds.some((id) => String(id) === String(user._id))) { throw noTeam(); }

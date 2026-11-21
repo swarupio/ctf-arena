@@ -81,7 +81,7 @@ Unit tests need no database but do need the variables of `.env.example` to be se
 placeholder values the same way).
 
 ## 6. Docker notes
-- Docker challenges are local-only: set nothing (`DOCKER_ENABLED` defaults to true outside Vercel). On Vercel it defaults to false.
+- Docker challenges are local-only: set nothing (`DOCKER_ENABLED` defaults to true outside Vercel). On Vercel it defaults to false. It is parsed once in `backend/src/config/env.js` (`true`, `false`, `1` or `0`; any other value stops startup) and every part of the backend reads it from there, never from `process.env`.
 - The backend needs `/var/run/docker.sock` to start challenge containers. On Docker Desktop (Windows/Mac) this works through the mounted socket path in `docker-compose.yml` (default `DOCKER_GID=0`). On a Linux host set `DOCKER_GID=$(getent group docker | cut -d: -f3)` in `.env` so the non-root backend can use the socket.
 - The backend creates the `ctf-challenges` network on startup (`dockerService.ensureNetwork`); challenge containers join it and publish host ports `CHALLENGE_PORT_MIN..MAX`.
 - Build challenge images before testing instances: `docker build -t ctf/<slug> challenges/<slug>` (the loop above builds all of them).

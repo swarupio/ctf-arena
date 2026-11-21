@@ -266,3 +266,27 @@ describe('admin challenge CRUD', () => {
     await api('delete', `/admin/challenges/${oid(77)}`, 'admin').expect(404);
   });
 });
+
+describe('banned user (User.banned)', () => {
+  beforeEach(() => { User.findOne.mockResolvedValue({ ...user, banned: true }); });
+
+  it.each([
+    ['post', `/challenges/${staticChallenge._id}/submit`, { flag: 'CTF{x}' }],
+    ['post', `/challenges/${dockerChallenge._id}/instance`, undefined],
+    ['post', `/instances/${oid(20)}/extend`, undefined],
+    ['delete', `/instances/${oid(20)}`, undefined],
+  ])('%s %s answers 403 USER_BANNED before doing any work', async (method, path, body) => {
+    const response = await api(method, path, 'player', body).expect(403);
+    expect(response.body.error.code).toBe('USER_BANNED');
+    expect(Submission.create).not.toHaveBeenCalled();
+    expect(recordSolve).not.toHaveBeenCalled();
+    expect(instanceService.start).not.toHaveBeenCalled();
+    expect(instanceService.stop).not.toHaveBeenCalled();
+  });
+
+  it('can still browse challenges (read-only)', async () => {
+    Challenge.find.mockReturnValue({ sort: vi.fn().mockResolvedValue([staticChallenge]) });
+    Solve.find.mockResolvedValue([]);
+    await api('get', '/challenges').expect(200);
+  });
+});

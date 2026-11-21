@@ -26,6 +26,15 @@ describe('serverless entry', () => {
     expect(connectDB).toHaveBeenCalledOnce();
   });
 
+  it('connects before any route runs (the admin audit and settings code assume a live connection)', async () => {
+    const order = [];
+    connectDB.mockImplementation(async () => { order.push('connect'); });
+    const agent = await loadHandler();
+    await agent.get('/api/health').expect(200);
+    order.push('response');
+    expect(order).toEqual(['connect', 'response']);
+  });
+
   it('answers 503 JSON without leaking driver details when MongoDB is unreachable', async () => {
     vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     connectDB.mockRejectedValue(new Error('mongodb://user:secret@host failed'));
@@ -53,6 +62,20 @@ describe('DOCKER_ENABLED', () => {
   it('defaults to true outside Vercel and accepts an explicit false', async () => {
     expect((await loadEnv({ VERCEL: '' })).DOCKER_ENABLED).toBe(true);
     expect((await loadEnv({ VERCEL: '', DOCKER_ENABLED: 'false' })).DOCKER_ENABLED).toBe(false);
+  });
+
+  it.each([['1', true], ['0', false], ['TRUE', true], [' False ', false]])('parses %j as %s', async (raw, expected) => {
+    expect((await loadEnv({ VERCEL: '', DOCKER_ENABLED: raw })).DOCKER_ENABLED).toBe(expected);
+  });
+
+  it('refuses to start on an unrecognised value instead of silently choosing', async () => {
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('startup refused'); });
+    await expect(loadEnv({ VERCEL: '', DOCKER_ENABLED: 'maybe' })).rejects.toThrow('startup refused');
+  });
+
+  it('an explicit DOCKER_ENABLED wins over the Vercel default', async () => {
+    expect((await loadEnv({ VERCEL: '1', DOCKER_ENABLED: 'true' })).DOCKER_ENABLED).toBe(true);
   });
 
   it('defaults to false on Vercel and the container-only settings need no values', async () => {

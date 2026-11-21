@@ -49,7 +49,9 @@ export async function setVisible(id, visible) {
 export async function duplicateChallenge(id, { slug, title }) {
   const source = await Challenge.findById(id).lean();
   if (!source) { throw new AppError(404, 'NOT_FOUND', 'Challenge not found.'); }
-  if (source.type === 'terminal') { throw new AppError(400, 'VALIDATION_ERROR', 'type: terminal challenges cannot be duplicated'); }
+  if (source.type === 'terminal' || source.type === 'game') {
+    throw new AppError(400, 'VALIDATION_ERROR', `type: ${source.type} challenges cannot be duplicated`);
+  }
   const copy = {
     slug: slug ?? `${source.slug}-copy`,
     title: (title ?? `${source.title} (copy)`).slice(0, 100),
@@ -106,7 +108,7 @@ export async function getChallengeStats(id) {
 const EXPORT_FIELDS = ['slug', 'title', 'category', 'difficulty', 'points', 'description', 'type', 'image', 'internalPort', 'attachments', 'visible'];
 
 export async function exportChallenges() {
-  const docs = await Challenge.find({ type: { $ne: 'terminal' } }).sort({ createdAt: 1 }).lean();
+  const docs = await Challenge.find({ type: { $nin: ['terminal', 'game'] } }).sort({ createdAt: 1 }).lean();
   const challenges = docs.map((doc) => {
     const out = {};
     for (const key of EXPORT_FIELDS) {
@@ -144,7 +146,9 @@ export async function importChallenges({ challenges, mode, dryRun }) {
     try {
       if (existing) {
         if (mode === 'skip') { result.skipped.push(data.slug); continue; }
-        if (existing.type === 'terminal') { throw new AppError(400, 'VALIDATION_ERROR', 'terminal challenges cannot be imported'); }
+        if (existing.type === 'terminal' || existing.type === 'game') {
+          throw new AppError(400, 'VALIDATION_ERROR', `${existing.type} challenges cannot be imported`);
+        }
         const noFlag = data.type === 'static' && !data.flag && !existing.flagHash;
         if (noFlag) { result.needsFlag.push(data.slug); }
         if (!dryRun) {
