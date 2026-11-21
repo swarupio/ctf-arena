@@ -1,6 +1,7 @@
 // Shared setup for the security tests: fake identities (ID-token claims), a seeded two-team world on top of the
 // in-memory fake database, and small request helpers. Each test file registers the vi.mock calls itself (vitest
 // hoists them per file) and points them at the factories exported here.
+import { createServer } from 'node:http';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { env } from '../../../src/config/env.js';
@@ -131,10 +132,23 @@ export function getApp() {
   return appPromise;
 }
 
+// ONE http.Server per test file, listening on an ephemeral loopback port. `request(app)` makes supertest open (and close) a
+// new server with listen(0) for every single request; thousands of those per file, in parallel with other files, race
+// for ephemeral ports and sometimes fail with EADDRINUSE. A shared, already listening server has no such race.
+let serverPromise;
+export function getServer() {
+  serverPromise ??= getApp().then((app) => new Promise((resolve, reject) => {
+    const server = createServer(app);
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => { server.unref(); resolve(server); });
+  }));
+  return serverPromise;
+}
+
 // Resolves to the supertest response (it never rejects on 4xx/5xx). `token` null/undefined sends no Authorization header.
 export async function call(method, path, token, body, headers = {}) {
-  const app = await getApp();
-  let req = request(app)[method](path);
+  const server = await getServer();
+  let req = request(server)[method](path);
   if (token !== undefined && token !== null) { req = req.set('Authorization', `Bearer ${token}`); }
   for (const [name, value] of Object.entries(headers)) { req = req.set(name, value); }
   return body === undefined ? req : req.send(body);

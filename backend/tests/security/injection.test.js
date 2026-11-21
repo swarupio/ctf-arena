@@ -9,7 +9,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { replicaCounter } from '../../src/middleware/requestCounter.js';
 import { models } from './helpers/fakeDb.js';
-import { call, getApp, seedWorld, terminalFlagOf, verify, world } from './helpers/harness.js';
+import { call, getApp, getServer, seedWorld, terminalFlagOf, verify, world } from './helpers/harness.js';
 
 // These tests drive the whole app; stay robust when the full suite runs in parallel on a busy machine.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
@@ -32,7 +32,8 @@ vi.mock('../../src/models/TerminalActivity.js', async () => (await import('./hel
 seedWorld(); // ids are deterministic, so the it.each tables below can use them while the file is collected
 
 let app;
-beforeAll(async () => { app = await getApp(); });
+let server;
+beforeAll(async () => { app = await getApp(); server = await getServer(); });
 afterAll(() => replicaCounter.stop());
 beforeEach(() => {
   seedWorld();
@@ -46,7 +47,7 @@ const validChallenge = {
   slug: 'new-one', title: 'New One', category: 'misc', difficulty: 'easy', points: 10, type: 'static', flag: 'CTF{admin_chosen_flag}',
 };
 const raw = (method, path, token, body, type = 'application/json') => {
-  let req = request(app)[method](path);
+  let req = request(server)[method](path);
   if (token) { req = req.set('Authorization', `Bearer ${token}`); }
   return body === undefined ? req : req.set('Content-Type', type).send(body);
 };
@@ -193,7 +194,7 @@ describe('malformed and oversized bodies', () => {
       expect(response.status, type).toBe(400);
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
     }
-    const multipart = await request(app).patch('/api/me').set('Authorization', 'Bearer alice').field('displayName', 'Valid Name');
+    const multipart = await request(server).patch('/api/me').set('Authorization', 'Bearer alice').field('displayName', 'Valid Name');
     expect(multipart.status).toBe(400);
     expect(models.User.docs.get(world.users.alice._id).displayName).toBe('alice');
   });
@@ -202,10 +203,10 @@ describe('malformed and oversized bodies', () => {
     const charset = await raw('patch', '/api/me', 'alice', '{"displayName":"Valid Name"}', 'application/json; charset=iso-8859-1');
     expect(charset.status).toBe(415);
     expect(charset.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'The request could not be processed.' } });
-    const encoded = await request(app).patch('/api/me').set('Authorization', 'Bearer alice')
+    const encoded = await request(server).patch('/api/me').set('Authorization', 'Bearer alice')
       .set('Content-Type', 'application/json').set('Content-Encoding', 'br').send('{"displayName":"Valid Name"}');
     expect([400, 415]).toContain(encoded.status);
-    const brokenGzip = await request(app).patch('/api/me').set('Authorization', 'Bearer alice')
+    const brokenGzip = await request(server).patch('/api/me').set('Authorization', 'Bearer alice')
       .set('Content-Type', 'application/json').set('Content-Encoding', 'gzip').send('{"displayName":"Valid Name"}');
     expect(brokenGzip.status).toBeGreaterThanOrEqual(400);
     expect(brokenGzip.status).toBeLessThan(500);
@@ -222,9 +223,9 @@ describe('malformed and oversized bodies', () => {
   });
 
   it('ignores HTTP method override headers', async () => {
-    const response = await request(app).post('/api/admin/stats').set('Authorization', 'Bearer admin').set('X-HTTP-Method-Override', 'GET');
+    const response = await request(server).post('/api/admin/stats').set('Authorization', 'Bearer admin').set('X-HTTP-Method-Override', 'GET');
     expect(response.status).toBe(404);
-    const second = await request(app).post(`/api/instances/${'0'.repeat(24)}`).set('Authorization', 'Bearer alice').set('X-HTTP-Method-Override', 'DELETE');
+    const second = await request(server).post(`/api/instances/${'0'.repeat(24)}`).set('Authorization', 'Bearer alice').set('X-HTTP-Method-Override', 'DELETE');
     expect(second.status).toBe(404);
   });
 });

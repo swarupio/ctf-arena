@@ -7,6 +7,7 @@ import { connectDB } from '../config/db.js';
 import { env } from '../config/env.js';
 import Challenge from '../models/Challenge.js';
 import Solve from '../models/Solve.js';
+import Team from '../models/Team.js';
 import { fixtures } from './seed.js';
 import { firstBloodBonus } from '../services/scoringService.js';
 
@@ -19,6 +20,10 @@ export const plan = [
 
 export async function seedDemoSolves({ reset = false } = {}) {
   const teamIds = fixtures.map(({ team }) => team._id);
+  if (!reset && (await Team.countDocuments({ _id: { $in: teamIds } })) < teamIds.length) {
+    // Without the demo teams the solves would point at nothing.
+    throw new Error('Run npm run seed first (the demo teams are missing).');
+  }
   await Solve.deleteMany({ teamId: { $in: teamIds } });
   if (!reset) {
     const challenges = new Map((await Challenge.find({})).map((c) => [c.slug, c]));

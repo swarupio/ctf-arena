@@ -502,6 +502,25 @@ export function modelModule(name) {
   return name === 'Instance' ? { default: model, ACTIVE_STATUSES: ACTIVE } : { default: model };
 }
 
+// A model that is always empty and never touches Mongoose (so there is no 10 s buffering wait without a connection).
+// For models whose behaviour a test does not care about, such as the audit log and the platform settings.
+export function emptyModelModule(extra = {}) {
+  const query = (value) => {
+    const q = {
+      sort: () => q, skip: () => q, limit: () => q, lean: () => q, select: () => q,
+      then: (resolve, reject) => Promise.resolve(value).then(resolve, reject),
+    };
+    return q;
+  };
+  const model = {
+    find: () => query([]), findOne: () => query(null), findById: () => query(null), findOneAndUpdate: () => query(null),
+    countDocuments: async () => 0, aggregate: async () => [], exists: async () => null,
+    create: async (doc) => doc, insertMany: async (docs) => docs, updateOne: async () => ({}), updateMany: async () => ({}),
+    deleteMany: async () => ({}),
+  };
+  return { default: model, ...extra };
+}
+
 // Fake Docker daemon behind dockerService: records calls, never talks to a socket.
 export function fakeDockerModule() {
   let counter = 0;
