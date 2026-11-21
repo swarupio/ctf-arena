@@ -188,7 +188,8 @@ admin dashboard must be complete. Items marked `(agent)` were built by parallel 
   *Done (2026-11-22):* route code-splitting and vendor chunks (first load about 420 kB instead of 615 kB), GET de-dupe and SWR cache, poll backoff. Measured by bundle size only, not in a browser.
 - [x] **P4-10 Memory pass.** Backend and frontend memory review after the above merges (unbounded buffers, caches, listeners).
   *Done (2026-11-22):* import time 1.1 s to 0.65 s, heap 31 MB to 19 MB; bounded terminal scrollback, stale-response guards, per-search highlighter.
-- [ ] **P4-11 Lint pass.** ESLint (or equivalent) added and clean for backend and frontend, with a one-line reason for the dependency.
+- [x] **P4-11 Lint pass.** ESLint (or equivalent) added and clean for backend and frontend, with a one-line reason for the dependency.
+  *Done (2026-11-22):* ESLint (flat config) in backend and frontend, `npm run lint` wired into CI before tests; both clean (frontend has 2 harmless hook-dependency warnings).
 
 ### Admin dashboard v2
 - [x] **P4-12 Admin API v2.** Stats and time series, users, teams (incl. score adjustment with audit), challenges (publish, duplicate, import/export without flags), submissions and solves, integrity review, instances, audit log, platform settings and announcement, CSV export. Contract in `docs/API_SPEC.md` "Admin API v2".
@@ -209,5 +210,7 @@ All games are serverless-safe (no Docker), per-team, stateless, with fixed point
 - [x] **P4-20 Crackme Arcade.** 16 cabinets with a sandboxed VM and debugger, max 1905. `docs/CRACKME_ARCADE.md`.
 - [x] **P4-21 Games hub.** `/games` page driven by `frontend/src/games/registry.js`; single Games nav link; terminal badge toast.
 - [x] **P4-22 Docker local-mode QA.** Stack, seeds, limits and reaper verified locally; route-matrix test flake fixed.
-- [ ] **P4-23 OSINT Trail.** In progress.
+- [x] **P4-23 OSINT Trail.** 4 cases, 22 questions, max 2300, fully fictional generated world. `docs/OSINT_TRAIL.md`.
 - [ ] **P4-24 Seed the new games.** Run `seed:cipherlab`, `seed:weblab`, `seed:forensics`, `seed:crackme` (and `seed:osint`) against the real database before the games appear.
+- [x] **P4-25 Security review and fixes.** Independent read-only review of the merged code. Fixed: terminal ReDoS (player regex now runs on a linear-time Pike VM, pathological patterns return in ~1 ms instead of 20+ s), submissions-frozen now enforced on all five game answer routes, index guard (`indexes: ok|missing` on `/api/health` plus a startup warning), fair-play signal writes awaited on serverless, challenge network `enable_icc=false`, Web Lab points taken from code, admin edit protection for all code-defined game types, Forensics decoy-flag check. **Left for the owner:** the default `displayName` is the email local part and is readable by user id through `GET /api/players/:id/profile`; `/api/health` exposes the container hostname (by design).
+- [ ] **P4-26 Owner actions still open.** (1) Push `main` (not pushed; `origin/main` is branch-protected). (2) Run `node src/scripts/repairTerminalScores.js` on the real database to remove the inflated terminal first-blood bonus (NOT run). (3) Run the new seed scripts (P4-24). (4) On a fresh Atlas database run `npm run db:indexes` once. (5) Real Vercel deploy (P4-05) and Cognito callback URLs. (6) Admin QA with a real admin login (P4-14). (7) Decide whether admins may keep editing terminal challenge points (it can break the documented 160/450/1080 maximums).
