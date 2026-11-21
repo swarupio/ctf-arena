@@ -11,7 +11,9 @@ export const LIMITS = Object.freeze({
   MAX_OUT_LINE: 2000, // characters on one output line
   MAX_PATTERN: 64, // characters in a regex pattern
   MAX_QUANTIFIERS: 12, // unbounded repeats in one pattern
-  MAX_MATCH_SUBJECT: 4096, // longest subject a "risky" pattern is run against
+  MAX_PROGRAM: 5000, // instructions in one compiled pattern (bounds {n,m} expansion)
+  MAX_REGEX_STEPS: 1_000_000, // regex VM steps in one match call
+  REGEX_STEPS_PER_UNIT: 64, // regex VM steps charged as one work unit
   GLOB_CAP: 200, // matches of one glob
   BRACE_CAP: 100, // words from one {a,b} expansion
   MAX_STREAM: 4 * 1024 * 1024, // bytes between two stages of a pipeline
@@ -74,4 +76,6 @@ export function capOutput(text) {
   return { text: out, truncated: false };
 }
 
-export { PatternError, compilePattern, globalRegExp, matchesLine } from './regex.js';
+export {
+  PatternError, compilePattern, globalRegExp, matchesLine, withRegexMeter,
+} from './regex.js';

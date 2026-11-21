@@ -2,7 +2,7 @@
 // Contract: docs/TERMINAL_GAME.md sections 1, 5, 6, 7. Nothing real is executed; every command is a
 // JavaScript function working on the in-memory VFS built by the mode definition.
 import {
-  Budget, LIMITS, ResourceLimitError, capOutput,
+  Budget, LIMITS, ResourceLimitError, capOutput, withRegexMeter,
 } from './limits.js';
 import {
   ShellSyntaxError, expandOne, expandWords, parse,
@@ -403,7 +403,7 @@ export async function execute(line, ctx = {}) {
       rc.writeTerm(`bash: command line too long (limit ${LIMITS.MAX_LINE} characters)\n`);
       exit = 1;
     } else if (text.trim() !== '') {
-      exit = await runSeq(parse(text), rc, termSink(rc));
+      exit = await withRegexMeter(rc.tick, () => runSeq(parse(text), rc, termSink(rc)));
     }
   } catch (error) {
     if (process.env.ARENA_TERMINAL_DEBUG && !(error instanceof ResourceLimitError) && !(error instanceof ShellSyntaxError)) throw error;
