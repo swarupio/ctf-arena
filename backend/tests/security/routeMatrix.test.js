@@ -72,6 +72,12 @@ const TABLE = [
   ['POST', '/api/terminal/:mode/complete', 'any'],
   ['POST', '/api/terminal/:mode/submit', 'player'],
 
+  ['GET', '/api/weblab/labs', 'any'],
+  ['GET', '/api/weblab/labs/:slug', 'any'],
+  ['GET', '/api/weblab/labs/:slug/hints/:level', 'any'],
+  ['POST', '/api/weblab/labs/:slug/request', 'any'],
+  ['POST', '/api/weblab/labs/:slug/submit', 'player'],
+
   ['GET', '/api/admin/challenges', 'admin'],
   ['POST', '/api/admin/challenges', 'admin'],
   ['PUT', '/api/admin/challenges/:id', 'admin'],

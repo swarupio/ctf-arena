@@ -36,7 +36,7 @@ export function expectedFlagFor(challenge, { secret, teamId }) {
 }
 
 // Docker and terminal challenges have no stored flag: it is derived per team from the secret.
-const hasDynamicFlag = (challenge) => challenge.type === 'docker' || challenge.type === 'terminal';
+const hasDynamicFlag = (challenge) => challenge.type === 'docker' || challenge.type === 'terminal' || challenge.type === 'weblab';
 
 export function verifyFlag(challenge, { secret, teamId, submitted }) {
   const flag = String(submitted).trim();
