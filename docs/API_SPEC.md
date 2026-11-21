@@ -216,6 +216,46 @@ Notes:
   (insane track), 409 `NO_MORE_HINTS`, 429 `RATE_LIMITED` (8 attempts per team per level per minute, Mongo-backed),
   503 `CIPHERLAB_NOT_SEEDED` (`npm run seed:cipherlab`). `overview` also works without a team.
 - Points are fixed per level with no first-blood bonus (`firstBlood` is always false). Maximum 2060 in total.
+## Web Exploit Lab
+
+Simulated vulnerable sites, attacked through a request inspector (design, safety rules, labs and points:
+`docs/WEB_EXPLOIT_LAB.md`). All routes are mounted at `/api/weblab`, need `Authorization: Bearer <ID token>`, and are
+backed by `challenges` rows with `type: "weblab"` created by `npm run seed:weblab`.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/weblab/labs` | player, admin | `{ tracks: [{ id, title, difficulty, theme, company:{ name, tagline, brief }, labs:[lab], solved, total, points, pointsEarned, cleared }], totals: { labs, solved, points, pointsEarned, bountyUsd }, inspector }` |
+| GET | `/weblab/labs/:slug` | player, admin | One lab: summary fields plus `{ story, objective, company, theme, site, form, request, inspector }` |
+| GET | `/weblab/labs/:slug/hints/:level` | player, admin | `{ level, count, text }` (one hint at a time, 1..`hintCount`) |
+| POST | `/weblab/labs/:slug/request` | player, admin | Body `{ method, path, headers, cookies, body }`. Response `{ status, contentType, body, setCookies, page, exploited, hint }` |
+| POST | `/weblab/labs/:slug/submit` | player | Body `{ flag }`. Response `{ correct, pointsAwarded, firstBlood, message, severity?, bountyUsd?, alreadySolved? }` |
+
+Notes:
+- `:slug` is `weblab-<lab id>`; unknown or malformed slugs are 404 `NOT_FOUND`. A lab summary is
+  `{ id, slug, title, summary, track, boss, points, hintCount, available, solved, pointsEarned, locked, lockedReason, severity, bountyUsd }`;
+  `severity` and `bountyUsd` (cosmetic bug bounty badge) are `null` until the team solved the lab.
+- **Locks.** A boss lab is locked until the other labs of its track are solved, the insane lab until the hard boss is
+  solved. Requests, hints and submits for a locked lab are 403 `LAB_LOCKED`; `GET /labs/:slug` returns `request: null`.
+  Admin previews are never locked.
+- **Teams.** `request` and `submit` need a team for players (404 `NO_TEAM`, 403 `TEAM_BANNED`); the read routes work
+  without one. `submit` is player only (an admin gets 403 `FORBIDDEN`). Admins attack with a preview flag set no team can submit.
+- **Not seeded.** `request`, `hints` and `submit` return 503 `WEBLAB_NOT_SEEDED` (`Run npm run seed:weblab.`) when the
+  lab has no visible row; the lists still render from the built-in definitions.
+- **Validation.** Bodies are `.strict()`: `method` is one of GET POST PUT PATCH DELETE HEAD OPTIONS; `path` starts with
+  `/` and has at most 300 characters; `headers` at most 20 entries (name 40, value 500); `cookies` at most 10 (name 40,
+  value 500); `body` at most 2000 characters; `flag` 1-200 after trimming.
+- **`request`** runs a pure-function simulation (no real network, database or file access). `body` is capped at 8000
+  characters. `page` is a structured document `{ title, blocks }` (`heading`, `text`, `notice`, `code`, `table`, `kv`) or
+  `null` for JSON answers; clients render it as text only. `exploited` is `true` when the simulated exploit succeeded and
+  the body then contains the team's flag. A flag never appears otherwise.
+- **`submit`** compares in constant time. Wrong: 200 `{ correct: false, pointsAwarded: 0, firstBlood: false, message }`.
+  Correct: fixed lab points, **never a first-blood bonus** (`firstBlood` is always `false`), recorded with the normal
+  unique solve index; a repeat (double click, other replica) is 200 `{ correct: true, alreadySolved: true, pointsAwarded: 0 }`.
+- **Rate limits** (counted in MongoDB, same on every replica): 90 requests per team per minute (429 `RATE_LIMITED`);
+  8 flag attempts per team per lab per minute (429 `RATE_LIMITED`).
+- **`inspector`** is `{ level, unlocked: [id], features: [{ id, label, blurb, at, unlocked }], next }`; it grows with the
+  number of solved labs and only gates browser conveniences.
+- Maximum for the whole game is 1470 points (easy 120, medium 300, hard 550, insane 500).
 
 ## Admin (role `admin`)
 

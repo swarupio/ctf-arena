@@ -39,6 +39,7 @@ function LayoutContent() {
         <NavLink to="/challenges">Challenges</NavLink>
         {user && <NavLink to="/terminal">Terminal</NavLink>}
         {user && <NavLink to="/cipherlab">Cipher Lab</NavLink>}
+        {user && <NavLink to="/weblab">Web Lab</NavLink>}
         <NavLink to="/leaderboard">Leaderboard</NavLink>
         <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>
         {user && <NavLink to="/profile">Profile</NavLink>}

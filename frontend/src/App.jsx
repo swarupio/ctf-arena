@@ -21,6 +21,10 @@ const Profile = lazy(() => import('./pages/Profile.jsx'));
 
 const CipherLab = lazy(() => import('./pages/CipherLab.jsx'));
 
+const WebLab = lazy(() => import('./pages/WebLab.jsx'));
+const WebLabPlay = lazy(() => import('./pages/WebLabPlay.jsx'));
+const lazyPage = (element) => <Suspense fallback={<p role="status">Loading...</p>}>{element}</Suspense>;
+
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
@@ -40,6 +44,8 @@ export default function App() {
         <Route path="terminal" element={<Terminal />} />
         <Route path="terminal/:mode" element={<TerminalPlay />} />
         <Route path="cipherlab/*" element={<Suspense fallback={<p role="status">Loading…</p>}><CipherLab /></Suspense>} />
+        <Route path="weblab" element={lazyPage(<WebLab />)} />
+        <Route path="weblab/:slug" element={lazyPage(<WebLabPlay />)} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
         <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />

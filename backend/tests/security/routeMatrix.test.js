@@ -84,6 +84,11 @@ const TABLE = [
   ['POST', '/api/cipherlab/levels/:id/hints', 'player'],
   ['POST', '/api/cipherlab/levels/:id/answer', 'player'],
   ['GET', '/api/cipherlab/admin/hints', 'admin'],
+  ['GET', '/api/weblab/labs', 'any'],
+  ['GET', '/api/weblab/labs/:slug', 'any'],
+  ['GET', '/api/weblab/labs/:slug/hints/:level', 'any'],
+  ['POST', '/api/weblab/labs/:slug/request', 'any'],
+  ['POST', '/api/weblab/labs/:slug/submit', 'player'],
 
   ['GET', '/api/admin/challenges', 'admin'],
   ['POST', '/api/admin/challenges', 'admin'],
