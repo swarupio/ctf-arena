@@ -287,7 +287,11 @@ Handlers are pure text generators: they never touch the VFS or the host, are det
   pipeline stages is capped at 4 MiB; gzip output at 4 MiB. Glob expansion stops at 200, brace expansion at 100 words.
 - **Regex rules** (`backend/src/terminal/regex.js`): patterns over 64 chars, backreferences, lookarounds and nested quantifiers
   are rejected with `grep: unsupported pattern` (at most 12 unbounded repeats; delimited idioms like `([0-9]+\.){3}` are
-  allowed with lines clipped to 4096 chars; alternation under an unbounded repeat must be prefix-free literals).
+  allowed; alternation under an unbounded repeat must be prefix-free literals). Player patterns never reach V8's
+  backtracking `RegExp`: they are compiled (at most 5000 instructions, so `{n,m}` cannot blow up) and run on a Thompson/Pike
+  NFA simulation, so one match costs at most `(line length + 1) x program size` steps whatever the pattern, with Perl-style
+  leftmost-first semantics. A single match is aborted after 1,000,000 steps and every 64 steps are charged as one unit of the
+  command line's work budget; both end in `bash: resource limit exceeded`. This closes the ReDoS (`.*.*.*.*.*.*Z`).
 - **Shell syntax**: `for` and `if` work; `while`, `case`, functions, here-docs, `&` and process substitution print a bash-style
   error. No scripts or `./file` execution (`Exec format error`). Variables, `/tmp` and `OLDPWD` live for one command line.
 - **Not implemented**: `find -exec/-delete/-printf`, `sort -R`, sed blocks/hold space/`-f`, awk user functions/getline/system.
