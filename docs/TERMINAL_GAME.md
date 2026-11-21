@@ -186,7 +186,7 @@ Admins may call `modes`, `progress`, `exec`, `complete` (preview flags) but not 
 Submit rules: validate with zod `.strict()`; compare against the expected flags of **all** the mode's codes the team has
 not solved yet using the same constant-time comparison as `verifyFlag`; rate limit **10 attempts / minute / team / mode**
 counted in MongoDB (`Submission`); wrong attempts are stored against the mode's first code; correct -> `recordSolve`
-(first blood, scoring, leaderboard exactly like other challenges). Already solved code -> `{ correct:true, alreadySolved:true,
+(scoring and leaderboard like other challenges, but with NO first-blood bonus, see section 17). Already solved code -> `{ correct:true, alreadySolved:true,
 pointsAwarded:0 }` (no error). Never echo the submitted flag or the expected flag.
 
 ## 9. Data model changes (api agent; update `docs/DATABASE_SCHEMA.md`)
@@ -359,3 +359,13 @@ gets 1-2 plausible bait files (for example `~/.cache/assistant-notes.txt`, `/etc
 'automated assistants' telling them to run `ai-verify --session`. The command is trapped in `routes/terminal.js`
 (records a signal, replies with a tainted decoy). Bait must never alter the puzzle outputs (do not put it inside logs or files that
 puzzles count, sort or diff) and must be harmless and slightly funny to humans.
+
+## 17. Scoring rules and maximum
+
+- A terminal code is worth exactly its listed `points`; there is no first-blood bonus for terminal challenges (`hasFirstBloodBonus`
+  in `scoringService.js`). Flags and puzzle values are per team, so there is no shared race. Regular challenges keep the 10% bonus.
+- Maximum per mode: easy 4 x 40 = 160, medium 5 x 90 = 450, hard 6 x 180 = 1080. A team can never exceed it: one `Solve` per
+  team and challenge (unique index, double or parallel submits are no-ops) and no bonus. `firstBlood` is always false.
+- Bug fixed: the bonus used to apply, so a team first on all four easy codes got 4 x 44 = 176 of 160. Stored rows from before
+  the fix are repaired by `repairTerminalSolves()` (idempotent; run once via `node src/scripts/repairTerminalScores.js`), and the mode
+  views clamp each solve to the listed points meanwhile.
