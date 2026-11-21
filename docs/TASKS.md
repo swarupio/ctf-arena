@@ -165,26 +165,49 @@ running `docker compose up` on a laptop; disabled with a clear message on Vercel
 admin dashboard must be complete. Items marked `(agent)` were built by parallel agents in worktrees and merged by the lead.
 
 ### Hosting
-- [ ] **P4-01 Vercel layout.** `vercel.json`, serverless `api/` entry wrapping the Express app, static Vite build, SPA fallback, security headers.
-- [ ] **P4-02 Serverless-safe backend.** Cached Mongoose connection, env validation for Vercel, reaper and request-counter flush made serverless-safe, `DOCKER_ENABLED` flag with `DOCKER_DISABLED` API error.
-- [ ] **P4-03 Remove VM-only files.** `azure-setup.sh`, `AZURE_SETUP.md`, SSH deploy workflow and stale Azure/VM wording gone; local `docker compose` mode kept.
-- [ ] **P4-04 Deploy docs.** `docs/DEPLOY_VERCEL.md` (env vars, Atlas network access, Cognito callback URLs, local Docker mode, limits); README updated.
+- [x] **P4-01 Vercel layout.** `vercel.json`, serverless `api/` entry wrapping the Express app, static Vite build, SPA fallback, security headers.
+  *Done (2026-11-22):* `vercel.json`, root `api/index.js` serverless entry, static Vite build, SPA fallback, security headers. Not yet deployed to a real Vercel project.
+- [x] **P4-02 Serverless-safe backend.** Cached Mongoose connection, env validation for Vercel, reaper and request-counter flush made serverless-safe, `DOCKER_ENABLED` flag with `DOCKER_DISABLED` API error.
+  *Done (2026-11-22):* cached Mongoose connection, serverless env defaults, `DOCKER_ENABLED` validated in `env.js` (`DOCKER_DISABLED` 503 on Vercel), request counter off on Vercel, lazy routers, `MONGOOSE_AUTO_INDEX` (off on Vercel; run `npm run db:indexes` on a fresh database).
+- [x] **P4-03 Remove VM-only files.** `azure-setup.sh`, `AZURE_SETUP.md`, SSH deploy workflow and stale Azure/VM wording gone; local `docker compose` mode kept.
+  *Done (2026-11-22):* `azure-setup.sh`, `AZURE_SETUP.md` and `deploy.yml` deleted; local `docker compose` mode kept and verified (3 and 5 replicas, container limits, reaper).
+- [x] **P4-04 Deploy docs.** `docs/DEPLOY_VERCEL.md` (env vars, Atlas network access, Cognito callback URLs, local Docker mode, limits); README updated.
+  *Done (2026-11-22):* `docs/DEPLOY_VERCEL.md` written; README, SETUP and SECURITY updated.
 - [ ] **P4-05 First real Vercel deploy.** Owner imports the repo, sets env vars, updates Cognito callback/logout URLs, `curl https://<app>/api/health` works. *Acceptance:* sign-in with MFA works on the Vercel URL.
 
 ### Bugs
-- [ ] **P4-06 Terminal score discrepancy.** Max is 160 but a player reached 176 (suspected double-count or first-blood bonus 160 x 1.1). Root cause fixed, scores can never exceed the documented maximum, regression + concurrency tests.
-- [ ] **P4-07 Terminal output errors.** Runtime errors in terminal command output investigated and fixed.
+- [x] **P4-06 Terminal score discrepancy.** Max is 160 but a player reached 176 (suspected double-count or first-blood bonus 160 x 1.1). Root cause fixed, scores can never exceed the documented maximum, regression + concurrency tests.
+  *Done (2026-11-22):* root cause was the 10% first-blood bonus applied to terminal codes (4 x 44 = 176). First blood is now an allowlist (`static`, `docker` only) in `scoringService`, so no game can exceed its maximum. Regression tests added. **Stored inflated scores are repaired only by running `node src/scripts/repairTerminalScores.js` against the real database; it has NOT been run.**
+- [x] **P4-07 Terminal output errors.** Runtime errors in terminal command output investigated and fixed.
+  *Done (2026-11-22):* the terminal fuzzed across all commands and modes; two real bugs fixed (`hexdump`/`od` printed `NaN`; the output cap could split an emoji). The exact error the owner saw was not reproduced; it may be the 300 ms fair-play "easy there" message or the 300-character input limit.
 
 ### Performance
-- [ ] **P4-08 Backend query optimisation.** Compound indexes matching real query shapes, `lean()` and projections, no N+1, parallel awaits, bounded caching, ETag on leaderboard.
-- [ ] **P4-09 Frontend load time.** Route code-splitting, vendor chunks, API de-dupe and short cache, polling backoff, listener/timer cleanup, bounded terminal scrollback. Record before/after bundle sizes.
-- [ ] **P4-10 Memory pass.** Backend and frontend memory review after the above merges (unbounded buffers, caches, listeners).
+- [x] **P4-08 Backend query optimisation.** Compound indexes matching real query shapes, `lean()` and projections, no N+1, parallel awaits, bounded caching, ETag on leaderboard.
+  *Done (2026-11-22):* lean reads and projections, parallel lookups, covering indexes, `/me` no longer writes on every call, 5 s leaderboard memo with cache headers.
+- [x] **P4-09 Frontend load time.** Route code-splitting, vendor chunks, API de-dupe and short cache, polling backoff, listener/timer cleanup, bounded terminal scrollback. Record before/after bundle sizes.
+  *Done (2026-11-22):* route code-splitting and vendor chunks (first load about 420 kB instead of 615 kB), GET de-dupe and SWR cache, poll backoff. Measured by bundle size only, not in a browser.
+- [x] **P4-10 Memory pass.** Backend and frontend memory review after the above merges (unbounded buffers, caches, listeners).
+  *Done (2026-11-22):* import time 1.1 s to 0.65 s, heap 31 MB to 19 MB; bounded terminal scrollback, stale-response guards, per-search highlighter.
 - [ ] **P4-11 Lint pass.** ESLint (or equivalent) added and clean for backend and frontend, with a one-line reason for the dependency.
 
 ### Admin dashboard v2
-- [ ] **P4-12 Admin API v2.** Stats and time series, users, teams (incl. score adjustment with audit), challenges (publish, duplicate, import/export without flags), submissions and solves, integrity review, instances, audit log, platform settings and announcement, CSV export. Contract in `docs/API_SPEC.md` "Admin API v2".
-- [ ] **P4-13 Admin dashboard UI.** Sidebar layout, overview charts, and a page per area from P4-12, all admin-guarded.
+- [x] **P4-12 Admin API v2.** Stats and time series, users, teams (incl. score adjustment with audit), challenges (publish, duplicate, import/export without flags), submissions and solves, integrity review, instances, audit log, platform settings and announcement, CSV export. Contract in `docs/API_SPEC.md` "Admin API v2".
+  *Done (2026-11-22):* Admin API v2 (users, teams, challenges, solves, integrity, instances, audit log, settings, CSV) plus follow-ups (adjustment rows excluded from solve counts, banned users blocked, game challenges editable only for title/description/visibility). Contract in `docs/API_SPEC.md`.
+- [x] **P4-13 Admin dashboard UI.** Sidebar layout, overview charts, and a page per area from P4-12, all admin-guarded.
+  *Done (2026-11-22):* ten lazy admin sections with a shared kit and a site-wide announcement banner. Verified by tests and build only; not exercised in a browser or against a real `admin` login.
 - [ ] **P4-14 Admin QA.** Real `admin` Cognito user walkthrough of every admin page and action.
 
 ### Close-out
 - [ ] **P4-15 Docs sync and final tag.** API_SPEC, DATABASE_SCHEMA, README, SETUP match the code; tag `v1.1-vercel`. (The older `v1.0-release` tag sits on `580482e`, before the terminal game; leave it as the presentation snapshot.)
+
+### New games and fun features (added 2026-11-22)
+All games are serverless-safe (no Docker), per-team, stateless, with fixed points and **no first-blood bonus**; each has Easy, Medium, Hard and Insane tracks and a boss.
+- [x] **P4-16 Achievements and profile.** 21 badges, profile page, activity feed, daily spotlight, celebrations (cosmetic only, scoring untouched).
+- [x] **P4-17 Cipher Lab.** 15 levels, max 2060. `docs/CIPHER_LAB.md`.
+- [x] **P4-18 Web Exploit Lab.** 10 simulated labs, max 1470. `docs/WEB_EXPLOIT_LAB.md`.
+- [x] **P4-19 Forensics Desk.** 20 stages, max 2310. `docs/FORENSICS_DESK.md`.
+- [x] **P4-20 Crackme Arcade.** 16 cabinets with a sandboxed VM and debugger, max 1905. `docs/CRACKME_ARCADE.md`.
+- [x] **P4-21 Games hub.** `/games` page driven by `frontend/src/games/registry.js`; single Games nav link; terminal badge toast.
+- [x] **P4-22 Docker local-mode QA.** Stack, seeds, limits and reaper verified locally; route-matrix test flake fixed.
+- [ ] **P4-23 OSINT Trail.** In progress.
+- [ ] **P4-24 Seed the new games.** Run `seed:cipherlab`, `seed:weblab`, `seed:forensics`, `seed:crackme` (and `seed:osint`) against the real database before the games appear.
