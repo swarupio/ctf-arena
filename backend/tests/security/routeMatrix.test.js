@@ -34,6 +34,7 @@ vi.mock('../../src/models/CheatSignal.js', async () => (await import('./helpers/
 vi.mock('../../src/models/TaintedFlag.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TaintedFlag'));
 vi.mock('../../src/models/TerminalActivity.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TerminalActivity'));
 vi.mock('../../src/models/CipherHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CipherHint'));
+vi.mock('../../src/models/CrackmeHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CrackmeHint'));
 // Tag every requireRole() guard with the roles it was built with, so the access level can be read off the chain.
 vi.mock('../../src/middleware/requireRole.js', async (importOriginal) => {
   const original = await importOriginal();
@@ -88,6 +89,11 @@ const TABLE = [
   ['POST', '/api/cipherlab/levels/:id/hints', 'player'],
   ['POST', '/api/cipherlab/levels/:id/answer', 'player'],
   ['GET', '/api/cipherlab/admin/hints', 'admin'],
+  ['GET', '/api/crackme/overview', 'any'],
+  ['GET', '/api/crackme/levels/:id', 'any'],
+  ['POST', '/api/crackme/levels/:id/hints', 'player'],
+  ['POST', '/api/crackme/levels/:id/answer', 'player'],
+  ['GET', '/api/crackme/admin/hints', 'admin'],
   ['GET', '/api/weblab/labs', 'any'],
   ['GET', '/api/weblab/labs/:slug', 'any'],
   ['GET', '/api/weblab/labs/:slug/hints/:level', 'any'],

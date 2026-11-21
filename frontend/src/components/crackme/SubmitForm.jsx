@@ -1,0 +1,53 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { submitInput } from '../../api/crackme.js';
+import { confettiPieces, crackmeErrorMessage, streakText } from './helpers.js';
+
+const PIECES = confettiPieces();
+
+// Submits the input from the debugger toolbar. The server runs its own VM on it; only then is the team flag returned.
+export default function SubmitForm({ puzzle, input, canSubmit, onSolved }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const solved = puzzle.status === 'solved' || result?.correct;
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!input || busy) { return; }
+    setBusy(true);
+    setError('');
+    try {
+      const response = await submitInput(puzzle.id, input);
+      setResult(response);
+      if (response.correct) { await onSolved(); }
+    } catch (err) {
+      setError(crackmeErrorMessage(err));
+    } finally { setBusy(false); }
+  }
+
+  return <section className="cm-box cm-answer" aria-labelledby="cm-answer-title">
+    <h2 id="cm-answer-title">Insert the code</h2>
+    {!canSubmit && <p className="notice">Admins can preview cabinets but cannot submit.</p>}
+    <form onSubmit={submit} noValidate>
+      <p className="cm-note">
+        Input to submit: <code className="cm-flag">{input || '(empty, type it in the debugger above)'}</code>
+      </p>
+      <p className="cm-note">The server runs its own copy of the machine on this input. A pass in your debugger is not enough: check for traps.</p>
+      <button type="submit" disabled={!canSubmit || busy || !input}>{busy ? 'Checking...' : 'Submit input'}</button>
+    </form>
+    {error && <p role="alert" className="error">{error}</p>}
+    {result && !result.correct && <p role="status" className="cm-wrong">{result.message}</p>}
+    {result?.correct && <div role="status" className="cm-win">
+      <div className="cm-confetti" aria-hidden="true">
+        {PIECES.map((piece) => <span key={piece.id} className={`cm-piece cm-piece-${piece.hue}`} style={{ left: `${piece.left}%`, animationDelay: `${piece.delay}s` }} />)}
+      </div>
+      <p className="cm-win-title">{result.message}</p>
+      {result.pointsAwarded > 0 && <p>+{result.pointsAwarded} points &middot; {streakText(result.streak)}</p>}
+      <p>Team flag: <code className="cm-flag">{result.flag}</code></p>
+      {result.trackComplete && <p className="cm-win-title">Track cleared!</p>}
+      {result.nextLevelId && <Link className="button" to={`/reversing/${result.nextLevelId}`}>Next cabinet</Link>}
+    </div>}
+    {solved && !result && <p className="notice">Your team already solved this cabinet. Submit again to see your flag.</p>}
+  </section>;
+}

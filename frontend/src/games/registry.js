@@ -58,4 +58,15 @@ export const GAMES = [
       solved: track?.solved, total: track?.stages, pointsEarned: track?.pointsEarned, maxPoints: track?.maxPoints,
     }))),
   },
+  {
+    id: 'crackme',
+    title: 'Crackme Arcade',
+    path: '/reversing',
+    pitch: 'Read the assembly of arcade cabinets, step through the debugger and crack their copy protection.',
+    overview: '/crackme/overview',
+    summarize: (data) => summary(tracksOf(data).map((track) => ({
+      id: track?.id, title: track?.title, difficulty: track?.difficulty,
+      solved: track?.solved, total: track?.total, pointsEarned: track?.pointsEarned, maxPoints: track?.maxPoints,
+    }))),
+  },
 ];

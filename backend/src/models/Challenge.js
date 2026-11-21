@@ -23,7 +23,7 @@ const challengeSchema = new mongoose.Schema({
   category: { type: String, required: true, enum: ['web', 'crypto', 'forensics', 'misc', 'pwn', 'terminal'] },
   difficulty: { type: String, required: true, enum: ['easy', 'medium', 'hard'] },
   points: { type: Number, required: true, min: 1 },
-  type: { type: String, required: true, enum: ['static', 'docker', 'terminal', 'game', 'weblab', 'forensics'] },
+  type: { type: String, required: true, enum: ['static', 'docker', 'terminal', 'game', 'weblab', 'forensics', 'reversing'] },
   image: { type: String },
   internalPort: { type: Number, min: 1, max: 65535 },
   // Static challenges only. Never include these fields in any API response.
