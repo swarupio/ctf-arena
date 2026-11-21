@@ -1,0 +1,7 @@
+node_modules
+.git
+challenges
+deploy
+nginx
+backend/tests
+frontend/tests

@@ -18,6 +18,7 @@ export function createRequestCounter({
   replica = os.hostname(), // same source as middleware/servedBy.js
   intervalMs = FLUSH_INTERVAL_MS,
   onStart = () => {},
+  disabled = Boolean(process.env.VERCEL),
   log = (message) => process.stderr.write(`[requestCounter] ${message}\n`),
 } = {}) {
   let pending = 0;
@@ -51,7 +52,9 @@ export function createRequestCounter({
 
   function middleware(req, res, next) {
     try {
-      if (isCounted(req.path)) {
+      // Serverless (Vercel): no long-lived timer to flush a buffer, and a write per request is not worth it.
+      // Counting is switched off there; /api/admin/stats then reports no per-replica counts.
+      if (!disabled && isCounted(req.path)) {
         pending += 1;
         ensureTimer();
       }

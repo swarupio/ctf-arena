@@ -48,6 +48,8 @@ export function playerSummary(challenge, solvedIds, ) {
     type: challenge.type,
     solveCount: challenge.solveCount ?? 0,
     solvedByMyTeam: solvedIds.has(String(challenge._id)),
+    // Additive: docker challenges only run when the platform is hosted locally (DOCKER_ENABLED=false on Vercel).
+    ...(challenge.type === 'docker' ? { dockerAvailable: env.DOCKER_ENABLED !== false } : {}),
   };
 }
 

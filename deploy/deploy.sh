@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Mini CTF Arena - build and (re)start the whole stack on the VM (task P3-10).
-# Used by the first manual deploy (docs/AZURE_SETUP.md) and by the GitHub Actions deploy job.
+# Mini CTF Arena - build and (re)start the whole LOCAL stack (Nginx + backend replicas + Docker challenges).
+# Only needed for local Docker mode (docs/DEPLOY_VERCEL.md); the hosted site runs on Vercel and needs none of this.
 #
 #   bash deploy/deploy.sh
 #   SEED_CHALLENGES=1 bash deploy/deploy.sh      # also register challenges (and Arena Terminal codes) in MongoDB
@@ -10,7 +10,7 @@
 # still reading it.
 #
 # Steps:
-#   1. build the frontend into frontend/dist inside a Node 20 container (no Node needed on the VM)
+#   1. build the frontend into frontend/dist inside a Node 20 container (no Node needed on the host)
 #   2. build one image ctf/<slug> per challenges/<slug>/Dockerfile (unchanged ones are cache hits)
 #   3. optionally register challenges/*/challenge.json and the Arena Terminal challenges in MongoDB
 #   4. docker compose up -d --build
@@ -27,8 +27,8 @@ cd "$ROOT"
 log() { printf '\n==> %s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
-[ -f .env ] || fail ".env not found in $ROOT. Create it from .env.example first (docs/AZURE_SETUP.md step 7)."
-docker info >/dev/null 2>&1 || fail "Cannot talk to Docker. Is it running, and is this user in the docker group (log out and in again)?"
+[ -f .env ] || fail ".env not found in $ROOT. Create it from .env.example first."
+docker info >/dev/null 2>&1 || fail "Cannot talk to Docker. Is Docker running?"
 
 # --- 1. frontend ----------------------------------------------------------------------------
 # Vite reads the VITE_* values from /repo/.env (envDir is '..'); they are public build-time values.

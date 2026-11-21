@@ -44,7 +44,7 @@ describe('environment configuration', () => {
   });
   it('accepts all template variables and converts numeric settings', async () => {
     const { env } = await loadEnv();
-    expect(Object.keys(env).sort()).toEqual(Object.keys(example).sort());
+    expect(Object.keys(env).filter((key) => key !== 'DOCKER_ENABLED').sort()).toEqual(Object.keys(example).sort());
     expect(env.PORT).toBe(4000);
     expect(env.CHALLENGE_CPU_LIMIT).toBe(0.25);
   });

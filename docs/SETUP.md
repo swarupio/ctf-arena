@@ -6,7 +6,7 @@ current AWS / MongoDB docs. Do the cloud setup once (Swarup) and share values pr
 ## 1. Prerequisites (everyone)
 - Git, Node.js 20+, Docker Desktop (or Docker Engine on Linux) with Compose v2
 - A phone with Google Authenticator or Microsoft Authenticator
-- GitHub account added to the repo, an AWS account (Cognito only), an Azure subscription for deployment (a friend provides it), a MongoDB Atlas account
+- GitHub account added to the repo, an AWS account (Cognito only), a Vercel account (free) for hosting, a MongoDB Atlas account
 
 Check:
 ```bash
@@ -24,8 +24,8 @@ Fill `.env` using sections 3 and 4. Never commit it.
 1. Create an Atlas account and a **free (M0) cluster**.
 2. **Database Access:** add a user with a strong password and read/write on any database.
 3. **Network Access:** each developer must add their own current IP or approved
-   range for local work. On the Azure VM, add its static public IP later
-   (avoid `0.0.0.0/0` outside quick tests).
+   range for local work. Vercel functions have no fixed IP, so a Vercel deployment needs `0.0.0.0/0`
+   (see `docs/DEPLOY_VERCEL.md` for the trade-offs); avoid it for local-only use.
 4. **Connect -> Drivers:** copy the connection string and put it in `MONGODB_URI`, with the database name `ctf_arena`.
 5. Run the backend; it should log `MongoDB connected`.
 
@@ -81,6 +81,7 @@ Unit tests need no database but do need the variables of `.env.example` to be se
 placeholder values the same way).
 
 ## 6. Docker notes
+- Docker challenges are local-only: set nothing (`DOCKER_ENABLED` defaults to true outside Vercel). On Vercel it defaults to false.
 - The backend needs `/var/run/docker.sock` to start challenge containers. On Docker Desktop (Windows/Mac) this works through the mounted socket path in `docker-compose.yml` (default `DOCKER_GID=0`). On a Linux host set `DOCKER_GID=$(getent group docker | cut -d: -f3)` in `.env` so the non-root backend can use the socket.
 - The backend creates the `ctf-challenges` network on startup (`dockerService.ensureNetwork`); challenge containers join it and publish host ports `CHALLENGE_PORT_MIN..MAX`.
 - Build challenge images before testing instances: `docker build -t ctf/<slug> challenges/<slug>` (the loop above builds all of them).
@@ -89,7 +90,7 @@ placeholder values the same way).
 ## 6b. Local database (no Atlas needed)
 Atlas only accepts the addresses on its Network Access list. Home and mobile connections change their public address
 (sometimes several times an hour), and then the containers cannot reach Atlas and the site shows `502` / "Unexpected token '<'".
-For a laptop you can run the database in Docker instead (a one-node replica set, like Atlas; never use it on the Azure VM):
+For a laptop you can run the database in Docker instead (a one-node replica set, like Atlas; never use it on a shared server):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build
@@ -114,7 +115,7 @@ docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build
 | `MongoNetworkError`, API answers 502, pages show `Unexpected token '<'` | Your public IP changed and is not in Atlas Network Access. Add the new IPv4 address, or use the local database (section 6b) |
 | 401 on every call | Wrong user pool ID / client ID, or you sent the access token instead of the ID token |
 | User is `player` but should be `admin` | Log out and in after adding to the group |
-| Container starts but URL does not open | Azure network security group / firewall does not allow 30000-30100; wrong `PUBLIC_HOST` |
+| Container starts but URL does not open | Firewall does not allow 30000-30100; wrong `PUBLIC_HOST` |
 | `permission denied` on docker.sock | Set `DOCKER_GID` in `.env` to the socket's group id (Linux: `getent group docker \| cut -d: -f3`), then `docker compose up -d --force-recreate backend`. Do not run the backend as root |
-| The challenge list is empty | Run `npm run seed:challenges` in `backend/` (or `SEED_CHALLENGES=1 bash deploy/deploy.sh` on the VM) |
+| The challenge list is empty | Run `npm run seed:challenges` in `backend/` (or `SEED_CHALLENGES=1 bash deploy/deploy.sh` for the local stack) |
 | Nginx 502 after scaling | Nginx cached old replica IPs; use the `resolver` + variable `proxy_pass` pattern |

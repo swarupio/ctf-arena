@@ -26,10 +26,10 @@ npm run loadtest -- --help
 
 If Nginx is on another host port (`NGINX_HOST_PORT=8080`), pass `--url http://localhost:8080/api/health`.
 
-**Run it from the machine that hosts the stack** (on the Azure VM: over SSH, against `localhost`). Nginx limits each
+**Run it from the machine that hosts the stack** (against `localhost`; this measures the local docker compose stack, not Vercel). Nginx limits each
 client IP to 20 requests/second on `/api` and answers 429 above that; loopback and Docker-bridge addresses are
 exempt, so a local run measures the replicas. Running it from another computer against the public IP correctly
-hits the limiter and shows 429s (the script prints a note). On a small shared VM, expect the load generator itself
+hits the limiter and shows 429s (the script prints a note). On a small shared machine, expect the load generator itself
 to use CPU, so numbers are a lower bound.
 
 ## Measure 1, 3 and 5 replicas (P3-07)
@@ -67,11 +67,9 @@ New replicas are used after at most 10 seconds (Nginx's DNS cache); removed repl
 
 ## Results
 
-**Machine: a developer laptop, not the Azure VM.** Intel Core i5-13420H (8 cores / 12 threads), 15.7 GB RAM,
+**Machine: a developer laptop.** Intel Core i5-13420H (8 cores / 12 threads), 15.7 GB RAM,
 Windows 11, Docker Desktop 29.7.2 (Linux engine, 12 CPUs / 7.6 GB given to Docker), Node 24 for the load generator.
-Measured 2026-11-03/04 with other containers and apps running, so treat the numbers as indicative. The Azure
-`Standard_B2s` (2 vCPUs) will give different absolute figures; re-run the same commands there and fill in the
-second table.
+Measured 2026-11-03/04 with other containers and apps running, so treat the numbers as indicative. Other machines will give different absolute figures; re-run the same commands to compare.
 
 Test: `GET /api/health` through Nginx (`NGINX_HOST_PORT=8088`), 50 connections, 20 s measured after a 3 s warm-up,
 the load generator running on the same machine as the stack. Each configuration was run twice.
@@ -101,7 +99,7 @@ How to read it:
 - **Throughput scales with replicas but not linearly: about 1.6x at 3 and 1.9x at 5.** With this cheap endpoint
   the test machine runs out of CPU before 5 Node processes do: the single-threaded load generator, Nginx and Docker
   Desktop's network layer all share the same laptop. The latency percentiles stay flat for the same reason (the
-  generator keeps 50 connections busy). Do not read "5 replicas = 1.9x faster" as a promise for the VM.
+  generator keeps 50 connections busy). Do not read "5 replicas = 1.9x faster" as a promise for other hardware.
 - **Every run had 0 non-2xx responses.** The 0.04-0.07 % "error rate" is autocannon-side connection errors (about
   25-50 out of 60,000-70,000 requests) from the Windows/Docker Desktop network path, not responses from Nginx or the backend.
 - The probe step listed 1, 3 and 5 different `X-Served-By` names at 1, 3 and 5 replicas, so the load was really spread.
@@ -111,16 +109,6 @@ How to read it:
   for 60 s. That is why `docker-compose.yml` widens the port range and enables `tcp_tw_reuse` for the Nginx
   container. With that fix a 60 s run at 1 replica had 0 `502` (and the effect does not show with several
   replicas, because every replica is another set of ports).
-
-Azure VM (fill in after deploying; run from the VM itself, see above):
-
-Machine: Azure ____ (size, vCPU, RAM), Ubuntu ____, Docker ____.
-
-| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
-|----------|--------------|------------------|------------------|------------|
-| 1 | | | | |
-| 3 | | | | |
-| 5 | | | | |
 
 ## Notes on dependencies
 

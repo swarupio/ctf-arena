@@ -48,7 +48,7 @@
 8. **Database design:** collections and indexes from `DATABASE_SCHEMA.md`
 9. **Security design:** table from `SECURITY.md`
 10. **Testing and results:** unit tests, end-to-end checklist, load-test table
-11. **Screenshots:** login + MFA, team page, challenge page, running container, leaderboard, admin, GitHub Actions, Azure portal VM page
+11. **Screenshots:** login + MFA, team page, challenge page, running container, leaderboard, admin, GitHub Actions, Vercel deployment page
 12. **Challenges faced and lessons learned**
 13. **Future scope:** Kubernetes, per-challenge subdomains, dynamic scoring, hints, scoreboard freeze, SSE live updates
 14. **Conclusion**
@@ -71,14 +71,9 @@ measured 2026-11-03/04; indicative only):
 Throughput grows about 1.6x at 3 replicas and 1.9x at 5 (not linearly: the laptop runs out of CPU first). Every run
 had 0 non-2xx responses; the small error rate is client-side connection errors from the Docker Desktop network path.
 
-**Azure VM numbers: pending** (run the same commands on the VM after P3-09, then fill in):
-
-| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
-|----------|--------------|------------------|------------------|------------|
-| 1 | | | | |
-| 3 | | | | |
-| 5 | | | | |
+The load test measures the local docker compose stack (Nginx + replicas). The hosted Vercel deployment scales
+automatically as serverless functions, so those replica numbers do not apply to it.
 
 ## 6. Screenshot checklist
 Take these while building, not on the last night: Cognito pool settings, MFA QR screen, Atlas collections,
-`docker ps` with challenge containers, Nginx footer showing replicas, Azure VM overview page, GitHub Actions run.
+`docker ps` with challenge containers, Nginx footer showing replicas, Vercel deployment page, GitHub Actions run.

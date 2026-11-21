@@ -158,7 +158,7 @@ describe('GET answers never contain secrets, other teams\' data or internals', (
     expect(keys(challenges[0])).toEqual(['category', 'difficulty', 'id', 'points', 'slug', 'solveCount', 'solvedByMyTeam', 'title', 'type']);
     const detail = (await call('get', `/api/challenges/${world.challenges.docker1._id}`, 'alice')).body;
     expect(keys(detail)).toEqual([
-      'attachments', 'category', 'description', 'difficulty', 'hasInstance', 'id', 'myInstance', 'points', 'slug', 'solveCount',
+      'attachments', 'category', 'description', 'difficulty', 'dockerAvailable', 'hasInstance', 'id', 'myInstance', 'points', 'slug', 'solveCount',
       'solvedByMyTeam', 'title', 'type',
     ]);
     expect(keys(detail.myInstance)).toEqual(['challengeId', 'expiresAt', 'extended', 'id', 'status', 'url']);

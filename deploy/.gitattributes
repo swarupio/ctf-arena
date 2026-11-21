@@ -1,2 +1,2 @@
-# Shell scripts run on a Linux VM: always commit and check out with LF line endings.
+# Shell scripts run on Linux: always commit and check out with LF line endings.
 *.sh text eol=lf

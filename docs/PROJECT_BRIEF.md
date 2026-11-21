@@ -38,7 +38,7 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 - Live leaderboard (polls every 10 seconds)
 - Admin: manage challenges, see active instances, kill any instance, see platform stats
 - 3 backend replicas behind Nginx, replica ID shown in the footer
-- Public deployment on an Azure VM with auto-deploy from GitHub
+- Public deployment on Vercel (free) with auto-deploy from GitHub; Docker challenges run only in local mode (see `docs/DEPLOY_VERCEL.md`)
 
 **Should have**
 - First-blood bonus (+10% points for the first team to solve)
@@ -75,8 +75,8 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 | IAM + MFA | AWS Cognito User Pool, TOTP only |
 | Containers | Docker + Docker Compose |
 | Load balancer | Nginx |
-| Hosting | Azure Virtual Machine (Ubuntu) + static public IP |
-| CI/CD | GitHub Actions (SSH deploy) |
+| Hosting | Vercel (static frontend + one serverless function for the API); local docker compose for Docker challenges |
+| CI/CD | GitHub Actions (tests + build); Vercel deploys from Git |
 | Tests | Vitest or Jest + Supertest |
 
 ## 9. Risks and how we handle them
@@ -87,4 +87,4 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 | Cognito setup is confusing | Step-by-step in SETUP.md; fallback is self-made TOTP with `otplib` + JWT |
 | Later phases blocked by earlier ones | API contract is fixed up front, so mocks are allowed (see WORKFLOW.md) |
 | Port clashes between replicas | Atomic port claim using a unique index in MongoDB |
-| A small Azure VM size is too small for many containers | Limit to 128 MB / 0.25 CPU per container, max 2 per team |
+| Docker containers cannot run on Vercel | `DOCKER_ENABLED=false` there: docker challenges are disabled with a clear message, all other challenge types work. Locally: limit to 128 MB / 0.25 CPU per container, max 2 per team |

@@ -45,6 +45,7 @@ const MESSAGES = {
   TEAM_BANNED: 'Your team has been banned.',
   INSTANCE_LIMIT: 'Your team has reached its instance limit. Stop another instance first.',
   ALREADY_RUNNING: 'Your team already has an instance of this challenge.',
+  DOCKER_DISABLED: 'Docker challenges are only available when the platform is run locally.',
   NO_FREE_PORT: 'No free ports right now. Try again in a moment.',
   RATE_LIMITED: 'Too many attempts. Wait a minute before trying again.',
 };

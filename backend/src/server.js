@@ -15,8 +15,8 @@ const server = app.listen(env.PORT, () => {
   process.stdout.write(`Backend listening on port ${env.PORT}\n`);
 });
 
-// Reconcile containers and reap expired instances. Runs on every replica; each stop is an atomic claim.
-reaper.start();
+// Reconcile containers (only when Docker challenges are enabled) and reap expired instances. Runs on every replica; each stop is an atomic claim.
+if (env.DOCKER_ENABLED !== false) { reaper.start(); }
 
 server.on('error', () => {
   process.stderr.write('Backend could not start listening. Check PORT and whether it is already in use.\n');
