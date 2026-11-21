@@ -15,6 +15,7 @@
     "seed:terminal": "node src/scripts/seedTerminal.js",
     "seed:cipherlab": "node src/scripts/seedCipherLab.js",
     "seed:weblab": "node src/scripts/seedWebLab.js",
+    "seed:forensics": "node src/scripts/seedForensics.js",
     "seed:demo": "node src/scripts/seedDemo.js"
   },
   "dependencies": {

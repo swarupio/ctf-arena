@@ -53,7 +53,7 @@ They use the existing schemas; no seed-marker field or new model was added.
 | category | S | web, crypto, forensics, misc, pwn, terminal |
 | difficulty | S | easy, medium, hard |
 | points | N | |
-| type | S | `static`, `docker` or `terminal` |
+| type | S | `static`, `docker`, `terminal` or `forensics` |
 | image | S | Docker image name (docker type) |
 | internalPort | N | port inside the container (docker type) |
 | flagHash, flagSalt | S | static type only. **Never sent to clients** |
@@ -64,6 +64,12 @@ They use the existing schemas; no seed-marker field or new model was added.
 | createdAt | D | |
 
 Indexes: `{ type: 1, 'terminal.mode': 1 }` (loads the codes of a terminal mode in one query), `{ visible: 1, points: 1, title: 1 }` (the player challenge list: filter and sort).
+
+Forensics Desk (`docs/FORENSICS_DESK.md`) adds `type: 'forensics'` (category `forensics`) and the optional
+`forensics` sub-document `{ track, stage }` (`_id: false`; `track` is `easy`, `medium`, `hard` or `insane`, `stage` a
+number >= 1; required when `type` is `forensics`), slug `forensics-<track>-<n>`, index `{ type: 1, 'forensics.track': 1 }`.
+`difficulty` is `hard` for the insane track (the enum has no `insane`). Nothing generated is stored: artefacts, answers
+and flags derive from `FLAG_SECRET`. Created by `npm run seed:forensics` (idempotent upsert keyed by slug).
 
 Terminal challenges (Arena Terminal game, `docs/TERMINAL_GAME.md`) have `type: 'terminal'`, `category: 'terminal'`,
 slug `terminal-<mode>-<n>`, title `Terminal <Mode> #<n>`, `difficulty` equal to the mode and the points of the mode

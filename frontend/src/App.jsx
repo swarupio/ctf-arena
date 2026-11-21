@@ -25,6 +25,10 @@ const WebLab = lazy(() => import('./pages/WebLab.jsx'));
 const WebLabPlay = lazy(() => import('./pages/WebLabPlay.jsx'));
 const lazyPage = (element) => <Suspense fallback={<p role="status">Loading...</p>}>{element}</Suspense>;
 
+// Forensics Desk is lazy-loaded: its viewers and helpers only download when a player opens the game.
+const ForensicsDesk = lazy(() => import('./pages/ForensicsDesk.jsx'));
+const ForensicsCase = lazy(() => import('./pages/ForensicsCase.jsx'));
+
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
@@ -46,6 +50,8 @@ export default function App() {
         <Route path="cipherlab/*" element={<Suspense fallback={<p role="status">Loading…</p>}><CipherLab /></Suspense>} />
         <Route path="weblab" element={lazyPage(<WebLab />)} />
         <Route path="weblab/:slug" element={lazyPage(<WebLabPlay />)} />
+        <Route path="forensics" element={lazyPage(<ForensicsDesk />)} />
+        <Route path="forensics/:track" element={lazyPage(<ForensicsCase />)} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
         <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
