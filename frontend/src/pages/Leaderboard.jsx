@@ -9,7 +9,7 @@ import { POLL_INTERVAL_MS, startPolling } from './poller.js';
 import './Leaderboard.css';
 
 const TIP_WIDTH = 210;
-const EMPTY ={ standings: null, timeline: null, updatedAt: null, error: '', chartError: '' };
+const EMPTY = { standings: null, timeline: null, updatedAt: null, error: '', chartError: '' };
 
 function useElementWidth(ref) {
   const [width, setWidth] = useState(0);
@@ -50,7 +50,10 @@ function ScoreChart({ teams, myTeamId }) {
 
   // Draw highlighted lines last so they sit on top.
   const emphasised = (line) => line.teamId === focused || (focused === null && isMyTeam(line, myTeamId));
-  const drawOrder = [...chart.series].sort((a, b) => Number(emphasised(a)) - Number(emphasised(b)));
+  const drawOrder = useMemo(
+    () => [...chart.series].sort((a, b) => Number(emphasised(a)) - Number(emphasised(b))),
+    [chart.series, focused, myTeamId],
+  );
 
   const readout = hover ? { ...hover, rows: scoresAt(chart, hover.ms) } : null;
   // Fixed-width readout beside the crosshair, flipped to its left near the right edge, always inside the chart.
@@ -121,6 +124,7 @@ export default function Leaderboard() {
     poller.current = startPolling(async () => {
       const [board, line] = await Promise.allSettled([getLeaderboard(), getTimeline()]);
       if (!active) return;
+      const ok = board.status === 'fulfilled';
       setState((previous) => ({
         standings: board.status === 'fulfilled' ? sortStandings(board.value) : previous.standings,
         timeline: line.status === 'fulfilled' ? line.value : previous.timeline,
@@ -128,6 +132,7 @@ export default function Leaderboard() {
         error: board.status === 'rejected' ? leaderboardErrorMessage(board.reason) : '',
         chartError: line.status === 'rejected' ? leaderboardErrorMessage(line.reason) : '',
       }));
+      return ok; // false makes the poller back off while the API is failing
     });
     return () => { active = false; poller.current.stop(); };
   }, []);

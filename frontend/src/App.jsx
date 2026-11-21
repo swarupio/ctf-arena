@@ -1,25 +1,28 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
-import AuthPage from './pages/AuthPages.jsx';
-import Home from './pages/Home.jsx';
-import Team from './pages/Team.jsx';
-import ChallengeList from './pages/ChallengeList.jsx';
-import ChallengeDetail from './pages/ChallengeDetail.jsx';
-import ChallengeAdmin from './pages/ChallengeAdmin.jsx';
-import Terminal from './pages/Terminal.jsx';
-import TerminalPlay from './pages/TerminalPlay.jsx';
-import Leaderboard from './pages/Leaderboard.jsx';
-import AdminDashboard from './pages/AdminDashboard.jsx';
-import Demo from './pages/Demo.jsx';
-import FairPlay from './pages/FairPlay.jsx';
+
+// Every page is its own chunk, loaded when its route is first visited.
+const AuthPage = lazy(() => import('./pages/AuthPages.jsx'));
+const Home = lazy(() => import('./pages/Home.jsx'));
+const Team = lazy(() => import('./pages/Team.jsx'));
+const ChallengeList = lazy(() => import('./pages/ChallengeList.jsx'));
+const ChallengeDetail = lazy(() => import('./pages/ChallengeDetail.jsx'));
+const ChallengeAdmin = lazy(() => import('./pages/ChallengeAdmin.jsx'));
+const Terminal = lazy(() => import('./pages/Terminal.jsx'));
+const TerminalPlay = lazy(() => import('./pages/TerminalPlay.jsx'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard.jsx'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard.jsx'));
+const Demo = lazy(() => import('./pages/Demo.jsx'));
+const FairPlay = lazy(() => import('./pages/FairPlay.jsx'));
 
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
 
 export default function App() {
-  return <Routes>
+  return <Suspense fallback={<p role="status">Loading…</p>}><Routes>
     <Route element={<Layout />}>
       <Route index element={<Home />} />
       {['signup', 'confirm', 'login', 'mfa-setup', 'mfa'].map((mode) => (
@@ -41,5 +44,5 @@ export default function App() {
       </Route>
       <Route path="*" element={<Placeholder title="Page not found" />} />
     </Route>
-  </Routes>;
+  </Routes></Suspense>;
 }

@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { apiRequest } from '../api/client.js';
+import { apiGet, clearApiCache } from '../api/client.js';
 import { fetchTeamState } from '../api/teams.js';
 
 const TeamContext = createContext(null);
@@ -12,11 +12,11 @@ export function TeamProvider({ children }) {
   const generation = useRef(0);
   const [state, setState] = useState({ team: undefined, profile: null, loading: true, error: null });
 
-  const refresh = useCallback(async ({ refreshProfile = false } = {}) => {
+  const refresh = useCallback(async ({ refreshProfile = false, fresh = true } = {}) => {
     const requestId = ++generation.current;
     setState((state) => ({ ...state, loading: true, error: null }));
     try {
-      const snapshot = await fetchTeamState(apiRequest);
+      const snapshot = await fetchTeamState((path) => apiGet(path, { ttl: fresh ? 0 : 5_000 }));
       if (generation.current === requestId) {
         setState({ ...snapshot, loading: false, error: null });
         if (refreshProfile) authRef.current.retryProfile();
@@ -29,14 +29,14 @@ export function TeamProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (auth.user) void refresh().catch(() => {});
-    else setState({ team: undefined, profile: null, loading: false, error: null });
+    if (auth.user) void refresh({ fresh: false }).catch(() => {});
+    else { clearApiCache(); setState({ team: undefined, profile: null, loading: false, error: null }); }
     return () => { generation.current += 1; };
   }, [auth.user?.email, refresh]);
 
-  return <TeamContext.Provider value={{ ...state, profile: state.profile ?? auth.profile, refresh }}>
-    {children}
-  </TeamContext.Provider>;
+  const profile = state.profile ?? auth.profile;
+  const value = useMemo(() => ({ ...state, profile, refresh }), [state, profile, refresh]);
+  return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }
 
 export function useTeam() {

@@ -1,4 +1,8 @@
 export const POLL_INTERVAL_MS = 10_000;
+// After consecutive failures (a task that throws or returns false) the wait doubles, capped at one minute.
+export function backoffDelay(intervalMs, failures, maxMs = 60_000) {
+  return failures <= 0 ? intervalMs : Math.min(Math.max(maxMs, intervalMs), intervalMs * 2 ** Math.min(failures, 10));
+}
 
 // Runs `task` now and then every `intervalMs` after the previous run finishes (so requests never
 // overlap). Polling pauses while the tab is hidden and refreshes right away when it is visible again.
@@ -9,6 +13,7 @@ export function startPolling(task, {
   let timer = null;
   let stopped = false;
   let running = false;
+  let failures = 0;
   const hidden = () => doc.visibilityState === 'hidden';
 
   function clear() {
@@ -19,10 +24,10 @@ export function startPolling(task, {
     clear();
     if (stopped || running) return;
     running = true;
-    try { await task(); }
-    catch { /* the task reports its own failures */ }
+    try { failures = (await task()) === false ? failures + 1 : 0; }
+    catch { failures += 1; /* the task reports its own failures */ }
     finally { running = false; }
-    if (!stopped && !hidden() && timer === null) timer = schedule(run, intervalMs);
+    if (!stopped && !hidden() && timer === null) timer = schedule(run, backoffDelay(intervalMs, failures));
   }
 
   function onVisibilityChange() {

@@ -1,4 +1,5 @@
 import { getToken } from '../auth/token.js';
+import { createApiCache } from './cache.js';
 
 export async function apiRequest(path, options = {}) {
   const token = await getToken();
@@ -15,4 +16,16 @@ export async function apiRequest(path, options = {}) {
     throw error;
   }
   return data;
+}
+
+const cache = createApiCache({ request: (path) => apiRequest(path) });
+
+// Safe GETs only. Concurrent identical calls share one request; `ttl`/`swr` (ms) opt in to caching.
+export const apiGet = cache.get;
+export const clearApiCache = cache.clear;
+
+// Writes drop the whole cache (success or failure), so a cached answer never hides your own change.
+export async function apiWrite(path, options = {}) {
+  try { return await apiRequest(path, options); }
+  finally { cache.clear(); }
 }

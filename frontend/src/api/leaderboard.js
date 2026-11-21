@@ -1,4 +1,4 @@
-import { apiRequest } from './client.js';
+import { apiGet } from './client.js';
 
-export const getLeaderboard = () => apiRequest('/leaderboard');
-export const getTimeline = () => apiRequest('/leaderboard/timeline');
+export const getLeaderboard = () => apiGet('/leaderboard', { ttl: 3_000 });
+export const getTimeline = () => apiGet('/leaderboard/timeline', { ttl: 3_000 });

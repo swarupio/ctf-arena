@@ -9,7 +9,21 @@ export default defineConfig(({ mode }) => {
     envDir: '..',
     envPrefix: 'VITE_',
     // Never ship source maps: they would hand the original source (and every route the client knows) to anyone with DevTools.
-    build: { sourcemap: false },
+    build: {
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          // Stable vendor chunks cache across deploys and keep rarely used libraries out of the entry.
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+            if (id.includes('qrcode.react')) return 'qrcode';
+            if (/node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom)[\\/]/.test(id)) return 'react';
+            if (/node_modules[\\/](aws-amplify|@aws-amplify|@aws-sdk|@smithy|@aws-crypto)[\\/]/.test(id)) return 'amplify';
+            return undefined;
+          },
+        },
+      },
+    },
     server: {
       proxy: {
         '/api': {
