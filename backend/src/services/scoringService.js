@@ -18,9 +18,12 @@ export async function teamScore(teamId) {
   return row?.score ?? 0;
 }
 
-// Terminal challenges are worth exactly their listed points: every team gets its own flags and puzzle values, so there
-// is no shared race to be "first" at, and the mode totals shown in the UI (docs/TERMINAL_GAME.md section 8) are a hard cap.
-export const hasFirstBloodBonus = (challenge) => challenge?.type !== 'terminal';
+// Only classic challenges (a shared static flag or one shared Docker target) have a race to be "first" at. Games and the
+// terminal give every team its own puzzle values and flags, and their mode/track totals are a hard cap shown in the UI
+// (docs/TERMINAL_GAME.md section 8), so they are worth exactly their listed points. An allowlist keeps any future game
+// type from silently picking up the bonus.
+const FIRST_BLOOD_TYPES = new Set(['static', 'docker']);
+export const hasFirstBloodBonus = (challenge) => FIRST_BLOOD_TYPES.has(challenge?.type);
 
 // Records one solve. Returns null when the team already solved it (unique index),
 // otherwise { points, firstBlood, score }. Safe against double clicks on any replica.

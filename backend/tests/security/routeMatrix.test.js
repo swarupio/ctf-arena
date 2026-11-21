@@ -33,6 +33,7 @@ vi.mock('../../src/models/AttemptCounter.js', async () => (await import('./helpe
 vi.mock('../../src/models/CheatSignal.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CheatSignal'));
 vi.mock('../../src/models/TaintedFlag.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TaintedFlag'));
 vi.mock('../../src/models/TerminalActivity.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TerminalActivity'));
+vi.mock('../../src/models/CipherHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CipherHint'));
 // Tag every requireRole() guard with the roles it was built with, so the access level can be read off the chain.
 vi.mock('../../src/middleware/requireRole.js', async (importOriginal) => {
   const original = await importOriginal();
@@ -77,6 +78,12 @@ const TABLE = [
   ['POST', '/api/terminal/:mode/exec', 'any'],
   ['POST', '/api/terminal/:mode/complete', 'any'],
   ['POST', '/api/terminal/:mode/submit', 'player'],
+
+  ['GET', '/api/cipherlab/overview', 'any'],
+  ['GET', '/api/cipherlab/levels/:id', 'any'],
+  ['POST', '/api/cipherlab/levels/:id/hints', 'player'],
+  ['POST', '/api/cipherlab/levels/:id/answer', 'player'],
+  ['GET', '/api/cipherlab/admin/hints', 'admin'],
 
   ['GET', '/api/admin/challenges', 'admin'],
   ['POST', '/api/admin/challenges', 'admin'],

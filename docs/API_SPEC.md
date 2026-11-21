@@ -196,6 +196,27 @@ Notes:
   dynamic per-team format of docker challenges, so `POST /challenges/:id/submit` would accept them too; the Terminal
   page uses `/terminal/:mode/submit`.
 
+## Cipher Lab (cryptography puzzle game)
+
+Design, levels and points: `docs/CIPHER_LAB.md`. Mounted at `/api/cipherlab`; all routes need `Authorization: Bearer <ID token>`.
+Level ids are `e1`-`e4`, `m1`-`m4`, `h1`-`h4`, `i1`-`i3` (anything else is 404 `NOT_FOUND`).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/cipherlab/overview` | player, admin | `{ maxPoints, pointsEarned, solved, total, streak, tracks:[{ id, title, difficulty, story, hintsAllowed, total, solved, maxPoints, pointsEarned, complete, speedrun:{ ms, badge }\|null, levels:[{ id, n, title, points, boss, status: solved\|open\|locked, solvedAt, hintsTotal }] }], toolbox:[{ id, name, description, unlockedBy, unlocked }] }` |
+| GET | `/cipherlab/levels/:id` | player, admin | This team's puzzle: `{ id, track, n, title, briefing, points, boss, status, ciphertext, params, hintsAllowed, hintsTotal, hints:[opened texts] }` |
+| POST | `/cipherlab/levels/:id/hints` | player | Body `{}`. Opens the next hint: `{ index, hint, used, total }`. Free; logged for admins |
+| POST | `/cipherlab/levels/:id/answer` | player | Body `{ answer }`. Wrong: `{ correct:false, pointsAwarded:0, firstBlood:false, message, streak:0 }`. Right: `{ correct:true, alreadySolved, pointsAwarded, firstBlood:false, flag, message, streak, trackComplete, nextLevelId }` |
+| GET | `/cipherlab/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, levelId, hint, at }]` |
+
+Notes:
+- Puzzles are derived per team from `HMAC(FLAG_SECRET, teamId + levelId)`; the plaintext and flag are never sent, except the
+  caller's own flag in the response to a correct answer. Admins see the preview puzzle (`admin-preview`) and cannot answer or open hints.
+- Errors: 404 `NO_TEAM`, 403 `TEAM_BANNED`, 403 `LEVEL_LOCKED` (previous level of the track not solved), 403 `NO_HINTS`
+  (insane track), 409 `NO_MORE_HINTS`, 429 `RATE_LIMITED` (8 attempts per team per level per minute, Mongo-backed),
+  503 `CIPHERLAB_NOT_SEEDED` (`npm run seed:cipherlab`). `overview` also works without a team.
+- Points are fixed per level with no first-blood bonus (`firstBlood` is always false). Maximum 2060 in total.
+
 ## Admin (role `admin`)
 
 | Method | Path | Owner | Description |

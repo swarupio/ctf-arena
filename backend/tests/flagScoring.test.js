@@ -50,7 +50,7 @@ describe('flagService', () => {
 
 describe('scoringService', () => {
   beforeEach(() => vi.resetAllMocks());
-  const challenge = { _id: 'c1', points: 100 };
+  const challenge = { _id: 'c1', points: 100, type: 'static' };
 
   it('adds a 10% bonus only for first blood', () => {
     expect(firstBloodBonus(100)).toBe(10);
