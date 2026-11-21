@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listChallenges } from '../api/challenges.js';
 import { challengeErrorMessage, groupByCategory, splitTerminalChallenges } from './challengeHelpers.js';
@@ -23,12 +23,21 @@ export default function ChallengeList() {
   const [challenges, setChallenges] = useState(null);
   const [error, setError] = useState('');
 
+  const controller = useRef(null);
+
   async function load() {
+    controller.current?.abort();
+    const current = new AbortController();
+    controller.current = current;
     setError('');
-    try { setChallenges(await listChallenges()); }
-    catch (failure) { setError(challengeErrorMessage(failure)); }
+    try {
+      const data = await listChallenges({ signal: current.signal, onRevalidate: setChallenges });
+      if (!current.signal.aborted) setChallenges(data);
+    } catch (failure) {
+      if (!current.signal.aborted) setError(challengeErrorMessage(failure));
+    }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); return () => controller.current?.abort(); }, []);
 
   if (error) return <section className="challenges"><p role="alert" className="error">{error}</p><button onClick={load}>Retry</button></section>;
   if (!challenges) return <p role="status">Loading challenges…</p>;

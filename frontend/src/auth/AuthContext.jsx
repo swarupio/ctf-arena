@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as auth from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { configurationError } from './amplify.js';
 import { userFromSession } from './logic.js';
-import { apiRequest } from '../api/client.js';
+import { apiGet } from '../api/client.js';
 
 const AuthContext = createContext(null);
 
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
     setProfile(null);
     setProfileError('');
     if (user) {
-      apiRequest('/me').then((data) => {
+      apiGet('/me', { ttl: profileAttempt ? 0 : 5_000 }).then((data) => {
         if (active) setProfile(data);
       }).catch(() => {
         if (active) setProfileError('Unable to verify your account with the arena API. Check that the backend is running and accepts your ID token.');
@@ -78,7 +78,7 @@ export function AuthProvider({ children }) {
     return acceptSignIn(await auth.confirmSignIn({ challengeResponse: code }));
   };
 
-  const value = {
+  const value = useMemo(() => ({
     loading, user, step, email, configurationError, profile, profileError,
     retryProfile() { setProfileAttempt((attempt) => attempt + 1); },
     async signUp(email, password) {
@@ -112,7 +112,7 @@ export function AuthProvider({ children }) {
       setStep(null);
       setEmail('');
     },
-  };
+  }), [loading, user, step, email, profile, profileError]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

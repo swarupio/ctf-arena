@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiRequest } from '../api/client.js';
+import { apiWrite } from '../api/client.js';
 import { useTeam } from '../layout/TeamContext.jsx';
 import { normalizeInviteCode, validInviteCode, validTeamName, teamErrorMessage } from './teamHelpers.js';
 import './Team.css';
@@ -45,7 +45,7 @@ export default function Team() {
     setCopied(false);
     const paths = { create: '/teams', join: '/teams/join', leave: '/teams/me/leave' };
     try {
-      await apiRequest(paths[action], {
+      await apiWrite(paths[action], {
         method: 'POST',
         ...(action === 'leave' ? {} : {
           headers: { 'Content-Type': 'application/json' },
