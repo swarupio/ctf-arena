@@ -1,105 +1,24 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { auth } from '../../middleware/auth.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import Challenge from '../../models/Challenge.js';
 import { AppError } from '../../utils/AppError.js';
-import { hashStaticFlag } from '../../services/flagService.js';
+import { recordAudit } from '../../services/adminAudit.js';
+import {
+  adminView, createSchema, fields, updateSchema,
+} from '../../services/adminChallengeSchema.js';
+import {
+  challengeFilter, challengesQuery, duplicateBody, exportChallenges, getChallengeStats, importBody, importChallenges,
+  resetBody, setVisible, visibilityBody, duplicateChallenge,
+} from '../../services/adminChallenges.js';
+import { envelope, isPaged, skipOf, sortSpec } from '../../services/adminCommon.js';
+import { resetChallengeSolves } from '../../services/adminSolves.js';
 import { instanceService } from '../../services/instanceService.js';
 import { objectId, validate } from '../challenges.js';
 
+export { adminView };
+
 const router = Router();
-
-const base = z.object({
-  slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be lowercase letters, digits and dashes'),
-  title: z.string().trim().min(1).max(100),
-  category: z.enum(['web', 'crypto', 'forensics', 'misc', 'pwn', 'terminal']),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
-  points: z.number().int().min(1).max(10000),
-  description: z.string().max(20000).default(''),
-  // 'terminal' is only accepted when updating an existing terminal challenge (see notCreatable below).
-  type: z.enum(['static', 'docker', 'terminal']),
-  // Only images from our own ctf/ namespace may ever be started.
-  image: z.string().trim().regex(/^ctf\/[a-z0-9][a-z0-9._-]*(?::[A-Za-z0-9._-]+)?$/).optional(),
-  internalPort: z.number().int().min(1).max(65535).optional(),
-  flag: z.string().trim().min(1).max(200).optional(),
-  attachments: z.array(z.object({
-    name: z.string().trim().min(1).max(100),
-    // Rendered as a link for players: only same-site paths and http(s) URLs, never javascript:, data: or //host.
-    url: z.string().trim().min(1).max(500).regex(/^(?:\/(?!\/)|https?:\/\/)[^\s\u0000-\u001f\u007f]*$/, 'must be a /path or an http(s) URL'),
-  }).strict()).max(10).default([]),
-  visible: z.boolean().default(true),
-}).strict();
-
-const dockerNeedsImage = (value, context) => {
-  if (value.type === 'docker' && (!value.image || !value.internalPort)) {
-    context.addIssue({ code: 'custom', path: ['image'], message: 'docker challenges need image and internalPort' });
-  }
-};
-// Terminal challenges are created by `npm run seed:terminal`, never through this API.
-const notCreatable = (value, context) => {
-  if (value.type === 'terminal' || value.category === 'terminal') {
-    context.addIssue({ code: 'custom', path: ['type'], message: 'terminal challenges are created by npm run seed:terminal' });
-  }
-};
-// Existing terminal challenges may be edited (points, visible, ...): category and type go together and
-// there is no stored flag (it is derived per team).
-const terminalRules = (value, context) => {
-  if ((value.type === 'terminal') !== (value.category === 'terminal')) {
-    context.addIssue({ code: 'custom', path: ['category'], message: 'terminal challenges use category terminal and type terminal' });
-  }
-  if (value.type === 'terminal' && value.flag) {
-    context.addIssue({ code: 'custom', path: ['flag'], message: 'terminal challenges have no stored flag' });
-  }
-};
-const createSchema = base.superRefine(notCreatable).superRefine(dockerNeedsImage).superRefine((value, context) => {
-  if (value.type === 'static' && !value.flag) {
-    context.addIssue({ code: 'custom', path: ['flag'], message: 'static challenges need a flag' });
-  }
-});
-// PUT may omit the flag to keep the stored hash.
-const updateSchema = base.superRefine(terminalRules).superRefine(dockerNeedsImage);
-
-// Admin responses also omit flag material: nothing ever echoes a flag or hash back.
-export function adminView(challenge) {
-  return {
-    id: String(challenge._id),
-    slug: challenge.slug,
-    title: challenge.title,
-    category: challenge.category,
-    difficulty: challenge.difficulty,
-    points: challenge.points,
-    description: challenge.description,
-    type: challenge.type,
-    image: challenge.image ?? null,
-    internalPort: challenge.internalPort ?? null,
-    hasFlag: Boolean(challenge.flagHash),
-    terminal: challenge.terminal ? { mode: challenge.terminal.mode, code: challenge.terminal.code } : null,
-    attachments: (challenge.attachments ?? []).map(({ name, url }) => ({ name, url })),
-    visible: challenge.visible,
-    solveCount: challenge.solveCount ?? 0,
-    createdAt: challenge.createdAt,
-  };
-}
-
-function fields(data) {
-  const { flag, ...rest } = data;
-  const doc = { ...rest };
-  if (data.type === 'static') {
-    doc.image = undefined;
-    doc.internalPort = undefined;
-    if (flag) { Object.assign(doc, hashStaticFlag(flag)); }
-  } else {
-    // Docker and terminal flags are generated per team; never store a shared one.
-    doc.flagHash = undefined;
-    doc.flagSalt = undefined;
-    if (data.type === 'terminal') {
-      doc.image = undefined;
-      doc.internalPort = undefined;
-    }
-  }
-  return doc;
-}
 
 function conflictOnDuplicate(error) {
   if (error.code === 11000) { throw new AppError(409, 'CONFLICT', 'A challenge with this slug already exists.'); }
@@ -108,15 +27,47 @@ function conflictOnDuplicate(error) {
 
 router.use(auth, requireRole('admin'));
 
+// Without query parameters: the legacy bare array (oldest first). With any of page, limit, q, sort, category,
+// difficulty, type, visible: the paginated envelope.
 router.get('/', async (req, res) => {
-  const challenges = await Challenge.find({}).sort({ createdAt: 1 });
-  res.json(challenges.map(adminView));
+  const query = isPaged(req.query) ? validate(challengesQuery, req.query) : null;
+  if (!query) {
+    const challenges = await Challenge.find({}).sort({ createdAt: 1 });
+    return res.json(challenges.map(adminView));
+  }
+  const filter = challengeFilter(query);
+  const [rows, total] = await Promise.all([
+    Challenge.find(filter).sort(sortSpec(query.sort)).skip(skipOf(query)).limit(query.limit).lean(),
+    Challenge.countDocuments(filter),
+  ]);
+  return res.json(envelope(rows.map(adminView), query, total));
+});
+
+// Definitions without flags, flag hashes or salts, ready for POST /admin/challenges/import. Terminal challenges are
+// seeded by npm run seed:terminal and are not part of the file.
+router.get('/export', async (req, res) => {
+  res.set('Content-Disposition', 'attachment; filename="challenges.json"');
+  res.json(await exportChallenges());
+});
+
+router.post('/import', async (req, res) => {
+  const body = validate(importBody, req.body);
+  const result = await importChallenges(body);
+  if (!body.dryRun) {
+    await recordAudit(req, {
+      action: 'challenge.import', targetType: 'challenge',
+      after: { created: result.created.length, updated: result.updated.length, skipped: result.skipped.length, errors: result.errors.length },
+      note: body.mode,
+    });
+  }
+  res.json(result);
 });
 
 router.post('/', async (req, res) => {
   const data = validate(createSchema, req.body);
   try {
     const challenge = await Challenge.create(fields(data));
+    await recordAudit(req, { action: 'challenge.create', targetType: 'challenge', targetId: challenge._id, after: adminView(challenge) });
     res.status(201).json(adminView(challenge));
   } catch (error) { conflictOnDuplicate(error); }
 });
@@ -137,6 +88,7 @@ router.put('/:id', async (req, res) => {
   if (data.type === 'static' && !data.flag && !existing.flagHash) {
     throw new AppError(400, 'VALIDATION_ERROR', 'flag: static challenges need a flag');
   }
+  const before = adminView(existing);
   const doc = fields(data);
   const $set = {};
   const $unset = {};
@@ -148,8 +100,50 @@ router.put('/:id', async (req, res) => {
       { _id: id }, { $set, ...(Object.keys($unset).length ? { $unset } : {}) },
       { new: true, runValidators: true },
     );
+    await recordAudit(req, {
+      action: 'challenge.update', targetType: 'challenge', targetId: id, before, after: adminView(challenge),
+      note: data.flag ? 'flag replaced' : '',
+    });
     res.json(adminView(challenge));
   } catch (error) { conflictOnDuplicate(error); }
+});
+
+// Publish / hide: hidden challenges disappear from players' lists and are rejected on submit.
+router.patch('/:id/visibility', async (req, res) => {
+  const id = objectId(req.params.id);
+  const { visible } = validate(visibilityBody, req.body);
+  const result = await setVisible(id, visible);
+  await recordAudit(req, {
+    action: visible ? 'challenge.publish' : 'challenge.hide', targetType: 'challenge', targetId: id,
+    before: { visible: result.before }, after: { visible },
+  });
+  res.json({ id: result.id, slug: result.slug, visible });
+});
+
+router.post('/:id/duplicate', async (req, res) => {
+  const id = objectId(req.params.id);
+  const body = validate(duplicateBody, req.body ?? {});
+  const copy = await duplicateChallenge(id, body);
+  await recordAudit(req, { action: 'challenge.duplicate', targetType: 'challenge', targetId: copy.id, before: { sourceId: id }, after: copy });
+  res.status(201).json(copy);
+});
+
+router.get('/:id/stats', async (req, res) => {
+  res.json(await getChallengeStats(objectId(req.params.id)));
+});
+
+// Guarded: needs { "confirm": true }. Deletes every solve of the challenge (scores drop with them) and zeroes solveCount.
+router.post('/:id/reset-solves', async (req, res) => {
+  const id = objectId(req.params.id);
+  const { clearSubmissions } = validate(resetBody, req.body);
+  const challenge = await Challenge.findById(id, 'slug solveCount').lean();
+  if (!challenge) { throw new AppError(404, 'NOT_FOUND', 'Challenge not found.'); }
+  const result = await resetChallengeSolves(challenge._id, { clearSubmissions });
+  await recordAudit(req, {
+    action: 'challenge.reset-solves', targetType: 'challenge', targetId: id,
+    before: { slug: challenge.slug, solveCount: challenge.solveCount ?? 0 }, after: result,
+  });
+  res.json(result);
 });
 
 router.delete('/:id', async (req, res) => {
@@ -158,6 +152,7 @@ router.delete('/:id', async (req, res) => {
   if (!challenge) { throw new AppError(404, 'NOT_FOUND', 'Challenge not found.'); }
   await instanceService.stopChallengeInstances(challenge._id);
   await Challenge.deleteOne({ _id: challenge._id });
+  await recordAudit(req, { action: 'challenge.delete', targetType: 'challenge', targetId: id, before: adminView(challenge) });
   res.sendStatus(204);
 });
 

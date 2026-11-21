@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { AppError } from '../utils/AppError.js';
+import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { integrityService } from '../services/integrityService.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
@@ -93,6 +94,7 @@ router.post('/:mode/complete', anyRole, async (req, res) => {
 router.post('/:mode/submit', playerOnly, async (req, res) => {
   const definition = modeFrom(req.params);
   const { flag } = validate(submitBody, req.body);
+  await assertSubmissionsOpen();
   const { user, team } = await getTeamContext(req.user);
   const challenges = await loadModeChallenges(definition);
   const result = await submitFlag({ definition, challenges, team, user, submitted: flag });

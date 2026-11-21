@@ -20,6 +20,8 @@ vi.mock('../src/models/AttemptCounter.js', () => ({ default: {} }));
 vi.mock('../src/models/CheatSignal.js', () => ({ default: {}, SIGNAL_KINDS: [] }));
 vi.mock('../src/models/TaintedFlag.js', () => ({ default: {} }));
 vi.mock('../src/models/TerminalActivity.js', () => ({ default: {} }));
+vi.mock('../src/models/AuditLog.js', () => ({ default: {} }));
+vi.mock('../src/models/AppSetting.js', () => ({ default: {}, ANNOUNCEMENT_LEVELS: ['info', 'warning', 'critical'] }));
 vi.mock('mongoose', () => ({ default: { connection: { readyState: 0 } } }));
 
 describe('backend skeleton', () => {

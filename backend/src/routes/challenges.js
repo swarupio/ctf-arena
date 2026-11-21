@@ -9,6 +9,7 @@ import Instance, { ACTIVE_STATUSES } from '../models/Instance.js';
 import Solve from '../models/Solve.js';
 import Submission from '../models/Submission.js';
 import { AppError } from '../utils/AppError.js';
+import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { hashSubmission, verifyFlag } from '../services/flagService.js';
 import { instanceService, serializeInstance } from '../services/instanceService.js';
 import { integrityService } from '../services/integrityService.js';
@@ -94,6 +95,7 @@ router.post('/:id/instance', playerOnly, async (req, res) => {
 
 router.post('/:id/submit', playerOnly, async (req, res) => {
   const { flag } = validate(submitSchema, req.body);
+  await assertSubmissionsOpen();
   const challenge = await visibleChallenge(req.params.id);
   const { user, team } = await getTeamContext(req.user);
 

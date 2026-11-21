@@ -329,9 +329,341 @@ anything. A banned team already gets 403 `TEAM_BANNED` on the submit and instanc
 
 ---
 
+## Admin API v2
+
+Everything below is under `/api/admin` and needs the exact `admin` role (no token 401 `UNAUTHENTICATED`, players 403
+`FORBIDDEN`, checked before any data is read). It extends the routes above; the routes above keep their shapes.
+Owner: admin backend session (users, solves, submissions, audit, settings, exports, stats overview, challenge tools,
+integrity review). Code: `backend/src/routes/admin/*`, `backend/src/services/admin*.js`.
+
+### Conventions
+
+- **Ids** in paths are 24-hex ObjectIds; a malformed id is 404 `NOT_FOUND`. Ids in query strings must be 24-hex or the
+  call is 400 `VALIDATION_ERROR`. Query strings are strict: unknown parameters are 400.
+- **Paginated lists** take `page` (default 1), `limit` (1-100, default 25), `q` (search text, 1-100 chars, matched
+  case-insensitively as a literal, never as a regex), `sort` (`field` or `-field` for descending, one of the resource's
+  sortable fields) plus resource filters, and answer:
+  ```json
+  { "items": [ ], "page": 1, "limit": 25, "total": 137 }
+  ```
+  Ties are broken by id, so pages are stable. Dates are ISO 8601 UTC strings. Booleans in a query string are the text
+  `true` or `false`.
+- **Legacy list routes** `GET /admin/teams`, `GET /admin/challenges` and `GET /admin/instances` return the bare array
+  documented above when called with NO query parameter, and the paginated envelope when called with ANY query parameter
+  (for example `?page=1`). New UI code should always send `page`.
+- **Errors** are the standard `{ "error": { "code", "message" } }`. Codes added here: `CANNOT_BAN_ADMIN` (409),
+  `NOT_A_MEMBER` (409), `TEAM_NOT_EMPTY` (409), `ACTOR_NOT_FOUND` (409: the admin has no user row yet, open
+  `GET /api/me` once), `CONFLICT` (409), `USER_BANNED` (403, player routes), `SUBMISSIONS_FROZEN` (423, player routes).
+- **Destructive actions** need an explicit confirmation: body `{ "confirm": true }` (POST) or `?confirm=true` (DELETE).
+  Without it the answer is 400 and nothing changes.
+- **Audit**: every mutating call below writes an audit entry (see `GET /admin/audit`). Entries never contain flags, flag
+  hashes, invite codes, container ids or tokens.
+- **Never returned**: flags, flag hashes or salts, submitted flag text or its hash, container ids, `cognitoSub`, invite
+  codes (the single exception is the response of invite-code regeneration). Emails ARE returned, but only by the user
+  endpoints, the team detail and the users CSV, because admins need them for support.
+- **Roles** are not managed here. A user is an admin when the verified Cognito token carries the `admin` group; adding
+  or removing that group is done in AWS Cognito (out of scope, no AWS call is made by this API).
+
+### Endpoint index
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/admin/stats` | Legacy totals (unchanged) |
+| GET | `/admin/stats/overview?days=14` | Dashboard: totals, series, top teams, challenge stats, terminal, instances |
+| GET | `/admin/stats/timeseries?days=14` | Daily series only |
+| GET | `/admin/users` | Users list (search, filters) |
+| GET | `/admin/users/:id` | User detail |
+| PATCH | `/admin/users/:id/ban` | Ban / unban a user |
+| POST | `/admin/users/:id/remove-from-team` | Remove the user from their team |
+| POST | `/admin/users/:id/reset-terminal` | Reset the user's terminal progress (confirm) |
+| GET | `/admin/teams` | Teams list (legacy array or paginated) |
+| GET | `/admin/teams/:id` | Team detail with members and timeline |
+| PATCH | `/admin/teams/:id/ban` | Ban / unban (unchanged) |
+| PATCH | `/admin/teams/:id` | Rename |
+| DELETE | `/admin/teams/:id?confirm=true` | Delete an empty team |
+| DELETE | `/admin/teams/:id/members/:userId` | Remove a member |
+| POST | `/admin/teams/:id/invite-code/regenerate` | New invite code |
+| POST | `/admin/teams/:id/score-adjustments` | Manual +/- score with a reason |
+| GET | `/admin/challenges` | List (legacy array or paginated) |
+| POST / PUT / DELETE | `/admin/challenges[/:id]` | CRUD (unchanged, now audited) |
+| PATCH | `/admin/challenges/:id/visibility` | Publish / hide |
+| POST | `/admin/challenges/:id/duplicate` | Hidden copy |
+| GET | `/admin/challenges/:id/stats` | Per-challenge submission stats |
+| POST | `/admin/challenges/:id/reset-solves` | Delete every solve of a challenge (confirm) |
+| GET | `/admin/challenges/export` | Definitions as JSON, no flags |
+| POST | `/admin/challenges/import` | Bulk create / update from that JSON |
+| GET | `/admin/solves` | Solves and score adjustments |
+| DELETE | `/admin/solves/:id` | Delete a bogus solve |
+| GET | `/admin/submissions` | Flag attempts (never the text) |
+| GET | `/admin/integrity` | Legacy risk list (unchanged) |
+| GET | `/admin/integrity/summary` | Counts per signal kind |
+| GET | `/admin/integrity/users` | Filtered, paginated review list |
+| POST | `/admin/integrity/:userId/resolve` | Resolve with a note |
+| DELETE | `/admin/integrity/:userId` | Dismiss (unchanged, now audited) |
+| GET | `/admin/instances` | Active instances (legacy array or paginated) |
+| POST | `/admin/instances/:id/kill` | Force stop (unchanged, now audited, Docker-safe) |
+| GET | `/admin/audit` | Audit log |
+| GET / PUT | `/admin/settings` | Platform settings |
+| GET | `/admin/export/{users,teams,submissions,leaderboard}.csv` | CSV downloads |
+| GET | `/announcement` | PUBLIC banner and platform flags (no `/admin`, no token) |
+
+### Stats
+
+`GET /admin/stats` is unchanged (see above).
+
+`GET /admin/stats/overview?days=14` (`days` 1-90, default 14):
+```json
+{
+  "generatedAt": "2026-11-22T10:00:00.000Z",
+  "totals": { "users": 120, "teams": 40, "solves": 310, "submissions": 1500, "wrongRate": 0.62,
+              "bannedUsers": 1, "bannedTeams": 0, "activeInstances": 3 },
+  "days": 14,
+  "series": [ { "date": "2026-11-22", "signups": 4, "submissions": 80, "wrongSubmissions": 51, "solves": 12 } ],
+  "topTeams": [ { "id": "...", "name": "Rustaceans", "banned": false, "score": 840, "solves": 9 } ],
+  "challenges": {
+    "hardest":  [ { "id": "...", "slug": "x", "title": "X", "category": "web", "difficulty": "hard", "points": 300, "visible": true,
+                    "solves": 1, "solveRate": 0.025, "submissions": 40, "wrongSubmissions": 39, "wrongRate": 0.975 } ],
+    "easiest":  [ "same item shape, highest solveRate first" ],
+    "wrongRates": [ "same item shape, highest wrongRate first, only challenges with submissions, at most 20" ]
+  },
+  "terminal": { "modes": [ { "mode": "easy", "codes": 8, "teamsPlaying": 12, "completions": 3, "averageScore": 54.5, "maxScore": 120 } ] },
+  "instances": { "dockerEnabled": true, "active": 3 }
+}
+```
+- `series` has exactly `days` entries, oldest first, UTC days, gaps filled with 0. `solves` excludes manual adjustments.
+  Submissions expire after 30 days (TTL), so submission counts for older days are 0.
+- `solveRate` = solves / number of teams. `hardest` / `easiest` hold 5 visible non-terminal challenges each.
+- `terminal.modes`: per mode `completions` = teams that solved every visible code, `averageScore` = mean points per
+  team that solved at least one code of the mode, `maxScore` = best team. Empty when the game is not seeded.
+- With `DOCKER_ENABLED=false` the instance count is not queried: `instances` is `{ "dockerEnabled": false, "active": 0 }`.
+
+`GET /admin/stats/timeseries?days=14` returns `{ "days": 14, "series": [ ... ] }` (same series).
+
+### Users
+
+`GET /admin/users` - sort `createdAt` (default `-createdAt`), `displayName`, `email`; filters `role` (`player|admin`),
+`banned`, `hasTeam`; `q` matches display name or email.
+```json
+{ "items": [ { "id": "...", "displayName": "Alice", "email": "alice@example.com", "role": "player", "banned": false,
+               "team": { "id": "...", "name": "Rustaceans" }, "createdAt": "2026-11-01T10:00:00.000Z" } ],
+  "page": 1, "limit": 25, "total": 120 }
+```
+`team` is `null` without a team.
+
+`GET /admin/users/:id`:
+```json
+{ "id": "...", "displayName": "Alice", "email": "alice@example.com", "role": "player", "banned": false, "createdAt": "...",
+  "team": { "id": "...", "name": "Rustaceans", "banned": false },
+  "solveCount": 4, "recentSolves": [ { "id": "...", "solvedAt": "...", "points": 100, "firstBlood": false, "adjustment": false,
+                                         "reason": null, "team": { "id": "...", "name": "..." }, "challenge": { "id": "...", "slug": "x", "title": "X" } } ],
+  "submissionCount": 9, "recentSubmissions": [ { "id": "...", "createdAt": "...", "correct": false, "team": { }, "challenge": { } } ],
+  "terminal": { "codesSolved": 3, "points": 40, "solvedByMode": { "easy": 3 }, "commandsLast48h": 212, "lastCommandAt": "..." },
+  "integrity": { "signals": 2, "events": 7, "maxSeverity": 3, "lastAt": "..." } }
+```
+`recentSolves` / `recentSubmissions` are the newest 20. `terminal.commandsLast48h` comes from the pacing records that live 2
+days. `integrity` counts fair-play signal rows of the user (details: `/admin/integrity/users`).
+
+`PATCH /admin/users/:id/ban` body `{ "banned": true, "reason": "optional, max 200" }` -> 200 `{ id, displayName, banned }`.
+A banned user gets 403 `USER_BANNED` on challenge submit, instance start and every terminal route that needs a team context
+(`exec`, `complete`, `submit`); the user can still sign in and read. Admins cannot be banned (409 `CANNOT_BAN_ADMIN`).
+
+`POST /admin/users/:id/remove-from-team` body `{}` -> 200 `{ teamId, teamName, userId, displayName, remaining, captainId }`.
+If the user was the captain, the first remaining member becomes captain; an emptied team stays (delete it with
+`DELETE /admin/teams/:id`). 409 `NOT_A_MEMBER` when the user has no team.
+
+`POST /admin/users/:id/reset-terminal` body `{ "confirm": true }` -> 200 `{ "solvesRemoved": 3, "activityRemoved": 12 }`.
+Terminal progress is stored as the team's solves of terminal challenges, so this deletes the terminal solves that THIS
+user submitted (the team's score drops accordingly, challenge `solveCount` is decremented and a removed first-blood bonus
+passes to the next earliest solver) and the user's pacing records. Teammates' solves stay.
+
+### Teams
+
+`GET /admin/teams?page=1` (any query parameter selects the paginated form) - sort `score` (default `-score`), `name`,
+`createdAt`, `members`; filters `q` (name), `banned`:
+```json
+{ "items": [ { "id": "...", "name": "Rustaceans", "members": 3, "score": 840, "solves": 9, "banned": false,
+               "captainId": "...", "createdAt": "...", "lastSolveAt": "..." } ], "page": 1, "limit": 25, "total": 40 }
+```
+`score` includes manual adjustments; `solves` does not.
+
+`GET /admin/teams/:id`:
+```json
+{ "id": "...", "name": "Rustaceans", "banned": false, "createdAt": "...", "captainId": "...", "score": 840, "solves": 9,
+  "adjustmentsTotal": -20, "activeInstances": 1,
+  "members": [ { "id": "...", "displayName": "Alice", "email": "alice@example.com", "banned": false, "isCaptain": true } ],
+  "timeline": [ { "id": "...", "solvedAt": "...", "points": 110, "firstBlood": true, "adjustment": false, "reason": null,
+                  "user": { "id": "...", "displayName": "Alice" }, "challenge": { "id": "...", "slug": "x", "title": "X" } },
+                { "id": "...", "solvedAt": "...", "points": -20, "firstBlood": false, "adjustment": true, "reason": "shared hint",
+                  "user": { "id": "...", "displayName": "(the admin)" }, "challenge": null } ] }
+```
+`timeline` is oldest first, at most 100 entries (solves and adjustments); for adjustments `challenge` is `null` and `user`
+is the admin who made it. There is no invite code here.
+
+- `PATCH /admin/teams/:id` body `{ "name": "3-24 chars" }` -> 200 `{ id, name }`; 409 `CONFLICT` when the name exists
+  (case-insensitive).
+- `DELETE /admin/teams/:id?confirm=true` -> 204. Only teams with no members (409 `TEAM_NOT_EMPTY`). Stops the team's
+  instances and deletes its solves through the same routine as `DELETE /admin/solves/:id`.
+- `DELETE /admin/teams/:id/members/:userId` -> 200, same body as `remove-from-team`. 409 `NOT_A_MEMBER`.
+- `POST /admin/teams/:id/invite-code/regenerate` body `{}` -> 200 `{ id, name, inviteCode }` (the only response that
+  shows a code; the old one stops working at once).
+- `POST /admin/teams/:id/score-adjustments` body `{ "points": -50, "reason": "3-200 chars" }` (`points`: non-zero integer,
+  -10000..10000) -> 201 `{ id, teamId, points, reason, teamScore }`. **How it counts:** the adjustment is stored as a
+  `solves` document with `adjustment: true`, a fresh random `challengeId`, the signed points and the admin as `userId`.
+  Leaderboard, `GET /teams/me` score, the timeline and `teamScore` all sum `solves.points`, so they include it with no
+  code change. It does not touch any challenge's `solveCount`. To undo it, `DELETE /admin/solves/:id` with its id
+  (listed in the team timeline and in `GET /admin/solves?adjustments=only`). Known limit: the public leaderboard's
+  `solves` counter (a plain count of solve rows) also counts adjustment rows; `GET /admin/teams` does not.
+- `PATCH /admin/teams/:id/ban` is unchanged.
+
+### Challenges
+
+- `GET /admin/challenges?page=1` - sort `createdAt` (default), `title`, `points`, `solveCount`; filters `q` (title or slug),
+  `category`, `difficulty`, `type`, `visible`. Items have the admin challenge shape (see "Challenge body" above, with
+  `hasFlag`, never the flag).
+- `PATCH /admin/challenges/:id/visibility` body `{ "visible": true }` -> 200 `{ id, slug, visible }`. Hidden challenges
+  vanish from player lists and are rejected on submit.
+- `POST /admin/challenges/:id/duplicate` body `{ "slug"?: "...", "title"?: "..." }` (defaults `<slug>-copy` and
+  `<title> (copy)`) -> 201 admin challenge. The copy is hidden (`visible: false`), `solveCount` 0; a static challenge keeps
+  its stored flag hash inside the database (not returned). 409 `CONFLICT` for an existing slug; terminal challenges
+  cannot be duplicated (400).
+- `GET /admin/challenges/:id/stats` -> `{ id, slug, title, type, solves, solveRate, submissions, wrongSubmissions,
+  correctSubmissions, wrongRate, teamsAttempted, firstBlood: { teamId, teamName, at } | null }`. Attempt numbers cover the
+  last 30 days (submission TTL); solves are permanent. For terminal challenges attempts are recorded against the mode's
+  first code, so use the overview's `terminal` block instead.
+- `POST /admin/challenges/:id/reset-solves` body `{ "confirm": true, "clearSubmissions": false }` -> 200
+  `{ solvesRemoved, submissionsRemoved }`. Deletes every solve of the challenge (team scores drop with them), sets
+  `solveCount` to 0 and optionally deletes the attempts. Manual adjustments are kept.
+- `GET /admin/challenges/export` -> file download (`Content-Disposition: attachment; filename="challenges.json"`):
+  ```json
+  { "version": 1, "exportedAt": "...", "challenges": [ { "slug": "x", "title": "X", "category": "web", "difficulty": "easy",
+      "points": 100, "description": "...", "type": "static", "attachments": [ { "name": "a", "url": "/a" } ], "visible": true } ] }
+  ```
+  Optional keys (`image`, `internalPort`) appear only when set. No flag, hash or salt, and no terminal challenges (they are
+  seeded by `npm run seed:terminal`).
+- `POST /admin/challenges/import` body `{ "challenges": [ ... up to 100 ... ], "mode": "skip" | "update", "dryRun": false }`
+  (items use the "Challenge body" fields; `flag` optional). Each item is validated like create; one bad item never blocks
+  the others. 200:
+  ```json
+  { "dryRun": false, "created": ["a"], "updated": [], "skipped": ["b"], "needsFlag": ["c"],
+    "errors": [ { "index": 3, "slug": "bad", "message": "slug: must be lowercase letters, digits and dashes" } ] }
+  ```
+  `mode: "skip"` (default) leaves existing slugs alone; `"update"` rewrites their metadata and keeps the stored flag hash.
+  A static challenge without a flag (and no stored one) is saved hidden and listed in `needsFlag`; set its flag with
+  `PUT /admin/challenges/:id`, then publish. Terminal items are rejected. `dryRun: true` validates and reports without
+  writing (and without an audit entry).
+
+### Solves and submissions
+
+`GET /admin/solves` - sort `solvedAt` (default `-solvedAt`), `points`; filters `teamId`, `challengeId`, `userId`,
+`adjustments` (`include` default | `only` | `exclude`), `from`, `to` (solvedAt range). `q` is accepted but unused.
+```json
+{ "items": [ { "id": "...", "solvedAt": "...", "points": 110, "firstBlood": true, "adjustment": false, "reason": null,
+               "team": { "id": "...", "name": "Rustaceans" }, "user": { "id": "...", "displayName": "Alice" },
+               "challenge": { "id": "...", "slug": "x", "title": "X" } } ], "page": 1, "limit": 25, "total": 310 }
+```
+`challenge` is `null` for adjustments; deleted teams, users or challenges show `name`/`displayName`/`slug`/`title` `null`.
+
+`DELETE /admin/solves/:id?reason=optional` -> 200 `{ id, teamId, pointsRemoved, teamScore }`. The document is deleted
+atomically (of two concurrent calls only one succeeds, the other gets 404 `NOT_FOUND`), then the challenge's `solveCount`
+is decremented (never below 0) and, if the removed solve held first blood, the earliest remaining solver of that challenge
+gets the bonus (`points += floor(10%)`, `firstBlood: true`). The team score is the sum of its solves, so it follows by
+itself; `teamScore` is the recomputed value. Deleting an adjustment row skips the challenge bookkeeping.
+
+`GET /admin/submissions` - sort `createdAt` (default `-createdAt`); filters `teamId`, `challengeId`, `userId`,
+`result` (`correct|wrong`), `from`, `to`:
+```json
+{ "items": [ { "id": "...", "createdAt": "...", "correct": false, "team": { "id": "...", "name": "..." },
+               "user": { "id": "...", "displayName": "..." }, "challenge": { "id": "...", "slug": "x", "title": "X" } } ],
+  "page": 1, "limit": 25, "total": 1500 }
+```
+Only who, which challenge, when and whether it was right: the typed text and its stored hash are never returned (the
+real flag is never known to this API at all). Attempts older than 30 days no longer exist.
+
+### Integrity (fair-play review)
+
+`GET /admin/integrity` (legacy bare array) is unchanged. New:
+
+- `GET /admin/integrity/summary` -> `{ flaggedUsers, signalRows, signalEvents, activeLast24h, highRiskThreshold: 10,
+  byKind: [ { kind, rows, events, lastAt } ] }` with one entry per kind (`honeypot-endpoint`, `tainted-flag`,
+  `terminal-canary`, `terminal-velocity`, `terminal-cadence`, `automation-ua`), zeros when there are none.
+- `GET /admin/integrity/users` - sort `risk` (default `-risk`) or `lastSignalAt`; filters `q` (display or team name),
+  `kind` (users with at least one signal of that kind), `minRisk`. Items are the entries of the legacy list plus
+  `lastSignalAt`: `{ userId, displayName, teamName, risk, signals: [ ... ], lastSignalAt }`; the anonymous-scrapers entry has
+  `userId: null`. Built from the 200 highest-risk entries.
+- `POST /admin/integrity/:userId/resolve` body `{ "note": "3-500 chars" }` -> 200
+  `{ userId, resolved: { signals, events, kinds: { "tainted-flag": 2 } } }`. Deletes the user's signals (same as the
+  dismiss route) and records the note plus that summary in the audit log (`integrity.resolve`). 404 when the user has no
+  signals. Resolving never bans anyone: use `PATCH /admin/users/:id/ban` or the team ban separately.
+- `DELETE /admin/integrity/:userId` is unchanged (204) and now audited (`integrity.dismiss`, no note).
+
+### Instances
+
+`GET /admin/instances?page=1` (any query parameter selects the paginated form; sort `createdAt` (default), `expiresAt`;
+filters `status` = `active` (default) | `all` | `starting|running|stopping|stopped|failed`, `teamId`, `challengeId`) returns the
+envelope plus `"dockerEnabled": true|false`; items have the shape of the legacy list. `POST /admin/instances/:id/kill`
+is unchanged (204) and audited. With `DOCKER_ENABLED=false` there is no container to remove, so the kill only marks the
+record `stopped` (404 when it is not active) and never calls Docker.
+
+### Audit log
+
+`GET /admin/audit` - sort `createdAt` (default `-createdAt`); filters `action` (exact, for example `team.ban`), `actorId`,
+`targetType`, `targetId`, `from`, `to`, `q` (matches actor email, action or note):
+```json
+{ "items": [ { "id": "...", "createdAt": "...", "actor": { "id": "...", "email": "admin@example.com" },
+               "action": "team.score-adjust", "targetType": "team", "targetId": "...",
+               "before": null, "after": { "adjustmentId": "...", "points": -50, "teamScore": 790 },
+               "note": "shared hint", "ip": "203.0.113.7" } ], "page": 1, "limit": 25, "total": 88 }
+```
+Written after the action succeeded, by every mutating admin call. Actions: `user.ban`, `user.unban`, `user.remove-from-team`,
+`user.reset-terminal`, `team.ban`, `team.unban`, `team.rename`, `team.delete`, `team.remove-member`,
+`team.invite-code-regenerate`, `team.score-adjust`, `challenge.create`, `challenge.update` (note `flag replaced` when a flag
+was set), `challenge.delete`, `challenge.publish`, `challenge.hide`, `challenge.duplicate`, `challenge.reset-solves`,
+`challenge.import`, `solve.delete`, `solve.delete-adjustment`, `integrity.resolve`, `integrity.dismiss`, `instance.kill`,
+`settings.update`, `export.users|teams|submissions|leaderboard` (exports can contain emails). `before`/`after` are small
+summaries (primitives and short strings, secret-looking keys dropped). `ip` is the raw address of the admin (staff only).
+**Retention:** a TTL index deletes entries after 365 days; there is no delete or edit endpoint.
+
+### Platform settings
+
+`GET /admin/settings` and `PUT /admin/settings` (partial: send only what changes, at least one key):
+```json
+{ "registrationOpen": true, "submissionsFrozen": false,
+  "announcement": { "text": "CTF starts at 18:00 UTC", "level": "info" }, "updatedAt": "2026-11-22T10:00:00.000Z" }
+```
+`announcement.text` 0-500 chars (empty hides the banner), `level` is `info | warning | critical`. Defaults: registration
+open, not frozen, no banner.
+
+- **`submissionsFrozen`** is enforced server side: `POST /challenges/:id/submit` and `POST /terminal/:mode/submit` answer
+  423 `SUBMISSIONS_FROZEN` (the check runs right after body validation, so a frozen platform also leaves no attempt
+  records). Browsing, instances and the terminal `exec` stay available. The settings read has a 2 s timeout and fails open:
+  if the read fails, the submission continues.
+- **`registrationOpen`** is stored and published only. Sign-up happens in Cognito (outside this API), so the backend cannot
+  block it; the web app should hide its sign-up form when it is `false`. Closing Cognito self-sign-up is a follow-up.
+- **`GET /announcement`** (public, no token, `Cache-Control: no-store`):
+  `{ "announcement": { "text": "...", "level": "info" }, "registrationOpen": true, "submissionsFrozen": false }`.
+
+### CSV exports
+
+`GET /admin/export/users.csv`, `teams.csv`, `submissions.csv`, `leaderboard.csv` -> `text/csv; charset=utf-8` with
+`Content-Disposition: attachment; filename="<name>.csv"`, CRLF line endings, a header row, at most **10,000 rows** (capped,
+not streamed; narrow with filters). `users.csv`, `teams.csv` and `submissions.csv` accept the same filters and `sort` as the
+matching list endpoint and ignore `page`/`limit`; `leaderboard.csv` takes no parameters and lists the visible (not banned)
+ranking like `GET /leaderboard`. Columns:
+- users: `id,displayName,email,role,banned,teamId,teamName,createdAt`
+- teams: `id,name,members,score,solves,banned,createdAt,lastSolveAt`
+- submissions: `id,createdAt,correct,teamId,teamName,userId,userName,challengeId,challengeSlug`
+- leaderboard: `rank,teamId,teamName,points,solves,lastSolveAt`
+
+Cells are formula-injection safe: a text cell starting with `=`, `+`, `-`, `@`, tab or CR gets a leading `'`; cells with a
+comma, quote or newline are quoted with doubled quotes. Numbers and booleans are written as-is. Each export is audited.
+
+---
+
 ## Rules every endpoint follows
 - Validate with `zod`; return `VALIDATION_ERROR` with details.
 - Validation details are carried in `error.message`; there is no separate `details` field.
 - Players never receive `flag`, `flagHash`, or other teams' data except the leaderboard fields above.
 - A banned team gets `403 TEAM_BANNED` on submit and instance routes (and on terminal `exec`, `complete` and `submit`).
+  A banned user gets `403 USER_BANNED` on the same routes. While submissions are frozen (`/admin/settings`) the two
+  submit routes answer `423 SUBMISSIONS_FROZEN`.
 - Changing this file is a contract change: tell the group.

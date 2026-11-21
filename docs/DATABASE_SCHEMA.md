@@ -21,6 +21,7 @@ the bonus when the team is the first solver (`solveCount` becomes 1 atomically).
 | displayName | S | default = part before `@` |
 | role | S | required, `player` or `admin`; refreshed from verified token on GET/PATCH `/me` and team create/join, not by login itself |
 | teamId | OID or null | Mongoose ref `Team`, default null (collection `teams`) |
+| banned | B | default false; set by `PATCH /admin/users/:id/ban`. A banned user gets 403 `USER_BANNED` from `getTeamContext` (submit, instances, terminal) |
 | createdAt, updatedAt | D | |
 
 ## teams (S)
@@ -117,8 +118,12 @@ which uses the index above.
 | points | N | points awarded including bonus |
 | firstBlood | B | |
 | solvedAt | D | |
+| adjustment | B | default false. `true` marks a **manual score adjustment** by an admin (Admin API v2): `challengeId` is a fresh random ObjectId that matches no challenge, `userId` is the admin, `points` may be negative |
+| reason | S | max 200; set on adjustments only |
 
-Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline.
+Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves; adjustments never collide because each has its own random `challengeId`), `{ solvedAt: 1 }` for the timeline.
+Team score is still the sum of `points`, so adjustments count everywhere without query changes. Code that counts "solves" must
+filter `adjustment: { $ne: true }` (the admin API does; the public leaderboard's `solves` counter does not yet).
 
 ## replicastats (H)
 Per-replica request counter for the admin dashboard (`GET /admin/stats` -> `requestsByReplica`).
@@ -182,6 +187,36 @@ Indexes: **unique** `{ userId: 1, bucket: 1 }`, TTL on `{ bucket: 1 }` of 2 days
 computed inside the same operation that writes `lastAt`, from the document read "before", so concurrent requests on
 different replicas see consistent data. The first command of a minute has no previous command in its document, so the
 rules have no memory across the minute boundary.
+
+## Admin API v2 collections
+### auditlogs
+Append-only record of every mutating admin action (`services/adminAudit.js`). Written after the action succeeded.
+| Field | Type | Notes |
+|-------|------|-------|
+| actorId | OID or null | ref `User`; null when the admin never opened the app (no user row) |
+| actorEmail | S | required, from the verified token |
+| action | S | required, dotted verb such as `team.ban`, `solve.delete`, `settings.update` (list in `API_SPEC.md` "Audit log") |
+| targetType, targetId | S | `user`, `team`, `challenge`, `solve`, `instance`, `settings`, `export`; id as text |
+| before, after | Mixed | small secret-free summaries (primitives, strings cut to 200 chars, keys matching flag/hash/salt/secret/token/password/inviteCode/containerId dropped) |
+| note | S | max 500, the admin's reason |
+| ip | S | raw address of the admin (staff only) |
+| createdAt | D | |
+
+Indexes: `{ createdAt: -1 }`, `{ action: 1, createdAt: -1 }`, `{ actorId: 1, createdAt: -1 }`,
+`{ targetType: 1, targetId: 1, createdAt: -1 }`, and a **TTL** on `{ createdAt: 1 }` of 365 days (bounded, no cron needed).
+
+### appsettings
+Platform settings: ONE document with `key: 'platform'` (`services/adminSettings.js`), upserted by `PUT /admin/settings`.
+Read on demand by every replica; nothing is cached in a process.
+| Field | Type | Notes |
+|-------|------|-------|
+| key | S | required, **unique index**, always `platform` |
+| registrationOpen | B | default true. Published through `GET /announcement`; not enforced by the API (sign-up is in Cognito) |
+| submissionsFrozen | B | default false. Enforced: both submit routes answer 423 `SUBMISSIONS_FROZEN` |
+| announcement.text | S | max 500, empty = no banner |
+| announcement.level | S | `info`, `warning`, `critical` |
+| updatedBy | S | email of the last admin who saved |
+| updatedAt | D | |
 
 ## Leaderboard query (H)
 ```js

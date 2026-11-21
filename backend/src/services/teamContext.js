@@ -9,6 +9,7 @@ export async function getTeamContext(reqUser, { requireTeam = true, blockBanned 
     if (!requireTeam) { return { user: null, team: null }; }
     throw new AppError(404, 'NO_TEAM', 'You do not belong to a team.');
   }
+  if (user.banned && blockBanned) { throw new AppError(403, 'USER_BANNED', 'Your account has been banned.'); }
   const team = user.teamId ? await Team.findById(user.teamId) : null;
   if (requireTeam && !team) { throw new AppError(404, 'NO_TEAM', 'You do not belong to a team.'); }
   if (team?.banned && blockBanned) { throw new AppError(403, 'TEAM_BANNED', 'Your team has been banned.'); }
