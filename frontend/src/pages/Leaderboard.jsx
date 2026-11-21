@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getLeaderboard, getTimeline } from '../api/leaderboard.js';
 import { useTeam } from '../layout/TeamContext.jsx';
+import ActivityTicker from '../components/ActivityTicker.jsx';
 import {
   assignSeriesStyles, buildChart, findMyStanding, formatTick, hasSolves, isMyTeam,
   leaderboardErrorMessage, scoresAt, snapToTime, sortStandings,
@@ -185,6 +186,8 @@ export default function Leaderboard() {
           </tbody>
         </table>}
     </div>
+
+    <ActivityTicker limit={6} />
 
     <div className="lb-card">
       <h2>Score over time</h2>

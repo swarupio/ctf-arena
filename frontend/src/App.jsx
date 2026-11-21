@@ -17,6 +17,8 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
 const FairPlay = lazy(() => import('./pages/FairPlay.jsx'));
 
+const Profile = lazy(() => import('./pages/Profile.jsx'));
+
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
@@ -37,6 +39,8 @@ export default function App() {
         <Route path="terminal/:mode" element={<TerminalPlay />} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
+        <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
+        <Route path="profile/:id" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
       </Route>
       <Route element={<ProtectedRoute admin />}>
         <Route path="admin" element={<AdminDashboard />} />

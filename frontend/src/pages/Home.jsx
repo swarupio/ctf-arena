@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useTeam } from '../layout/TeamContext.jsx';
 import { PixelBlocks, PixelFlag } from '../layout/PixelArt.jsx';
+import ActivityTicker from '../components/ActivityTicker.jsx';
+import DailySpotlight from '../components/DailySpotlight.jsx';
 
 const STEPS = [
   ['01', 'Pick a challenge', 'Browse web, crypto, forensics, pwn and misc puzzles, from easy to hard.'],
@@ -47,6 +49,8 @@ export default function Home() {
         <button onClick={retryProfile}>Retry account check</button>
       </> : <p role="status">Checking your account with the arena API…</p>}
     </section>}
+
+    {!loading && user && <div className="fx-home"><DailySpotlight /><ActivityTicker /></div>}
 
     <section className="steps" aria-labelledby="steps-heading">
       <h2 id="steps-heading">How it works</h2>

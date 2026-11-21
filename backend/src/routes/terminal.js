@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { AppError } from '../utils/AppError.js';
+import { achievementService } from '../services/achievementService.js';
 import { integrityService } from '../services/integrityService.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
@@ -98,7 +99,8 @@ router.post('/:mode/submit', playerOnly, async (req, res) => {
   const result = await submitFlag({ definition, challenges, team, user, submitted: flag });
   // A wrong flag may be a copied decoy: one indexed lookup, a signal if so, and the same answer either way.
   if (result.correct === false) { await integrityService.checkSubmittedFlag({ flag, user }); }
-  res.json(result);
+  const badges = result.pointsAwarded > 0 ? await achievementService.safeEvaluate({ userId: user._id, teamId: team._id }) : [];
+  res.json(badges.length ? { ...result, badges } : result);
 });
 
 export default router;

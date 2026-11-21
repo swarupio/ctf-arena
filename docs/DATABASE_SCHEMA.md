@@ -185,6 +185,16 @@ computed inside the same operation that writes `lastAt`, from the document read 
 different replicas see consistent data. The first command of a minute has no previous command in its document, so the
 rules have no memory across the minute boundary.
 
+## achievements (cosmetic badges, see `docs/ACHIEVEMENTS.md`)
+| Field | Type | Notes |
+|-------|------|-------|
+| userId | OID | the player who earned the badge |
+| key | S | badge key from the catalog in `services/achievementService.js` |
+| awardedAt | D | |
+
+Indexes: **unique** `{ userId: 1, key: 1 }` (awarding is an upsert with `$setOnInsert`, so it is idempotent across replicas),
+`{ awardedAt: -1 }` for the public feed. Badges never change `solves.points`.
+
 ## Leaderboard query (H)
 ```js
 Solve.aggregate([

@@ -354,7 +354,7 @@ describe('static audit: zod schemas', () => {
 
   // Query-string schemas are deliberately lenient: the Express 5 simple parser only yields flat strings, and the
   // documented contract says other parameters are ignored. Request BODY and PATH schemas must all be strict.
-  const QUERY_ONLY = { 'leaderboard.js': 1, 'admin/integrity.js': 1 };
+  const QUERY_ONLY = { 'leaderboard.js': 1, 'admin/integrity.js': 1, 'social.js': 1 };
 
   it('makes every z.object in the route files strict, except the documented query schemas', () => {
     const problems = [];
