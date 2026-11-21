@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getLevel, getOverview } from '../api/cipherlab.js';
+import { createLatest } from '../api/latest.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AnswerForm from '../components/cipherlab/AnswerForm.jsx';
 import HintPanel from '../components/cipherlab/HintPanel.jsx';
@@ -32,12 +33,15 @@ export default function CipherLabPlay() {
   const [state, setState] = useState({ puzzle: null, tools: null, error: '' });
   const [copied, setCopied] = useState(false);
 
+  const latest = useRef(null);
+  latest.current ??= createLatest();
   const load = useCallback(async () => {
+    const current = latest.current.begin(); // an answer for a level the player already left is dropped
     try {
       const [puzzle, overview] = await Promise.all([getLevel(levelId), getOverview()]);
-      setState({ puzzle, tools: overview.toolbox, error: '' });
+      if (current()) { setState({ puzzle, tools: overview.toolbox, error: '' }); }
     } catch (error) {
-      setState((current) => ({ ...current, puzzle: null, error: cipherErrorMessage(error) }));
+      if (current()) { setState((previous) => ({ ...previous, puzzle: null, error: cipherErrorMessage(error) })); }
     }
   }, [levelId]);
 
@@ -45,6 +49,8 @@ export default function CipherLabPlay() {
     setState({ puzzle: null, tools: null, error: '' });
     setCopied(false);
     void load();
+    const guard = latest.current;
+    return () => guard.cancel();
   }, [load]);
 
   const { puzzle, tools, error } = state;

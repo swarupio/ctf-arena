@@ -33,6 +33,7 @@ Set these in Project Settings > Environment Variables (Production, and Preview i
 | `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | yes | the backend token verifier |
 | `VITE_COGNITO_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID` | yes | same values; public, used by the frontend build |
 | `DOCKER_ENABLED` | no | defaults to `false` on Vercel. Do not set it to `true` there (no Docker daemon exists). |
+| `MONGOOSE_AUTO_INDEX` | no | `true`/`false`. Whether Mongoose builds indexes when a function starts. Defaults to `false` on Vercel (every cold start would re-check every index) and `true` locally. Run `npm run db:indexes` instead (section 5). |
 | `PORT`, `PUBLIC_HOST`, `CHALLENGE_*`, `INSTANCE_TTL_MINUTES`, `MAX_INSTANCES_PER_TEAM` | no | only used by Docker mode; inert defaults apply on Vercel |
 
 Never commit real values. If a variable is missing or invalid the API answers `503 SERVICE_UNAVAILABLE` and the
@@ -56,7 +57,8 @@ Use exact URLs, no wildcards. Preview deployments get new domains; add them only
 ## 5. First data and admin
 Seed the database from your laptop against the same Atlas cluster (never from Vercel):
 ```bash
-cd backend && MONGODB_URI='<atlas uri>' npm run seed:terminal    # Arena Terminal challenges
+cd backend && MONGODB_URI='<atlas uri>' npm run db:indexes       # unique/TTL indexes (autoIndex is off on Vercel); repeat after schema changes
+MONGODB_URI='<atlas uri>' npm run seed:terminal                  # Arena Terminal challenges
 MONGODB_URI='<atlas uri>' npm run seed:challenges                # static + docker challenge entries
 ```
 Create an admin as in `docs/SETUP.md` section 7 (Cognito group `admin`).

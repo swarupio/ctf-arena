@@ -3,25 +3,32 @@ import helmet from 'helmet';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { servedBy } from './middleware/servedBy.js';
 import { requestCounter } from './middleware/requestCounter.js';
+import { mountable } from './middleware/lazyRouter.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import teamsRouter from './routes/teams.js';
 import challengesRouter from './routes/challenges.js';
 import instancesRouter from './routes/instances.js';
 import leaderboardRouter from './routes/leaderboard.js';
-import terminalRouter from './routes/terminal.js';
-import socialRouter from './routes/social.js';
-import cipherlabRouter from './routes/cipherlab.js';
-import weblabRouter from './routes/weblab.js';
-import forensicsRouter from './routes/forensics.js';
 import honeypotRouter from './routes/honeypot.js';
-import adminChallengesRouter from './routes/admin/challenges.js';
-import adminStatsRouter from './routes/admin/stats.js';
-import adminInstancesRouter from './routes/admin/instances.js';
-import adminTeamsRouter from './routes/admin/teams.js';
-import adminIntegrityRouter from './routes/admin/integrity.js';
-import adminV2Router from './routes/admin/index.js';
 import announcementRouter from './routes/announcement.js';
+
+// Terminal, game and admin routers load on their first request (middleware/lazyRouter.js), so a cold start only
+// pays for what it serves. They stay mounted at the same places, in the same order.
+const terminalRouter = await mountable(() => import('./routes/terminal.js'));
+// Mounted on the broad /api prefix with per-route auth: only paths that can belong to it load the module.
+const socialRouter = await mountable(() => import('./routes/social.js'), {
+  match: (req) => /^\/+(feed|daily|players|me\/+achievements)/i.test(req.path),
+});
+const cipherlabRouter = await mountable(() => import('./routes/cipherlab.js'));
+const weblabRouter = await mountable(() => import('./routes/weblab.js'));
+const forensicsRouter = await mountable(() => import('./routes/forensics.js'));
+const adminChallengesRouter = await mountable(() => import('./routes/admin/challenges.js'));
+const adminStatsRouter = await mountable(() => import('./routes/admin/stats.js'));
+const adminInstancesRouter = await mountable(() => import('./routes/admin/instances.js'));
+const adminTeamsRouter = await mountable(() => import('./routes/admin/teams.js'));
+const adminIntegrityRouter = await mountable(() => import('./routes/admin/integrity.js'));
+const adminV2Router = await mountable(() => import('./routes/admin/index.js'));
 
 const app = express();
 

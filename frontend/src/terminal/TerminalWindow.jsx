@@ -15,6 +15,7 @@ import {
   formatHistory, freshNav, loadHistory, pushHistory, saveHistory, stepHistory,
 } from './history.js';
 import { useMediaQuery, useReducedMotion } from './hooks.js';
+import { capEntries } from './scrollback.js'; // scrollback cap (entries and total characters), oldest entries drop off
 import { bootLength, bootLines, revealLines } from './viewModel.js';
 import Confetti from './Confetti.jsx';
 import Entry from './Entry.jsx';
@@ -26,7 +27,6 @@ import MatrixRain from './MatrixRain.jsx';
  * is rendered as React text nodes (see AnsiText); nothing is ever injected as HTML.
  */
 
-const MAX_ENTRIES = 600; // scrollback cap, oldest entries drop off
 const BOOT_MS = 2600; // the whole boot text types in about this long
 const BOOT_TICK = 24;
 const SPINNER = ['|', '/', '-', '\\'];
@@ -151,8 +151,7 @@ export default function TerminalWindow({
 
   const append = useCallback((...items) => {
     setEntries((list) => {
-      const next = [...list, ...items.map((item) => ({ ...item, id: ++seqRef.current }))];
-      return next.length > MAX_ENTRIES ? next.slice(next.length - MAX_ENTRIES) : next;
+      return capEntries([...list, ...items.map((item) => ({ ...item, id: ++seqRef.current }))]);
     });
   }, []);
 

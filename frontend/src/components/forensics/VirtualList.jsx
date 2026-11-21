@@ -29,7 +29,8 @@ export default function VirtualList({ count, rowHeight = 24, label, renderRow, s
   }
   return <div
     ref={ref} className={`fx-scroller ${className}`} tabIndex={0} role="table" aria-label={label} aria-rowcount={count}
-    onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+    // Row-aligned, so a scroll step inside one row does not re-render the visible rows (React skips an equal state).
+    onScroll={(event) => setScrollTop(Math.floor(event.currentTarget.scrollTop / rowHeight) * rowHeight)}
   >
     <div className="fx-spacer" style={{ height: count * rowHeight }}>{rows}</div>
     {count === 0 && <p className="fx-empty">Nothing matches.</p>}

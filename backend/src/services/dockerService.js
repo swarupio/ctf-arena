@@ -1,6 +1,10 @@
-import Docker from 'dockerode';
+import { createRequire } from 'node:module';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
+
+// dockerode is CommonJS and heavy (about 7 MB of heap): load it on first real use, never on a cold start or when
+// Docker challenges are disabled (Vercel). createRequire keeps createDockerService synchronous.
+const loadDocker = () => createRequire(import.meta.url)('dockerode');
 
 export const CHALLENGE_NETWORK = 'ctf-challenges';
 export const MANAGED_LABEL = 'ctf.managed';
@@ -9,7 +13,7 @@ const IMAGE_PATTERN = /^ctf\/[a-z0-9][a-z0-9._-]*(?::[A-Za-z0-9._-]+)?$/;
 
 // All Docker access for challenges goes through here. Callers pass only validated values;
 // there is no way to supply a command, volume or arbitrary env from outside.
-export function createDockerService({ docker = new Docker(), limits = env } = {}) {
+export function createDockerService({ docker = new (loadDocker())(), limits = env } = {}) {
   async function ensureNetwork() {
     const existing = await docker.listNetworks({ filters: { name: [CHALLENGE_NETWORK] } });
     if (existing.some((network) => network.Name === CHALLENGE_NETWORK)) { return; }
