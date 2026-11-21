@@ -37,6 +37,7 @@ vi.mock('../../src/models/AuditLog.js', async () => (await import('./helpers/fak
 vi.mock('../../src/models/AppSetting.js', async () => (await import('./helpers/fakeDb.js')).emptyModelModule({ ANNOUNCEMENT_LEVELS: ['info', 'warning', 'critical'] }));
 vi.mock('../../src/models/CipherHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CipherHint'));
 vi.mock('../../src/models/CrackmeHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CrackmeHint'));
+vi.mock('../../src/models/OsintHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('OsintHint'));
 // Tag every requireRole() guard with the roles it was built with, so the access level can be read off the chain.
 vi.mock('../../src/middleware/requireRole.js', async (importOriginal) => {
   const original = await importOriginal();
@@ -85,6 +86,14 @@ const TABLE = [
   ['GET', '/api/forensics/tracks/:track', 'any'],
   ['GET', '/api/forensics/tracks/:track/artefacts/:artefact', 'any'],
   ['POST', '/api/forensics/tracks/:track/stages/:n/answer', 'player'],
+
+  ['GET', '/api/osint/cases', 'any'],
+  ['GET', '/api/osint/cases/:track', 'any'],
+  ['GET', '/api/osint/cases/:track/sources/:source', 'any'],
+  ['GET', '/api/osint/cases/:track/search', 'any'],
+  ['POST', '/api/osint/cases/:track/questions/:n/answer', 'player'],
+  ['POST', '/api/osint/cases/:track/questions/:n/hints', 'player'],
+  ['GET', '/api/osint/admin/hints', 'admin'],
 
   ['GET', '/api/cipherlab/overview', 'any'],
   ['GET', '/api/cipherlab/levels/:id', 'any'],

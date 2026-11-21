@@ -69,4 +69,15 @@ export const GAMES = [
       solved: track?.solved, total: track?.total, pointsEarned: track?.pointsEarned, maxPoints: track?.maxPoints,
     }))),
   },
+  {
+    id: 'osint',
+    title: 'OSINT Trail',
+    path: '/osint',
+    pitch: 'Investigate a fictional town from its feeds, registries, maps and photos, then name the culprit.',
+    overview: '/osint/cases',
+    summarize: (data) => summary(tracksOf(data).map((track) => ({
+      id: track?.id, title: track?.caseTitle || track?.title, difficulty: track?.difficulty,
+      solved: track?.solved, total: track?.questions, pointsEarned: track?.pointsEarned, maxPoints: track?.maxPoints,
+    }))),
+  },
 ];

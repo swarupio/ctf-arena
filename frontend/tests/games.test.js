@@ -30,6 +30,8 @@ test('each summarize maps its overview shape and tolerates garbage', () => {
   const crackme = by('crackme').summarize({ tracks: [{ id: 'easy', title: 'Coin Slot Corner', difficulty: 'easy', total: 4, solved: 2, maxPoints: 135, pointsEarned: 45 }] });
   assert.deepEqual(crackme.tracks[0], { id: 'easy', title: 'Coin Slot Corner', difficulty: 'easy', solved: 2, total: 4, pointsEarned: 45, maxPoints: 135 });
   assert.equal(by('crackme').path, '/reversing');
+  const osint = by('osint').summarize([{ id: 'easy', title: 'Easy', caseTitle: 'Ledger at Low Tide', difficulty: 'easy', questions: 5, solved: 1, maxPoints: 150, pointsEarned: 20 }]);
+  assert.deepEqual(osint.tracks[0], { id: 'easy', title: 'Ledger at Low Tide', difficulty: 'easy', solved: 1, total: 5, pointsEarned: 20, maxPoints: 150 });
   const forensics = by('forensics').summarize([{ id: 'f', title: 'F', caseTitle: 'The Case', difficulty: 'medium', stages: 5, solved: 1, maxPoints: 50, pointsEarned: 10 }]);
   assert.equal(forensics.tracks[0].title, 'The Case');
   assert.equal(forensics.tracks[0].total, 5);

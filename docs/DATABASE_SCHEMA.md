@@ -53,7 +53,7 @@ They use the existing schemas; no seed-marker field or new model was added.
 | category | S | web, crypto, forensics, misc, pwn, terminal |
 | difficulty | S | easy, medium, hard |
 | points | N | |
-| type | S | `static`, `docker`, `terminal`, `forensics` or `reversing` (the other games add `game` and `weblab`) |
+| type | S | `static`, `docker`, `terminal`, `forensics`, `reversing` or `osint` (also `game` and `weblab`, see each game's doc) |
 | image | S | Docker image name (docker type) |
 | internalPort | N | port inside the container (docker type) |
 | flagHash, flagSalt | S | static type only. **Never sent to clients** |
@@ -75,6 +75,14 @@ Crackme Arcade (`docs/CRACKME_ARCADE.md`) adds `type: 'reversing'` (category `pw
 `hard` for the insane track, dynamic per-team flags (nothing stored), created by `npm run seed:crackme`. Hint openings
 are rows of the `crackmehints` collection (`teamId`, `userId`, `levelId`, `index`, `createdAt`; unique
 `{ teamId, levelId, index }`, 90-day TTL).
+
+OSINT Trail (`docs/OSINT_TRAIL.md`) adds `type: 'osint'` (category `misc`) and the optional `osint` sub-document
+`{ track, stage }` (`_id: false`; `track` is `easy`, `medium`, `hard` or `insane`, `stage` a number >= 1; required when `type`
+is `osint`), slug `osint-<track>-<n>`, index `{ type: 1, 'osint.track': 1 }`. `difficulty` is `hard` for the insane case.
+Flags are dynamic per team (`flagService.hasDynamicFlag`), nothing generated is stored, and the type is **not** in the
+first-blood allowlist. Hints opened by teams are logged in the collection `osinthints` (`{ teamId, userId, key, index,
+createdAt }`, unique on `{ teamId, key, index }`, TTL 90 days; `key` is `<track>:<question>`). Created by
+`npm run seed:osint` (idempotent upsert keyed by slug).
 
 Terminal challenges (Arena Terminal game, `docs/TERMINAL_GAME.md`) have `type: 'terminal'`, `category: 'terminal'`,
 slug `terminal-<mode>-<n>`, title `Terminal <Mode> #<n>`, `difficulty` equal to the mode and the points of the mode

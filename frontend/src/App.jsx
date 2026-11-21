@@ -44,6 +44,10 @@ const AdminExports = lazy(() => import('./pages/admin/Exports.jsx'));
 const CrackmeArcade = lazy(() => import('./pages/CrackmeArcade.jsx'));
 const CrackmeLevel = lazy(() => import('./pages/CrackmeLevel.jsx'));
 
+// OSINT Trail: lazy-loaded like the other games.
+const OsintTrail = lazy(() => import('./pages/OsintTrail.jsx'));
+const OsintCase = lazy(() => import('./pages/OsintCase.jsx'));
+
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
@@ -70,6 +74,8 @@ export default function App() {
         <Route path="forensics/:track" element={lazyPage(<ForensicsCase />)} />
         <Route path="reversing" element={lazyPage(<CrackmeArcade />)} />
         <Route path="reversing/:levelId" element={lazyPage(<CrackmeLevel />)} />
+        <Route path="osint" element={lazyPage(<OsintTrail />)} />
+        <Route path="osint/:track" element={lazyPage(<OsintCase />)} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
         <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />

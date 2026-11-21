@@ -18,6 +18,7 @@
     "seed:weblab": "node src/scripts/seedWebLab.js",
     "seed:forensics": "node src/scripts/seedForensics.js",
     "seed:crackme": "node src/scripts/seedCrackme.js",
+    "seed:osint": "node src/scripts/seedOsint.js",
     "seed:demo": "node src/scripts/seedDemo.js"
   },
   "dependencies": {
