@@ -13,8 +13,7 @@ export async function connectDB(uri) {
   if (mongoose.connection?.readyState === 1) { return; }
   if (!cache.promise) {
     cache.promise = mongoose.connect(uri, { ...baseOptions, ...serverlessOptions })
-      .then(() => { process.stdout.write('MongoDB connected
-'); })
+      .then(() => { process.stdout.write('MongoDB connected\n'); })
       .finally(() => { cache.promise = null; });
   }
   await cache.promise;
