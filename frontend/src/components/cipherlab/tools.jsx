@@ -166,10 +166,12 @@ export function HashTool({ puzzle }) {
   </div>;
 }
 
+const MAX_PIPELINE_STEPS = 20; // every step re-runs on each keystroke; a long chain is never needed
+
 export function PipelineTool({ text, setText }) {
   const [steps, setSteps] = useState([]);
   const trail = useMemo(() => runPipeline(text, steps), [text, steps]);
-  const add = (id) => setSteps((current) => [...current, { op: id, arg: id === 'caesar' ? -3 : id === 'rail' ? 3 : '' }]);
+  const add = (id) => setSteps((current) => current.length >= MAX_PIPELINE_STEPS ? current : [...current, { op: id, arg: id === 'caesar' ? -3 : id === 'rail' ? 3 : '' }]);
   const update = (index, arg) => setSteps((current) => current.map((step, i) => (i === index ? { ...step, arg } : step)));
   return <div className="cl-tool">
     <div className="cl-chips">

@@ -32,19 +32,28 @@ export function filterLines(lines, matcher, limit = MAX_RESULTS) {
   return out;
 }
 
-// Splits a line into [{ text, hit }] around matches, for highlighting. Never more than 20 parts.
-export function highlightParts(text, { query = '', mode = 'text', caseSensitive = false } = {}) {
-  if (query === '') { return [{ text, hit: false }]; }
+// Builds the highlighter once per search (the viewer calls it for every visible row on every scroll step, so the
+// regular expression must not be compiled and analysed per row). Returns text => [{ text, hit }], never more than 20 parts.
+export function makeHighlighter({ query = '', mode = 'text', caseSensitive = false } = {}) {
+  const plain = (text) => [{ text, hit: false }];
+  if (query === '') { return plain; }
   let regex;
   if (mode === 'regex') {
     const compiled = compileSafeRegex(query, { caseSensitive });
-    if (!compiled.ok) { return [{ text, hit: false }]; }
+    if (!compiled.ok) { return plain; }
     regex = new RegExp(compiled.regex.source, `${compiled.regex.flags}g`);
   } else {
     const first = query.split(/\s+/).filter(Boolean)[0];
-    if (!first) { return [{ text, hit: false }]; }
+    if (!first) { return plain; }
     regex = new RegExp(first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), caseSensitive ? 'g' : 'gi');
   }
+  return (text) => splitParts(text, regex);
+}
+
+// Splits a line into [{ text, hit }] around matches, for highlighting. Never more than 20 parts.
+export const highlightParts = (text, options) => makeHighlighter(options)(text);
+
+function splitParts(text, regex) {
   const parts = [];
   let last = 0;
   for (const match of text.matchAll(regex)) {

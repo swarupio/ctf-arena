@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { filterLines, highlightParts, makeLineMatcher } from '../../forensics/logFilter.js';
+import { filterLines, makeHighlighter, makeLineMatcher } from '../../forensics/logFilter.js';
 import { usePagedArtefact } from './hooks.js';
 import VirtualList from './VirtualList.jsx';
 
@@ -16,6 +16,7 @@ export default function LogViewer({ track, artefact }) {
   const options = { query, mode, caseSensitive, invert };
   const matcher = useMemo(() => makeLineMatcher(options), [query, mode, caseSensitive, invert]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useMemo(() => (matcher.ok ? filterLines(items, matcher) : items), [items, matcher]);
+  const highlight = useMemo(() => makeHighlighter(options), [query, mode, caseSensitive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <section className="fx-tool" aria-label="Log viewer">
     <form className="fx-controls" onSubmit={(event) => event.preventDefault()} role="search">
@@ -43,7 +44,7 @@ export default function LogViewer({ track, artefact }) {
       renderRow={(i) => {
         const line = shown[i];
         return <><span className="fx-ln" aria-hidden="true">{line.n}</span><span className="fx-text">
-          {highlightParts(line.text, options).map((part, k) => (part.hit ? <mark key={k}>{part.text}</mark> : part.text))}
+          {highlight(line.text).map((part, k) => (part.hit ? <mark key={k}>{part.text}</mark> : part.text))}
         </span></>;
       }}
     />

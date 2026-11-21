@@ -16,6 +16,10 @@ export default function PacketTable({ track, artefact }) {
   const parsed = useMemo(() => parseFilter(source), [source]);
   const shown = useMemo(() => (parsed.ok ? filterPackets(items, parsed) : items), [items, parsed]);
   const packet = selected === null ? null : shown[selected] ?? null;
+  // The dump only changes with the selected packet, not with every keystroke in the filter box.
+  const dump = useMemo(() => (packet?.hex
+    ? hexRows(packet.hex).map((row) => `${row.offset.toString(16).padStart(4, '0')}  ${row.hex.join(' ').padEnd(47)}  ${row.ascii}`).join('\n')
+    : null), [packet]);
 
   return <section className="fx-tool" aria-label="Packet viewer">
     <form className="fx-controls" onSubmit={(event) => event.preventDefault()} role="search">
@@ -58,7 +62,7 @@ export default function PacketTable({ track, artefact }) {
       {packet ? <>
         <h3>Packet {packet.n}</h3>
         <p className="fx-meta">{packet.src}:{packet.sp} {'->'} {packet.dst}:{packet.dp} · {packet.proto} · {packet.len} bytes · t={packet.t}s</p>
-        {packet.hex ? <pre className="fx-hex" aria-label="Payload hex dump">{hexRows(packet.hex).map((row) => `${row.offset.toString(16).padStart(4, '0')}  ${row.hex.join(' ').padEnd(47)}  ${row.ascii}`).join('\n')}</pre>
+        {packet.hex ? <pre className="fx-hex" aria-label="Payload hex dump">{dump}</pre>
           : <p className="fx-muted">No payload.</p>}
       </> : <p className="fx-muted">Select a packet (click a row) to inspect its payload.</p>}
       {stream && <div className="fx-stream" role="region" aria-label="Followed stream">

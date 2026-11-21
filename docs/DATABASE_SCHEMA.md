@@ -276,4 +276,7 @@ users --(teamId)--> teams <--(teamId)-- instances --(challengeId)--> challenges
   `Cache-Control: private, max-age=5` plus an ETag. Staleness is therefore at most a few seconds.
 - Indexes are built by Mongoose `autoIndex` at startup, in the background on modern MongoDB (no blocking of reads and writes).
   Existing deployments get the new indexes the next time a replica starts; the old ones stay valid.
+  `autoIndex` is on locally and off on Vercel (`MONGOOSE_AUTO_INDEX=true|false` overrides). With it off, run
+  `cd backend && npm run db:indexes` once and after every schema change (`-- --prune` also drops indexes no longer in a schema).
+  The unique indexes (users, teams, solves, ...) are part of correctness, so never skip it on a fresh database.
 - Connection pool: `maxPoolSize: 10`, `minPoolSize: 1` per replica.

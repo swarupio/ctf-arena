@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getTrack } from '../api/forensics.js';
+import { createLatest } from '../api/latest.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { DIFFICULTY_LABEL, describeForensicsError, nextOpenStage, progressPercent } from '../forensics/caseHelpers.js';
 import { EvidenceBoard, SuspectBoard } from '../components/forensics/Board.jsx';
@@ -23,10 +24,24 @@ export default function ForensicsCase() {
   const [state, setState] = useState({ view: null, error: '' });
   const [tool, setTool] = useState(null);
   const [accused, setAccused] = useState(null);
+  const latest = useRef(null);
+  latest.current ??= createLatest();
   const load = useCallback(async () => {
-    try { setState({ view: await getTrack(track), error: '' }); } catch (error) { setState({ view: null, error: describeForensicsError(error) }); }
+    const current = latest.current.begin(); // an answer for a case the player already left is dropped
+    try {
+      const view = await getTrack(track);
+      if (current()) { setState({ view, error: '' }); }
+    } catch (error) {
+      if (current()) { setState({ view: null, error: describeForensicsError(error) }); }
+    }
   }, [track]);
-  useEffect(() => { setState({ view: null, error: '' }); setTool(null); void load(); }, [load]);
+  useEffect(() => {
+    setState({ view: null, error: '' });
+    setTool(null);
+    void load();
+    const guard = latest.current;
+    return () => guard.cancel();
+  }, [load]);
 
   const { view, error } = state;
   const evidenceValues = useMemo(() => new Map((view?.evidence ?? []).map((item) => [item.n, item.value])), [view]);

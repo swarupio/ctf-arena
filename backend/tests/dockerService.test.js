@@ -88,4 +88,13 @@ describe('dockerService', () => {
       .toEqual([{ id: 'a', instanceId: 'i1', state: 'running' }]);
     expect(docker.listContainers).toHaveBeenCalledWith({ all: true, filters: { label: ['ctf.managed=true'] } });
   });
+
+  it('does not load dockerode when the service is imported, only when a default client is built', async () => {
+    const { createRequire } = await import('node:module');
+    const cache = createRequire(import.meta.url).cache;
+    const loaded = () => Object.keys(cache).some((file) => /node_modules[\\/]dockerode[\\/]/.test(file));
+    expect(loaded()).toBe(false);
+    createDockerService({ limits });
+    expect(loaded()).toBe(true);
+  });
 });
