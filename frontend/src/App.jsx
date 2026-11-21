@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
@@ -13,6 +14,11 @@ import Leaderboard from './pages/Leaderboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import Demo from './pages/Demo.jsx';
 import FairPlay from './pages/FairPlay.jsx';
+
+// Forensics Desk is lazy-loaded: its viewers and helpers only download when a player opens the game.
+const ForensicsDesk = lazy(() => import('./pages/ForensicsDesk.jsx'));
+const ForensicsCase = lazy(() => import('./pages/ForensicsCase.jsx'));
+const lazyPage = (element) => <Suspense fallback={<p role="status">Loading...</p>}>{element}</Suspense>;
 
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
@@ -32,6 +38,8 @@ export default function App() {
         <Route path="challenges/:id" element={<ChallengeDetail />} />
         <Route path="terminal" element={<Terminal />} />
         <Route path="terminal/:mode" element={<TerminalPlay />} />
+        <Route path="forensics" element={lazyPage(<ForensicsDesk />)} />
+        <Route path="forensics/:track" element={lazyPage(<ForensicsCase />)} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
       </Route>

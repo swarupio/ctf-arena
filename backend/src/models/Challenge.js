@@ -8,6 +8,14 @@ const terminalSchema = new mongoose.Schema({
   code: { type: Number, required: true, min: 1 },
 }, { _id: false });
 
+export const FORENSICS_TRACKS = ['easy', 'medium', 'hard', 'insane'];
+
+// Forensics Desk stages only (docs/FORENSICS_DESK.md): which track (difficulty) and which stage of it.
+const forensicsSchema = new mongoose.Schema({
+  track: { type: String, required: true, enum: FORENSICS_TRACKS },
+  stage: { type: Number, required: true, min: 1 },
+}, { _id: false });
+
 const challengeSchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true, match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/ },
   title: { type: String, required: true, trim: true },
@@ -15,7 +23,7 @@ const challengeSchema = new mongoose.Schema({
   category: { type: String, required: true, enum: ['web', 'crypto', 'forensics', 'misc', 'pwn', 'terminal'] },
   difficulty: { type: String, required: true, enum: ['easy', 'medium', 'hard'] },
   points: { type: Number, required: true, min: 1 },
-  type: { type: String, required: true, enum: ['static', 'docker', 'terminal'] },
+  type: { type: String, required: true, enum: ['static', 'docker', 'terminal', 'forensics'] },
   image: { type: String },
   internalPort: { type: Number, min: 1, max: 65535 },
   // Static challenges only. Never include these fields in any API response.
@@ -26,11 +34,17 @@ const challengeSchema = new mongoose.Schema({
     type: terminalSchema,
     required: [function terminalRequired() { return this.type === 'terminal'; }, 'terminal is required for terminal challenges'],
   },
+  // Forensics challenges only. Dynamic per team like terminal: nothing is stored.
+  forensics: {
+    type: forensicsSchema,
+    required: [function forensicsRequired() { return this.type === 'forensics'; }, 'forensics is required for forensics challenges'],
+  },
   attachments: { type: [{ _id: false, name: String, url: String }], default: [] },
   visible: { type: Boolean, default: true },
   solveCount: { type: Number, default: 0 },
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
 challengeSchema.index({ type: 1, 'terminal.mode': 1 });
+challengeSchema.index({ type: 1, 'forensics.track': 1 });
 
 export default mongoose.model('Challenge', challengeSchema);

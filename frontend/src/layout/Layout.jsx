@@ -37,6 +37,7 @@ function LayoutContent() {
         <NavLink to="/demo">Demo</NavLink>
         <NavLink to="/challenges">Challenges</NavLink>
         {user && <NavLink to="/terminal">Terminal</NavLink>}
+        {user && <NavLink to="/forensics">Forensics</NavLink>}
         <NavLink to="/leaderboard">Leaderboard</NavLink>
         <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>
         {user?.role === 'admin' && <><NavLink to="/admin" end>Admin</NavLink><NavLink to="/admin/challenges">Manage challenges</NavLink></>}

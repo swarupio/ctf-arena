@@ -71,6 +71,10 @@ const TABLE = [
   ['POST', '/api/terminal/:mode/exec', 'any'],
   ['POST', '/api/terminal/:mode/complete', 'any'],
   ['POST', '/api/terminal/:mode/submit', 'player'],
+  ['GET', '/api/forensics/tracks', 'any'],
+  ['GET', '/api/forensics/tracks/:track', 'any'],
+  ['GET', '/api/forensics/tracks/:track/artefacts/:artefact', 'any'],
+  ['POST', '/api/forensics/tracks/:track/stages/:n/answer', 'player'],
 
   ['GET', '/api/admin/challenges', 'admin'],
   ['POST', '/api/admin/challenges', 'admin'],

@@ -28,7 +28,8 @@ Every response includes the header `X-Served-By: <replica hostname>` (added by `
 ```
 Common codes: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `VALIDATION_ERROR` 400,
 `CONFLICT` 409, `RATE_LIMITED` 429, `SERVER_ERROR` 500. Also used: `NO_TEAM` 404, `TEAM_BANNED` 403,
-`TERMINAL_NOT_SEEDED` 503, `SLOW_DOWN` 429 (terminal `exec` pacing, see below).
+`TERMINAL_NOT_SEEDED` 503, `SLOW_DOWN` 429 (terminal `exec` pacing, see below), `FORENSICS_NOT_SEEDED` 503 and
+`STAGE_LOCKED` 403 (Forensics Desk, see below).
 
 Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2), **H** = Shubham (Phase 3).
 
@@ -195,6 +196,42 @@ Notes:
   (they appear in `GET /challenges`; the web UI shows one promo card instead of the cards). Their flags follow the
   dynamic per-team format of docker challenges, so `POST /challenges/:id/submit` would accept them too; the Terminal
   page uses `/terminal/:mode/submit`.
+
+## Forensics Desk (investigation game)
+
+Detective game with four case files (`easy`, `medium`, `hard`, `insane`), five stages each (design, scoring and
+the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/api/forensics` and need
+`Authorization: Bearer <ID token>`. Unknown `:track` or `:artefact` values are 404 `NOT_FOUND`.
+
+| Method | Path | Auth | Owner | Description |
+|--------|------|------|-------|-------------|
+| GET | `/forensics/tracks` | player, admin | API | `[{ id, title, caseTitle, difficulty, tagline, stages, solved, seeded, maxPoints, pointsEarned }]` |
+| GET | `/forensics/tracks/:track` | player, admin | API | Case file: `{ id, title, caseTitle, difficulty, tagline, briefing[], artefacts[], maxPoints, stages[], evidence[], suspects[], solved, total, pointsEarned, caseClosed }` |
+| GET | `/forensics/tracks/:track/artefacts/:artefact` | player, admin | API | One chunk of generated evidence (query below) |
+| POST | `/forensics/tracks/:track/stages/:n/answer` | player | API | Body `{ answer }` (1-200 chars). Response `{ correct, pointsAwarded, firstBlood:false, message, solved, total, flag?, alreadySolved?, caseClosed? }` |
+
+- `stages[]`: `{ n, title, prompt, points, format, hint (string or null), whodunit, solved, locked, available, pointsEarned?, flag? }`.
+  `flag` appears only on stages the team solved. `evidence[]` is `{ n, title, value }` for solved stages only.
+  `suspects[]` is `{ id, name, role, facts:[{ label, stage, value }] }`; a fact `value` is `null` until the stage
+  that proves it is solved.
+- Artefacts per track: easy `log`; medium `capture`; hard `hexfile`, `exif`, `stego`, `disk`; insane `log`, `capture`,
+  `stego`, `disk`. Query (all optional, anything else is 400): `offset` (0-100000), `limit` (1-500, clamped to the
+  artefact's page maximum: 500 log lines, 250 packets, 1024 file bytes), `cluster` (0-255) with `count` (1-8) for the
+  disk reader, `image` (1-4) for the insane `stego` pictures. Responses: `log` `{ total, offset, lines[] }`; `capture`
+  `{ total, offset, packets:[{ n, t, src, sp, dst, dp, proto, len, info, hex }], start }`; `hexfile`
+  `{ name, size, offset, hex }`; `exif` `{ name, tags:[{ tag, value }] }`; `stego`
+  `{ image, images, width, height, pixels (base64 RGB), encoding }`; `disk` without `cluster`
+  `{ clusterSize, clusterCount, entries:[{ inode, name, size, mtime, deleted, cluster }] }`, with `cluster`
+  `{ clusters:[{ n, hex }] }`. Artefacts are generated from the team's seed on every call; admins see a fixed preview
+  set that no team shares.
+- `answer`: the final stage of every track (`whodunit`) is 403 `STAGE_LOCKED` until the other four are solved. A
+  correct answer records the solve (fixed points, never a first-blood bonus) and returns the team's own `flag`; a
+  repeat (or a parallel double click) returns `alreadySolved: true` with `pointsAwarded: 0`. A wrong answer is 200
+  with `correct: false` and a playful message, and never reveals anything about the right one. Attempts are limited
+  per team and per stage, counted in MongoDB: 8 per minute and 40 per hour (whodunit: 3 per minute and 8 per hour);
+  beyond that 429 `RATE_LIMITED`. 503 `FORENSICS_NOT_SEEDED` until `npm run seed:forensics` has run.
+- The flag is the proof of the solve; it is not submitted anywhere else (`POST /challenges/:id/submit` rejects
+  forensics rows).
 
 ## Admin (role `admin`)
 
