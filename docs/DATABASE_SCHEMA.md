@@ -53,7 +53,7 @@ They use the existing schemas; no seed-marker field or new model was added.
 | category | S | web, crypto, forensics, misc, pwn, terminal |
 | difficulty | S | easy, medium, hard |
 | points | N | |
-| type | S | `static`, `docker`, `terminal` or `forensics` |
+| type | S | `static`, `docker`, `terminal`, `forensics` or `osint` (also `game` and `weblab`, see their docs) |
 | image | S | Docker image name (docker type) |
 | internalPort | N | port inside the container (docker type) |
 | flagHash, flagSalt | S | static type only. **Never sent to clients** |
@@ -70,6 +70,14 @@ Forensics Desk (`docs/FORENSICS_DESK.md`) adds `type: 'forensics'` (category `fo
 number >= 1; required when `type` is `forensics`), slug `forensics-<track>-<n>`, index `{ type: 1, 'forensics.track': 1 }`.
 `difficulty` is `hard` for the insane track (the enum has no `insane`). Nothing generated is stored: artefacts, answers
 and flags derive from `FLAG_SECRET`. Created by `npm run seed:forensics` (idempotent upsert keyed by slug).
+
+OSINT Trail (`docs/OSINT_TRAIL.md`) adds `type: 'osint'` (category `misc`) and the optional `osint` sub-document
+`{ track, stage }` (`_id: false`; `track` is `easy`, `medium`, `hard` or `insane`, `stage` a number >= 1; required when `type`
+is `osint`), slug `osint-<track>-<n>`, index `{ type: 1, 'osint.track': 1 }`. `difficulty` is `hard` for the insane case.
+Flags are dynamic per team (`flagService.hasDynamicFlag`), nothing generated is stored, and the type is **not** in the
+first-blood allowlist. Hints opened by teams are logged in the collection `osinthints` (`{ teamId, userId, key, index,
+createdAt }`, unique on `{ teamId, key, index }`, TTL 90 days; `key` is `<track>:<question>`). Created by
+`npm run seed:osint` (idempotent upsert keyed by slug).
 
 Terminal challenges (Arena Terminal game, `docs/TERMINAL_GAME.md`) have `type: 'terminal'`, `category: 'terminal'`,
 slug `terminal-<mode>-<n>`, title `Terminal <Mode> #<n>`, `difficulty` equal to the mode and the points of the mode

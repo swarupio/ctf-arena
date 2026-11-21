@@ -8,7 +8,7 @@ describe('first-blood policy', () => {
   });
 
   it('never pays it for terminal, game or any other (future) type, so documented maximums hold', () => {
-    for (const type of ['terminal', 'game', 'weblab', 'forensics', 'unknown', undefined]) {
+    for (const type of ['terminal', 'game', 'weblab', 'forensics', 'osint', 'unknown', undefined]) {
       expect(hasFirstBloodBonus({ type })).toBe(false);
     }
     expect(hasFirstBloodBonus(null)).toBe(false);

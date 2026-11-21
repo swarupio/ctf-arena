@@ -29,6 +29,10 @@ const lazyPage = (element) => <Suspense fallback={<p role="status">Loading...</p
 const ForensicsDesk = lazy(() => import('./pages/ForensicsDesk.jsx'));
 const ForensicsCase = lazy(() => import('./pages/ForensicsCase.jsx'));
 
+// OSINT Trail: lazy-loaded like the other games.
+const OsintTrail = lazy(() => import('./pages/OsintTrail.jsx'));
+const OsintCase = lazy(() => import('./pages/OsintCase.jsx'));
+
 function Placeholder({ title }) {
   return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
 }
@@ -52,6 +56,8 @@ export default function App() {
         <Route path="weblab/:slug" element={lazyPage(<WebLabPlay />)} />
         <Route path="forensics" element={lazyPage(<ForensicsDesk />)} />
         <Route path="forensics/:track" element={lazyPage(<ForensicsCase />)} />
+        <Route path="osint" element={lazyPage(<OsintTrail />)} />
+        <Route path="osint/:track" element={lazyPage(<OsintCase />)} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="team" element={<Team />} />
         <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />

@@ -483,6 +483,7 @@ const NAMES = {
   TerminalActivity: { mongoName: 'terminalactivities' },
   Achievement: { mongoName: 'achievements', unique: [{ fields: ['userId', 'key'] }] },
   CipherHint: { mongoName: 'cipherhints', createdAt: true, unique: [{ fields: ['teamId', 'levelId', 'index'] }] },
+  OsintHint: { mongoName: 'osinthints', createdAt: true, unique: [{ fields: ['teamId', 'key', 'index'] }] },
 };
 
 for (const [name, options] of Object.entries(NAMES)) { database.collection(name).configure(options); }

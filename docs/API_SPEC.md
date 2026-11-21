@@ -29,7 +29,7 @@ Every response includes the header `X-Served-By: <replica hostname>` (added by `
 Common codes: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `VALIDATION_ERROR` 400,
 `CONFLICT` 409, `RATE_LIMITED` 429, `SERVER_ERROR` 500. Also used: `NO_TEAM` 404, `TEAM_BANNED` 403,
 `TERMINAL_NOT_SEEDED` 503, `SLOW_DOWN` 429 (terminal `exec` pacing, see below), `FORENSICS_NOT_SEEDED` 503 and
-`STAGE_LOCKED` 403 (Forensics Desk, see below).
+`STAGE_LOCKED` 403 (Forensics Desk and OSINT Trail, see below), `OSINT_NOT_SEEDED` 503 and `NO_HINTS` 403 / `NO_MORE_HINTS` 409 (OSINT Trail).
 
 Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2), **H** = Shubham (Phase 3).
 
@@ -292,6 +292,42 @@ the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/a
   beyond that 429 `RATE_LIMITED`. 503 `FORENSICS_NOT_SEEDED` until `npm run seed:forensics` has run.
 - The flag is the proof of the solve; it is not submitted anywhere else (`POST /challenges/:id/submit` rejects
   forensics rows).
+
+## OSINT Trail (open-source investigation game)
+
+Design, cases, points and the owner-only solution notes: `docs/OSINT_TRAIL.md`. All routes are mounted at `/api/osint`, need
+`Authorization: Bearer <ID token>`, and are backed by `challenges` rows with `type: "osint"` created by `npm run seed:osint`.
+The world of each team (a fully fictional cast, town, company, feed, registry, photos and pastes) is generated on every call from
+`HMAC(FLAG_SECRET, 'osint:' + teamId + ':' + caseId)`; nothing is stored and nothing is fetched from the internet.
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| GET | `/osint/cases` | player, admin | `[{ id, title, caseTitle, difficulty, tagline, questions, solved, seeded, hints, maxPoints, pointsEarned }]` |
+| GET | `/osint/cases/:track` | player, admin | Case file: `{ id, title, caseTitle, difficulty, tagline, story[], hintsAllowed, maxPoints, questions[{ n, title, prompt, points, format, kind, final, solved, locked, available, hintsTotal, hints[], pointsEarned?, confirmed?, flag? }], sources[{ id, label, total, max, fallback }], town, company, solved, total, pointsEarned, caseClosed }`. `confirmed` and `flag` exist only on solved questions |
+| GET | `/osint/cases/:track/sources/:source` | player, admin | One page of one source (`feed`, `cast`, `pages`, `docs`, `registry`, `photos`, `pastes`, `map`): `{ source, total, offset, limit, items[] }` |
+| GET | `/osint/cases/:track/search?q=&offset=&limit=` | player, admin | Search over the case corpus: `{ query, offset, limit, results:[{ source, id, title, snippet }], hasMore }` |
+| POST | `/osint/cases/:track/questions/:n/answer` | player | Body `{ answer }` (1-200 chars). Response `{ correct, pointsAwarded, firstBlood:false, message, solved, total, flag?, alreadySolved?, caseClosed? }` |
+| POST | `/osint/cases/:track/questions/:n/hints` | player | Body `{}`. Easy and medium only: opens the next free hint `{ index, hint, used, total }`, logged for admins |
+| GET | `/osint/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, key, hint, at }]` (`key` is `<track>:<n>`) |
+
+- `:track` is `easy | medium | hard | insane`; anything else is 404 `NOT_FOUND`. `:n` is the question number (the last one of a case
+  is the final question).
+- Source query: `offset` (0-10000), `limit` (1-50, capped per source: feed 50, cast 20, pages 20, docs 30, registry 20, photos 8,
+  pastes 10, map 1); the feed also takes `author` (a cast id such as `c03`) and `date` (`YYYY-MM-DD`, the poster's own clock).
+  Unknown query keys are 400. Search: `q` 2-64 characters (up to 4 whitespace-separated tokens, all must occur), `limit` 1-20
+  (default 10), `offset` 0-1000. Every response is bounded (well under 100 KB); the corpus has a fixed size per case.
+- Photos carry a `scene` (a short list of vector shapes: `r` rect, `c` circle, `p` polygon, `l` line, `t` text) that the browser
+  draws as SVG; no markup is ever sent. Time stamps are ISO-8601 with the poster's own UTC offset.
+- `answer`: the final question is 403 `STAGE_LOCKED` until every other question of the case is solved. Answers are normalised
+  (names, dates, times, grid cells, domains, e-mail, IPs) and compared as SHA-256 digests with `timingSafeEqual`; map points count
+  inside a 70-unit radius. A correct answer records the solve (fixed points from the case definition, never a first-blood bonus)
+  and returns the team's own `flag`; a repeat (or a parallel double click) returns `alreadySolved: true` with `pointsAwarded: 0`.
+  A wrong answer is 200 with `correct: false` and reveals nothing. Attempts are limited per team and per question, counted in
+  MongoDB: 8 per minute and 40 per hour (final question: 3 per minute and 8 per hour); beyond that 429 `RATE_LIMITED`.
+  503 `OSINT_NOT_SEEDED` until `npm run seed:osint` has run.
+- `hints`: 403 `NO_HINTS` on hard and insane, 409 `NO_MORE_HINTS` when all hints of a question are open, 403 `STAGE_LOCKED` on a
+  locked final question.
+- Admins see a fixed preview world that no team shares and cannot answer (403 `FORBIDDEN`).
 
 ## Admin (role `admin`)
 
