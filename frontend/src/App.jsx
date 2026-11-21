@@ -21,6 +21,7 @@ const Profile = lazy(() => import('./pages/Profile.jsx'));
 
 const CipherLab = lazy(() => import('./pages/CipherLab.jsx'));
 
+const Games = lazy(() => import('./pages/Games.jsx'));
 const WebLab = lazy(() => import('./pages/WebLab.jsx'));
 const WebLabPlay = lazy(() => import('./pages/WebLabPlay.jsx'));
 const lazyPage = (element) => <Suspense fallback={<p role="status">Loading...</p>}>{element}</Suspense>;
@@ -45,6 +46,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="challenges" element={<ChallengeList />} />
         <Route path="challenges/:id" element={<ChallengeDetail />} />
+        <Route path="games" element={lazyPage(<Games />)} />
         <Route path="terminal" element={<Terminal />} />
         <Route path="terminal/:mode" element={<TerminalPlay />} />
         <Route path="cipherlab/*" element={<Suspense fallback={<p role="status">Loading…</p>}><CipherLab /></Suspense>} />

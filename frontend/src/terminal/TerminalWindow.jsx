@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { completePath, execCommand, submitCode } from '../api/terminal.js';
+import { announce as celebrate } from '../pages/socialHelpers.js';
 import { describeError } from './adapters.js';
 import { stripAnsi } from './ansi.js';
 import { FIRST_BLOOD_BANNER } from './banner.js';
@@ -253,6 +254,7 @@ export default function TerminalWindow({
       );
       if ((result.firstBlood || cleared) && !reducedMotion) setConfettiRun((run) => run + 1);
       announce(`Correct. ${which}${name ? `, ${result.title}` : ''}, ${result.pointsAwarded} points.${result.firstBlood ? ' First blood!' : ''}${progress ? ` ${progress.replace('codes found ', '')} codes found.` : ''}`);
+      celebrate(result); // cosmetic toast for first blood / new badges (the layout's CelebrationHost shows it)
       if (handlersRef.current.onSolved) handlersRef.current.onSolved(result);
     } else if (result.correct) {
       append({

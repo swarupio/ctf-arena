@@ -70,6 +70,7 @@ export default function Terminal() {
 
   const { modes, problem } = state;
   return <section className="tm-page">
+    <Link className="back-games" to="/games">Back to Games</Link>
     <h1>Arena Terminal</h1>
     <p className="tm-lead">
       A pretend Unix machine that lives in your browser tab. Type real commands, dig through its files and find the hidden

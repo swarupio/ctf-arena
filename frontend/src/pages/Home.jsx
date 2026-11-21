@@ -35,6 +35,8 @@ export default function Home() {
       </div>
     </section>
 
+    {!loading && user && <p className="hero-actions"><span>Play now:</span> <Link className="button" to="/games">Games hub</Link> <Link className="button secondary" to="/terminal">Terminal</Link> <Link className="button secondary" to="/cipherlab">Cipher Lab</Link> <Link className="button secondary" to="/weblab">Web Lab</Link> <Link className="button secondary" to="/forensics">Forensics</Link></p>}
+
     {!loading && user && <section className="home-account" aria-labelledby="account-heading">
       <h2 id="account-heading">Your arena account</h2>
       {profile ? <>

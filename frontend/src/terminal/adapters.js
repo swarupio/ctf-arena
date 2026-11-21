@@ -89,7 +89,15 @@ export function normalizeSubmit(data) {
     message: text(data?.message),
     solved: Number.isFinite(Number(data?.solved)) && data?.solved !== null ? Number(data.solved) : null,
     total: Number.isFinite(Number(data?.total)) && data?.total !== null ? Number(data.total) : null,
+    badges: normalizeBadges(data?.badges),
   };
+}
+
+/** Optional achievements on a submit answer: [{ key, name }]. Anything else is dropped. */
+export function normalizeBadges(value) {
+  return (Array.isArray(value) ? value : [])
+    .filter((badge) => badge && typeof badge.name === 'string' && badge.name !== '')
+    .map((badge) => ({ key: text(badge.key), name: badge.name }));
 }
 
 /**

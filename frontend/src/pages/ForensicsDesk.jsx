@@ -45,6 +45,7 @@ export default function ForensicsDesk() {
   const total = tracks?.reduce((sum, t) => sum + t.maxPoints, 0) ?? 0;
 
   return <section className="fx-page">
+    <Link className="back-games" to="/games">Back to Games</Link>
     <h1>Forensics Desk</h1>
     <p className="fx-lead">
       Four case files, from a trainee's first log to an eyes-only mystery with decoys everywhere. Investigate in your browser,
