@@ -6,6 +6,8 @@ import Submission from '../models/Submission.js';
 import Team from '../models/Team.js';
 import User from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
+import { envelope, skipOf, sortSpec } from './adminCommon.js';
+import { dockerEnabled } from './adminStats.js';
 import { instanceService as defaultInstances, serializeInstance } from './instanceService.js';
 
 const ids = (documents, field) => [...new Set(documents.map((document) => String(document[field])))];
@@ -37,6 +39,24 @@ export function createAdminService({ instances = defaultInstances } = {}) {
 
   async function listActiveInstances() {
     const active = await Instance.find({ status: { $in: ACTIVE_STATUSES } }).sort({ createdAt: 1 });
+    return describeInstances(active);
+  }
+
+  // Paginated variant (any query parameter on GET /admin/instances). `status`: active (default), all, or one status.
+  async function listInstancesPaged(query) {
+    const filter = {};
+    if (query.status === 'active') { filter.status = { $in: ACTIVE_STATUSES }; } else if (query.status !== 'all') { filter.status = query.status; }
+    if (query.teamId) { filter.teamId = query.teamId; }
+    if (query.challengeId) { filter.challengeId = query.challengeId; }
+    const [rows, total] = await Promise.all([
+      Instance.find(filter).sort(sortSpec(query.sort)).skip(skipOf(query)).limit(query.limit),
+      Instance.countDocuments(filter),
+    ]);
+    const items = await describeInstances(rows);
+    return { ...envelope(items, query, total), dockerEnabled: dockerEnabled() };
+  }
+
+  async function describeInstances(active) {
     if (active.length === 0) { return []; }
     const [teams, challenges] = await Promise.all([
       Team.find({ _id: { $in: ids(active, 'teamId') } }, 'name'),
@@ -65,6 +85,14 @@ export function createAdminService({ instances = defaultInstances } = {}) {
 
   // Forced, so an instance stuck in 'stopping' after a crash can still be cleaned up from the dashboard.
   async function killInstance(instanceId) {
+    if (!dockerEnabled()) {
+      // No Docker (DOCKER_ENABLED=false, e.g. serverless hosting): there is no container to stop, only the record to close.
+      const closed = await Instance.findOneAndUpdate(
+        { _id: instanceId, status: { $in: ACTIVE_STATUSES } }, { $set: { status: 'stopped', stoppedAt: new Date() } },
+      );
+      if (!closed) { throw new AppError(404, 'NOT_FOUND', 'Active instance not found.'); }
+      return;
+    }
     const stopped = await instances.stop(instanceId, { force: true });
     if (!stopped) { throw new AppError(404, 'NOT_FOUND', 'Active instance not found.'); }
   }
@@ -99,7 +127,7 @@ export function createAdminService({ instances = defaultInstances } = {}) {
     return { id: String(team._id), name: team.name, banned: Boolean(team.banned) };
   }
 
-  return { getStats, listActiveInstances, killInstance, listTeams, setTeamBanned };
+  return { getStats, listActiveInstances, listInstancesPaged, killInstance, listTeams, setTeamBanned };
 }
 
 export const adminService = createAdminService();

@@ -10,6 +10,7 @@ import Solve from '../models/Solve.js';
 import Submission from '../models/Submission.js';
 import { AppError } from '../utils/AppError.js';
 import { achievementService } from '../services/achievementService.js';
+import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { hashSubmission, verifyFlag } from '../services/flagService.js';
 import { instanceService, serializeInstance } from '../services/instanceService.js';
 import { integrityService } from '../services/integrityService.js';
@@ -115,6 +116,7 @@ router.post('/:id/instance', playerOnly, async (req, res) => {
 
 router.post('/:id/submit', playerOnly, async (req, res) => {
   const { flag } = validate(submitSchema, req.body);
+  await assertSubmissionsOpen();
   const [challenge, { user, team }] = await both(visibleChallenge(req.params.id), getTeamContext(req.user));
 
   // Rate limit is counted in MongoDB so it holds across every backend replica.

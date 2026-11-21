@@ -7,6 +7,9 @@ const solveSchema = new mongoose.Schema({
   points: { type: Number, required: true },
   firstBlood: { type: Boolean, default: false },
   solvedAt: { type: Date, default: Date.now },
+  // Manual score adjustment by an admin: a Solve-like row (random challengeId, signed points) that the leaderboard sums.
+  adjustment: { type: Boolean, default: false },
+  reason: { type: String, maxlength: 200 },
 });
 
 // Blocks double solves, including double clicks handled by different replicas.

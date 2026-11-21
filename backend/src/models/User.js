@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema({
   },
   role: { type: String, enum: ['player', 'admin'], required: true },
   teamId: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', default: null },
+  // Set by an admin (PATCH /api/admin/users/:id/ban): blocks submitting, instances and the terminal game.
+  banned: { type: Boolean, default: false },
 }, { timestamps: true });
 
 export default mongoose.model('User', userSchema);

@@ -67,6 +67,12 @@ describe('lean reads with projections', () => {
     expect(User.findOne.mock.calls[0][1]).not.toMatch(/email/);
   });
 
+  it('team context projects `banned` so a banned user is actually blocked', async () => {
+    User.findOne.mockResolvedValue({ _id: oid(1), teamId: oid(2), banned: true });
+    await expect(getTeamContext({ cognitoSub: 's' })).rejects.toMatchObject({ status: 403, code: 'USER_BANNED' });
+    expect(User.findOne.mock.calls[0][1].split(/\s+/)).toContain('banned');
+  });
+
   it('challenge list never selects flag fields and reads lean', async () => {
     User.findOne.mockResolvedValue({ _id: oid(1), teamId: oid(2) });
     Team.findById.mockResolvedValue({ _id: oid(2), banned: false });

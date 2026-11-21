@@ -18,6 +18,8 @@ import adminStatsRouter from './routes/admin/stats.js';
 import adminInstancesRouter from './routes/admin/instances.js';
 import adminTeamsRouter from './routes/admin/teams.js';
 import adminIntegrityRouter from './routes/admin/integrity.js';
+import adminV2Router from './routes/admin/index.js';
+import announcementRouter from './routes/announcement.js';
 
 const app = express();
 
@@ -48,6 +50,8 @@ app.use('/api/admin/stats', adminStatsRouter);
 app.use('/api/admin/instances', adminInstancesRouter);
 app.use('/api/admin/teams', adminTeamsRouter);
 app.use('/api/admin/integrity', adminIntegrityRouter);
+app.use('/api/admin', adminV2Router);
+app.use('/api/announcement', announcementRouter);
 app.use(notFound);
 app.use(errorHandler);
 

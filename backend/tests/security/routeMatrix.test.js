@@ -96,6 +96,22 @@ const TABLE = [
   ['PATCH', '/api/admin/teams/:id/ban', 'admin'],
   ['GET', '/api/admin/integrity', 'admin'],
   ['DELETE', '/api/admin/integrity/:userId', 'admin'],
+
+  // Admin API v2 (docs/API_SPEC.md "Admin API v2"); GET /api/announcement is public on purpose (banner text only).
+  ['GET', '/api/announcement', 'none'],
+  ...[
+    ['GET', '/challenges/export'], ['POST', '/challenges/import'], ['PATCH', '/challenges/:id/visibility'],
+    ['POST', '/challenges/:id/duplicate'], ['GET', '/challenges/:id/stats'], ['POST', '/challenges/:id/reset-solves'],
+    ['GET', '/stats/overview'], ['GET', '/stats/timeseries'],
+    ['GET', '/teams/:id'], ['PATCH', '/teams/:id'], ['DELETE', '/teams/:id'], ['DELETE', '/teams/:id/members/:userId'],
+    ['POST', '/teams/:id/invite-code/regenerate'], ['POST', '/teams/:id/score-adjustments'],
+    ['GET', '/integrity/summary'], ['GET', '/integrity/users'], ['POST', '/integrity/:userId/resolve'],
+    ['GET', '/users'], ['GET', '/users/:id'], ['PATCH', '/users/:id/ban'], ['POST', '/users/:id/remove-from-team'],
+    ['POST', '/users/:id/reset-terminal'],
+    ['GET', '/solves'], ['DELETE', '/solves/:id'], ['GET', '/submissions'], ['GET', '/audit'],
+    ['GET', '/settings'], ['PUT', '/settings'],
+    ['GET', '/export/users.csv'], ['GET', '/export/teams.csv'], ['GET', '/export/submissions.csv'], ['GET', '/export/leaderboard.csv'],
+  ].map(([method, path]) => [method, `/api/admin${path}`, 'admin']),
 ];
 const keyOf = (method, path) => `${method} ${path}`;
 const accessByKey = new Map(TABLE.map(([method, path, access]) => [keyOf(method, path), access]));
@@ -205,10 +221,10 @@ describe('route inventory', () => {
     expect(missingRoute, 'TABLE rows with no route (stale entries)').toEqual([]);
   });
 
-  it('only exposes health and the documented honeypot decoys without authentication', () => {
+  it('only exposes health, the announcement banner and the documented honeypot decoys without authentication', () => {
     const open = routes.filter((route) => accessOf(route.chain) === 'none').map((route) => keyOf(route.method, route.path));
     expect(open.sort()).toEqual([...PUBLIC_KEYS].sort());
-    expect(PUBLIC_KEYS.filter((key) => !key.includes('/api/health') && !HONEYPOT_PATHS.some((path) => key.endsWith(` ${path}`)))).toEqual([]);
+    expect(PUBLIC_KEYS.filter((key) => !key.includes('/api/health') && !key.endsWith(' /api/announcement') && !HONEYPOT_PATHS.some((path) => key.endsWith(` ${path}`)))).toEqual([]);
   });
 
   it('wires the required access into each route chain, with auth before any role check', () => {
