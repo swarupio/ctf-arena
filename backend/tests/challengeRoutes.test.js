@@ -71,7 +71,9 @@ describe('player challenge routes', () => {
     Challenge.find.mockReturnValue({ sort: vi.fn().mockResolvedValue([staticChallenge, dockerChallenge]) });
     Solve.find.mockResolvedValue([{ challengeId: staticChallenge._id }]);
     const { body } = await api('get', '/challenges').expect(200);
-    expect(Challenge.find).toHaveBeenCalledWith({ visible: true });
+    expect(Challenge.find).toHaveBeenCalledWith(
+      { visible: true }, 'slug title category difficulty points type solveCount', { lean: true },
+    );
     expect(body.map((c) => [c.slug, c.solvedByMyTeam, c.solveCount])).toEqual([['sanity-check', true, 3], ['cookie-monster', false, 0]]);
     for (const field of secretFields) { expect(JSON.stringify(body)).not.toContain(field); }
     expect(JSON.stringify(body)).not.toContain(staticStored.flagHash);

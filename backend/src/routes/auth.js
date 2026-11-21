@@ -12,7 +12,7 @@ async function profile(user) {
   // Missing or invalid legacy references are represented as no team.
   if (user.teamId && /^[a-f\d]{24}$/i.test(String(user.teamId))) {
     const { default: Team } = await import('../models/Team.js');
-    const currentTeam = await Team.findById(user.teamId);
+    const currentTeam = await Team.findById(user.teamId, 'name', { lean: true });
     if (currentTeam) { team = { id: String(currentTeam._id), name: currentTeam.name }; }
   }
   return {
@@ -32,10 +32,15 @@ async function upsertUser({ cognitoSub, email, role }, displayName) {
   } else {
     $set.displayName = displayName;
   }
+  // Reads are far cheaper than writes: only touch the document when something actually changes.
+  if (displayName === undefined) {
+    const existing = await User.findOne({ cognitoSub }, '_id email role displayName teamId', { lean: true });
+    if (existing && existing.email === email && existing.role === role) { return existing; }
+  }
   return User.findOneAndUpdate(
     { cognitoSub },
     { $set, $setOnInsert },
-    { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
+    { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true, lean: true },
   );
 }
 

@@ -208,7 +208,7 @@ describe('who is calling', () => {
     User.findOne.mockResolvedValue({ _id: oid(7) });
     const response = await hit(HONEYPOT_PATHS[2], { token: 'sub-7' }).expect(200);
     await integrityService.flush();
-    expect(User.findOne).toHaveBeenCalledWith({ cognitoSub: 'sub-7' });
+    expect(User.findOne).toHaveBeenCalledWith({ cognitoSub: 'sub-7' }, '_id', { lean: true });
     expect(state.signals).toHaveLength(1);
     expect(state.signals[0]).toMatchObject({ subjectKey: oid(7), userId: oid(7), kind: 'honeypot-endpoint', severity: 2 });
     expect(state.tainted.every((row) => row.subjectKey === oid(7))).toBe(true);

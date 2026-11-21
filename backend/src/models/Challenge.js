@@ -32,5 +32,7 @@ const challengeSchema = new mongoose.Schema({
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
 challengeSchema.index({ type: 1, 'terminal.mode': 1 });
+// GET /api/challenges: filter visible, sorted by points then title.
+challengeSchema.index({ visible: 1, points: 1, title: 1 });
 
 export default mongoose.model('Challenge', challengeSchema);

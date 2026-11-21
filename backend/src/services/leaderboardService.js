@@ -3,6 +3,14 @@ import Team from '../models/Team.js';
 
 export const TIMELINE_TEAMS = 10;
 
+// Short-lived in-process memo of the full ranking (one entry, so memory is bounded). Every replica recomputes at
+// most once per TTL, so the answer is at most TTL old on any replica (the contract allows a few seconds of lag).
+// Concurrent callers share one in-flight computation. It holds only public data (team names, points), never per-user data.
+// Disabled under NODE_ENV=test unless a test calls configureRankingCache.
+let cacheTtlMs = process.env.NODE_ENV === 'test' ? 0 : 5000;
+let cached = null;
+export function configureRankingCache({ ttlMs }) { cacheTtlMs = ttlMs; cached = null; }
+
 const time = (value) => new Date(value).getTime();
 const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -32,7 +40,7 @@ function solvedTeams() {
 
 // Complete ranking: solved teams first, then every other visible team with 0 points.
 // Rank is the position in the list (1-based); ties are broken deterministically.
-async function rankTeams() {
+async function computeRanking() {
   const rows = await solvedTeams();
   const standings = rows.map((row) => ({
     teamId: String(row._id),
@@ -41,11 +49,23 @@ async function rankTeams() {
     solves: row.solves,
     lastSolveAt: row.lastSolveAt ? new Date(row.lastSolveAt).toISOString() : null,
   }));
-  const idle = await Team.find({ banned: { $ne: true }, _id: { $nin: rows.map((row) => row._id) } }, 'name');
+  const idle = await Team.find({ banned: { $ne: true }, _id: { $nin: rows.map((row) => row._id) } }, 'name', { lean: true });
   for (const team of idle) {
     standings.push({ teamId: String(team._id), teamName: team.name, points: 0, solves: 0, lastSolveAt: null });
   }
   return standings.sort(compareStanding).map((standing, index) => ({ rank: index + 1, ...standing }));
+}
+
+async function rankTeams() {
+  if (cacheTtlMs <= 0) { return computeRanking(); }
+  if (cached && cached.expires > Date.now()) { return cached.promise; }
+  const entry = { expires: Date.now() + cacheTtlMs, promise: null };
+  entry.promise = computeRanking().catch((error) => {
+    if (cached === entry) { cached = null; }
+    throw error;
+  });
+  cached = entry;
+  return entry.promise;
 }
 
 export async function getLeaderboard({ limit } = {}) {
@@ -58,7 +78,7 @@ export async function getLeaderboard({ limit } = {}) {
 export async function getTimeline({ now = new Date() } = {}) {
   const top = (await rankTeams()).slice(0, TIMELINE_TEAMS);
   const solves = top.length === 0 ? [] : await Solve.find(
-    { teamId: { $in: top.map((team) => team.teamId) } }, 'teamId points solvedAt',
+    { teamId: { $in: top.map((team) => team.teamId) } }, 'teamId points solvedAt', { lean: true },
   ).sort({ solvedAt: 1, _id: 1 });
 
   const start = new Date(solves.length ? solves[0].solvedAt : now).toISOString();

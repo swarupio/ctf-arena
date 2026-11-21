@@ -146,7 +146,7 @@ async function identifyCaller(req) {
     if (!bearer || !active()) { return anonymous; }
     const payload = await withTimeout(Promise.resolve().then(() => getCognitoVerifier().verify(bearer[1])));
     if (payload === TIMED_OUT || typeof payload?.sub !== 'string' || !payload.sub) { return anonymous; }
-    const user = await withTimeout(Promise.resolve(User.findOne({ cognitoSub: payload.sub })));
+    const user = await withTimeout(Promise.resolve(User.findOne({ cognitoSub: payload.sub }, '_id', { lean: true })));
     return user && user !== TIMED_OUT && user._id ? { subjectKey: String(user._id), userId: user._id } : anonymous;
   } catch {
     return anonymous;

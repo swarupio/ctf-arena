@@ -16,14 +16,14 @@ async function ownInstance(req) {
   const { team } = await getTeamContext(req.user);
   const instance = await Instance.findOne({
     _id: objectId(req.params.id), teamId: team._id, status: { $in: ACTIVE_STATUSES },
-  });
+  }, null, { lean: true });
   if (!instance) { throw new AppError(404, 'NOT_FOUND', 'Instance not found.'); }
   return { team, instance };
 }
 
 router.get('/', async (req, res) => {
   const { team } = await getTeamContext(req.user, { blockBanned: false });
-  const instances = await Instance.find({ teamId: team._id, status: { $in: ACTIVE_STATUSES } }).sort({ createdAt: 1 });
+  const instances = await Instance.find({ teamId: team._id, status: { $in: ACTIVE_STATUSES } }, null, { lean: true }).sort({ createdAt: 1 });
   res.json(instances.map(serializeInstance));
 });
 

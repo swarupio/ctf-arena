@@ -19,5 +19,8 @@ const active = { status: { $in: ACTIVE_STATUSES } };
 instanceSchema.index({ port: 1 }, { unique: true, partialFilterExpression: active });
 instanceSchema.index({ teamId: 1, challengeId: 1 }, { unique: true, partialFilterExpression: active });
 instanceSchema.index({ status: 1, expiresAt: 1 });
+// Team views and limits (teamId + active status, ordered by creation) and the port scan (status + port, covered).
+instanceSchema.index({ teamId: 1, status: 1, createdAt: 1 });
+instanceSchema.index({ status: 1, port: 1 });
 
 export default mongoose.model('Instance', instanceSchema);

@@ -31,7 +31,7 @@ export async function recordSolve({ challenge, teamId, userId }) {
   }
   // Atomic counter: exactly one team observes solveCount === 1.
   const updated = await Challenge.findOneAndUpdate(
-    { _id: challenge._id }, { $inc: { solveCount: 1 } }, { new: true },
+    { _id: challenge._id }, { $inc: { solveCount: 1 } }, { new: true, projection: 'solveCount', lean: true },
   );
   const firstBlood = updated?.solveCount === 1;
   const points = awardFor(challenge.points, firstBlood);
