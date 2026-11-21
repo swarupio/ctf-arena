@@ -32,6 +32,7 @@ export function TeamProvider({ children }) {
     if (auth.user) void refresh().catch(() => {});
     else setState({ team: undefined, profile: null, loading: false, error: null });
     return () => { generation.current += 1; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the user email on purpose; the user object changes identity on token refresh
   }, [auth.user?.email, refresh]);
 
   return <TeamContext.Provider value={{ ...state, profile: state.profile ?? auth.profile, refresh }}>

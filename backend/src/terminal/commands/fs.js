@@ -1,7 +1,7 @@
 // Filesystem commands: ls cd pwd cat tac head tail nl wc stat file tree du and the /tmp-only mutators.
 // Sorting is C-locale (byte order) everywhere, like `LC_ALL=C ls`.
 import {
-  FIXED_NOW, FIXED_NOW_ISO, basenameOf, cmpBytes, dirnameOf, joinPath, modeString, nodeSize, resolvePath,
+  FIXED_NOW, FIXED_NOW_ISO, basenameOf, cmpBytes, joinPath, modeString, nodeSize, resolvePath,
 } from '../vfs.js';
 import {
   absPath, asBuf, asText, errnoText, forEachInput, humanSize, isDevNull, joinLines, lsDate, mtimeMs, openOperand, pad,
@@ -468,7 +468,7 @@ function file(c) {
   if (parsed.operands.length === 0) { c.err('Usage: file [-bhi] FILE...\n'); return 1; }
   const labelOf = (operand) => (operand === '-' ? '/dev/stdin' : operand);
   const width = Math.max(...parsed.operands.map((o) => labelOf(o).length)) + 1;
-  let exit = 0;
+  const exit = 0;
   for (const operand of parsed.operands) {
     if (operand === '-') {
       const description = describeBytes(asBuf(c.stdin), null);

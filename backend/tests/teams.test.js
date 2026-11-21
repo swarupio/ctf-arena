@@ -284,8 +284,7 @@ describe('team input and authorization', () => {
     expect(User.db.transaction).not.toHaveBeenCalled();
   });
 
-  it.each([['post', '/teams'], ['post', '/teams/join'], ['get', '/teams/me'], ['post', '/teams/me/leave']])
-  ('requires a token for %s %s', async (method, path) => {
+  it.each([['post', '/teams'], ['post', '/teams/join'], ['get', '/teams/me'], ['post', '/teams/me/leave']])('requires a token for %s %s', async (method, path) => {
     expect((await request(app)[method](`/api${path}`).expect(401)).body.error.code).toBe('UNAUTHENTICATED');
     expect(User.db.transaction).not.toHaveBeenCalled();
   });

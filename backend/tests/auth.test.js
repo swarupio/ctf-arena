@@ -37,8 +37,7 @@ describe('route authentication', () => {
     expect(verifier.verify).not.toHaveBeenCalled();
   });
 
-  it.each(['Basic token', 'Bearer', 'Bearer token extra', 'Bearer token,other'])
-  ('rejects malformed authorization: %s', async (header) => {
+  it.each(['Basic token', 'Bearer', 'Bearer token extra', 'Bearer token,other'])('rejects malformed authorization: %s', async (header) => {
     const response = await request(testApp).get('/test/identity').set('Authorization', header).expect(401);
     expect(response.body.error.code).toBe('UNAUTHENTICATED');
     expect(verifier.verify).not.toHaveBeenCalled();

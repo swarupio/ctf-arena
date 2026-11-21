@@ -16,7 +16,6 @@ Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]).copy(elf);
 elf.writeUInt16LE(2, 16);
 elf.writeUInt16LE(62, 18);
 const gz = gzipDeterministic(Buffer.from('hello gzip\n'));
-const gzLayered = gzipDeterministic(Buffer.from('layer: CTF{test_9}\n'));
 
 const bigLog = Array.from({ length: 1000 }, (_, i) => `2024-03-14 09:${String(i % 60).padStart(2, '0')}:00 host${i % 7} ${i % 10 === 0 ? 'ERROR' : 'INFO'} request ${i}`).join('\n');
 

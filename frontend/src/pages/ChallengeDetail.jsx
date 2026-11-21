@@ -21,6 +21,7 @@ export default function ChallengeDetail() {
     try { setChallenge(await getChallenge(id)); setError(''); }
     catch (failure) { setError(challengeErrorMessage(failure)); }
   }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load is recreated every render; re-fetch only when id changes
   useEffect(() => { load(); }, [id]);
 
   const instance = challenge?.myInstance;
@@ -28,9 +29,11 @@ export default function ChallengeDetail() {
     if (!instance) return undefined;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the timer is keyed on the instance id, not the object
   }, [instance?.id]);
   // When the countdown ends the reaper removes the container; refresh to match.
   const expired = Boolean(instance) && isExpired(instance.expiresAt, now);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load is recreated every render; re-run only when expired flips
   useEffect(() => { if (expired) load(); }, [expired]);
 
   async function run(action, success) {

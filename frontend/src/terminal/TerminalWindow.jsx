@@ -121,6 +121,7 @@ export default function TerminalWindow({
   useEffect(() => {
     if (!coarsePointer && inputRef.current) inputRef.current.focus({ preventScroll: true });
     if (coarsePointer && windowRef.current && windowRef.current.scrollIntoView) windowRef.current.scrollIntoView({ block: 'start' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; coarsePointer is a mount-time snapshot
   }, []);
 
   // Keep the newest output (and the prompt under it) in view: scroll the terminal only, never the page.

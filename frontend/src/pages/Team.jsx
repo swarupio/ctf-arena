@@ -17,6 +17,7 @@ export default function Team() {
   const disabled = pending || loading;
   // Scores change when teammates solve challenges, so re-read the team when the page opens.
   // Only needed for members; skipping it for team-less users keeps the create/join forms usable at once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on open; team and refresh must not retrigger the fetch
   useEffect(() => { if (team) void refresh().catch(() => {}); }, []);
 
   async function reload() {
