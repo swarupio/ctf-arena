@@ -13,7 +13,7 @@ import { replicaCounter } from '../../src/middleware/requestCounter.js';
 import { auth } from '../../src/middleware/auth.js';
 import { HONEYPOT_PATHS } from '../../src/services/integrityBait.js';
 import { database, models } from './helpers/fakeDb.js';
-import { call, getApp, seedWorld, verify } from './helpers/harness.js';
+import { call, getApp, getServer, seedWorld, verify } from './helpers/harness.js';
 
 // These tests drive the whole app; stay robust when the full suite runs in parallel on a busy machine.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
@@ -33,6 +33,8 @@ vi.mock('../../src/models/AttemptCounter.js', async () => (await import('./helpe
 vi.mock('../../src/models/CheatSignal.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CheatSignal'));
 vi.mock('../../src/models/TaintedFlag.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TaintedFlag'));
 vi.mock('../../src/models/TerminalActivity.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TerminalActivity'));
+vi.mock('../../src/models/AuditLog.js', async () => (await import('./helpers/fakeDb.js')).emptyModelModule());
+vi.mock('../../src/models/AppSetting.js', async () => (await import('./helpers/fakeDb.js')).emptyModelModule({ ANNOUNCEMENT_LEVELS: ['info', 'warning', 'critical'] }));
 vi.mock('../../src/models/CipherHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CipherHint'));
 // Tag every requireRole() guard with the roles it was built with, so the access level can be read off the chain.
 vi.mock('../../src/middleware/requireRole.js', async (importOriginal) => {
@@ -180,8 +182,10 @@ function accessOf(chain) {
 
 let routes;
 let app;
+let server;
 beforeAll(async () => {
   app = await getApp();
+  server = await getServer();
   express.Router.prototype.use = realUse;
   routes = walk(app.router, '/', []);
 });
@@ -193,7 +197,7 @@ beforeEach(() => {
 
 const sample = (path) => path.replace(':mode', 'easy').replace(/:\w+/g, '0'.repeat(24));
 const requestFor = (method, path, token, rawHeader) => {
-  let req = request(app)[method.toLowerCase()](sample(path));
+  let req = request(server)[method.toLowerCase()](sample(path));
   if (rawHeader !== undefined) { req = req.set('Authorization', rawHeader); }
   else if (token !== undefined && token !== null) { req = req.set('Authorization', `Bearer ${token}`); }
   return ['POST', 'PUT', 'PATCH'].includes(method) ? req.send({}) : req;
@@ -245,7 +249,7 @@ describe('route inventory', () => {
 
   it('has a Router-level auth guard on every sub-router, so an unmatched sub-path also needs a token', async () => {
     for (const path of ['/api/teams/zzz', '/api/instances/zzz/zzz', '/api/admin/stats/zzz', '/api/admin/integrity/a/b']) {
-      const response = await request(app).get(path);
+      const response = await request(server).get(path);
       expect(response.status, path).toBe(401);
     }
   });
@@ -324,9 +328,9 @@ describe('authentication and authorization of every protected route', () => {
   });
 
   it('never calls the verifier for a missing or malformed Authorization header', async () => {
-    await request(app).get('/api/me');
-    await request(app).get('/api/me').set('Authorization', 'Basic abc');
-    await request(app).get('/api/me').set('Authorization', 'Bearer a b');
+    await request(server).get('/api/me');
+    await request(server).get('/api/me').set('Authorization', 'Basic abc');
+    await request(server).get('/api/me').set('Authorization', 'Bearer a b');
     expect(verify).not.toHaveBeenCalled();
   });
 
@@ -377,7 +381,7 @@ describe('methods and paths that are not in the table', () => {
   );
 
   it('answers unknown public paths with the standard NOT_FOUND body', async () => {
-    const response = await request(app).get('/api/definitely-not-here');
+    const response = await request(server).get('/api/definitely-not-here');
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Route not found.' } });
   });
@@ -395,7 +399,7 @@ describe('transport headers and CORS', () => {
   });
 
   it('sends no CORS headers, also not for a preflight from a foreign origin', async () => {
-    const preflight = await request(app).options('/api/me')
+    const preflight = await request(server).options('/api/me')
       .set('Origin', 'https://evil.example').set('Access-Control-Request-Method', 'GET')
       .set('Access-Control-Request-Headers', 'authorization');
     const simple = await call('get', '/api/me', 'alice', undefined, { Origin: 'https://evil.example' });

@@ -48,6 +48,8 @@ cd backend && npm ci && npm run seed:challenges && cd ..          # register the
 for d in challenges/*/; do s=$(basename "$d"); [ -f "$d/Dockerfile" ] && [ "${s#_}" = "$s" ] && docker build -t "ctf/$s" "$d"; done
 cd frontend && npm ci && npm run build && cd ..                   # Nginx serves frontend/dist
 docker compose up -d --build              # Nginx + 3 backend replicas on http://localhost
+# No Atlas (laptop): docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build, then seed the
+# local database (docs/SETUP.md section 6b: seed:challenges, seed:terminal, seed:cipherlab, seed:weblab, seed:forensics)
 ```
 
 | Page | Who | What |
