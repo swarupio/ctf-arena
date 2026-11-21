@@ -31,9 +31,8 @@ vi.mock('../../src/models/TerminalActivity.js', async () => (await import('./hel
 
 seedWorld(); // ids are deterministic, so the it.each tables below can use them while the file is collected
 
-let app;
 let server;
-beforeAll(async () => { app = await getApp(); server = await getServer(); });
+beforeAll(async () => { await getApp(); server = await getServer(); });
 afterAll(() => replicaCounter.stop());
 beforeEach(() => {
   seedWorld();

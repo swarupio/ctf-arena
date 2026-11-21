@@ -24,7 +24,7 @@ const load = (world) => Object.fromEntries(SOURCES.map((s) => [s.id, allOf(world
 const staffPage = (v, id = 'staff') => v.pages.find((p) => p.id === id);
 const staffByHandle = (v, handle) => staffPage(v).staff.find((s) => s.social === handle) ?? staffPage(v, 'staff-archive')?.staff.find((s) => s.social === handle);
 const nameOfHandle = (v, handle) => staffByHandle(v, handle)?.name;
-const handleOfName = (v, name) => (staffPage(v).staff.find((s) => s.name === name) ?? staffPage(v, 'staff-archive')?.staff.find((s) => s.name === name)).social;
+const handleOfName = (v, name) => (staffPage(v).staff.find((s) => s.name === name) ?? staffPage(v, 'staff-archive')?.staff.find((s) => s.name === name))?.social;
 const castOf = (v, handle) => v.cast.find((c) => c.handle === handle);
 const xyFromGps = (exif) => ({ x: Math.round((Number(exif.GPSLongitude) - 0.5) * 10_000), y: Math.round(1000 - (Number(exif.GPSLatitude) - 0.5) * 10_000) });
 const cellFromXy = ({ x, y }) => `${'ABCDEFGH'[Math.min(7, Math.floor(x / 125))]}${Math.min(8, Math.floor(y / 125) + 1)}`;
@@ -67,7 +67,7 @@ export function solveMedium(world, pub) {
   return { 1: email, 2: only(txt, 'verified domain').name, 3: cell, 4: nameOfHandle(v, handleOfAuthor(tagged)), 5: creator.name };
 }
 
-export function solveHard(world, pub) {
+export function solveHard(world, _pub) {
   const v = load(world);
   const now = staffPage(v).staff.map((s) => s.name);
   const exName = only(staffPage(v, 'staff-archive').staff.filter((s) => !now.includes(s.name)), 'vanished person').name;

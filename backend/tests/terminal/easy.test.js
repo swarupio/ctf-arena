@@ -158,7 +158,6 @@ describe('easy mode definition', () => {
     }
     expect(size).toBeLessThan(400 * 1024);
     for (const { node, path } of textFiles()) {
-      // eslint-disable-next-line no-control-regex
       expect(/^[\n\t\x20-\x7e]*$/.test(node.content), `non-ASCII or control character in ${path}`).toBe(true);
     }
   });

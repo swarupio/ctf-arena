@@ -19,7 +19,8 @@
     "seed:forensics": "node src/scripts/seedForensics.js",
     "seed:crackme": "node src/scripts/seedCrackme.js",
     "seed:osint": "node src/scripts/seedOsint.js",
-    "seed:demo": "node src/scripts/seedDemo.js"
+    "seed:demo": "node src/scripts/seedDemo.js",
+    "lint": "eslint ."
   },
   "dependencies": {
     "aws-jwt-verify": "^5.1.0",
@@ -31,6 +32,9 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
     "vitest": "^3.2.4"

@@ -4,7 +4,6 @@ import { z } from 'zod';
 import Challenge from '../models/Challenge.js';
 import CheatSignal from '../models/CheatSignal.js';
 import Solve from '../models/Solve.js';
-import Submission from '../models/Submission.js';
 import Team from '../models/Team.js';
 import TerminalActivity from '../models/TerminalActivity.js';
 import User from '../models/User.js';

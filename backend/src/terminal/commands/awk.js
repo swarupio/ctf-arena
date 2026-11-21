@@ -417,7 +417,7 @@ class Parser {
     return false;
   }
 
-  parseConcat(noGt) {
+  parseConcat(_noGt) {
     let left = this.parseAdditive();
     while (this.startsOperand()) left = { type: 'concat', a: left, b: this.parseAdditive() };
     return left;
@@ -1005,7 +1005,7 @@ class Interp {
       }
     }
     if (hasMain || this.items.some((item) => item.kind === 'end')) {
-      if (!(exited && false)) this.runRules('end');
+      this.runRules('end');
     }
     return this.exitCode;
   }

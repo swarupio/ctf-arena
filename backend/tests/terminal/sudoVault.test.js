@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  dir, file, link, vault,
+  dir, file, link,
 } from '../../src/terminal/vfs.js';
 import { makeTestCtx, out, run } from './_helpers.js';
 

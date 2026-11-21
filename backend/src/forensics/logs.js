@@ -92,7 +92,7 @@ export function logPlan(seed, level, scn) {
     put(0.64, (d, q) => access(d, atk, `/download?file=${file}`, pick(q.r, [403, 404]), int(q.r, 180, 420), 'curl/8.4.0'), 0.02);
   }
   const bytes = int(r, 40e6, 90e6);
-  put(0.68, (d, q) => access(d, atk, `/download?file=${scn.exfilFile}`, 200, bytes, 'curl/8.4.0'), 0.02);
+  put(0.68, (d) => access(d, atk, `/download?file=${scn.exfilFile}`, 200, bytes, 'curl/8.4.0'), 0.02);
   return { events, breachIndex: breach, breachTime: clockText(lineTime(seed, level, breach)) };
 }
 

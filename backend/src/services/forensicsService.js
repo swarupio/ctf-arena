@@ -53,8 +53,6 @@ export async function teamSolves(team, rows) {
   return result;
 }
 
-const sumPoints = (stages) => stages.reduce((total, stage) => total + stage.points, 0);
-
 export function summarizeTrack(track, rows, solved) {
   const seeded = rows.size > 0;
   return {
