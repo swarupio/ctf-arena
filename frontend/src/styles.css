@@ -293,3 +293,5 @@ dt:first-of-type, dt:first-of-type + dd { border-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
 }
+
+.back-games { display: inline-block; margin-bottom: var(--space-2); }

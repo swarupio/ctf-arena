@@ -22,6 +22,7 @@ export default function WebLab() {
 
   const { data, problem } = state;
   return <section className="wl-page-root">
+    <Link className="back-games" to="/games">Back to Games</Link>
     <h1>Web Exploit Lab</h1>
     <p className="wl-lead">
       You are a bug bounty hunter. Four companies, four difficulty tracks, ten simulated websites, each with a classic

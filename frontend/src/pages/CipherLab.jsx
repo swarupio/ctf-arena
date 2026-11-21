@@ -26,6 +26,7 @@ function Overview() {
   const noTeam = user?.role !== 'admin' && team === null;
   return <section className="cl-page">
     <header className="cl-hero">
+      <Link className="back-games" to="/games">Back to Games</Link>
       <p className="cl-kicker">codebreaker agency</p>
       <h1>Cipher Lab</h1>
       <p className="cl-lead">
