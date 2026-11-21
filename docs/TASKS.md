@@ -140,7 +140,7 @@ Each task has an **acceptance** line: if it is true, the task is done.
   *Verified (2026-11-04):* scaled 1 -> 3 -> 5 with that exact command and no code change; 5 replicas became healthy and the probe saw 5 different `X-Served-By` names. Documented in `deploy/loadtest/README.md` (Scale demo) and the root README.
 
 ### Deployment
-- [ ] **P3-09 Azure VM setup.** Ubuntu VM (a friend helps with the Azure account), Docker + Compose installed, static public IP, network security group inbound rules (80, 443 optional, 22 restricted to known IPs, 30000-30100 open), swap file if the VM size is small. Add the VM public IP to Atlas Network Access.
+- [x] **P3-09 ~~Azure VM setup~~ (CANCELLED 2026-11-22).** The Azure VM was only needed for the course presentation (full marks received) and was too expensive to keep. Replaced by Phase 4 (Vercel hosting, task P4-01 onward). The VM files and docs are removed in P4-03. Original text kept for history: Ubuntu VM (a friend helps with the Azure account), Docker + Compose installed, static public IP, network security group inbound rules (80, 443 optional, 22 restricted to known IPs, 30000-30100 open), swap file if the VM size is small. Add the VM public IP to Atlas Network Access.
   *Prepared, not done:* `deploy/azure-setup.sh` (idempotent: Docker + Compose, docker group, swap, ufw, prints `DOCKER_GID`; shellcheck clean, not run on a real VM) and the runbook `docs/AZURE_SETUP.md` are ready. **The VM itself must still be created by the friend who owns the Azure account**, then the IP added to Atlas; tick this box after `curl http://<ip>/api/health` works from outside.
 - [x] **P3-10 CI/CD.** `.github/workflows/deploy.yml`: on push to `main` run tests, SSH to the Azure VM, `git pull`, build frontend, `docker compose up -d --build`.
   *Acceptance:* merging a PR updates the live site within a few minutes.
@@ -154,3 +154,37 @@ Each task has an **acceptance** line: if it is true, the task is done.
 - [ ] **P3-14 Report and slides.** Compile the report using the outline; each person writes their own section.
 - [ ] **P3-15 Final tag.** Update README with the live URL, tag `v1.0-release`.
   *Acceptance:* the success criteria in `PROJECT_BRIEF.md` section 7 all pass on the public URL.
+
+---
+
+# PHASE 4 - Post-presentation: Vercel hosting, fixes, speed, full admin dashboard (owner: Swarup)
+
+**Context (2026-11-22):** the presentation is over (full marks). The Azure VM is dropped as too costly. The app moves to **Vercel**
+(free). Docker challenge containers cannot run on Vercel, so they stay in the code as **local-only** (`DOCKER_ENABLED=true` when
+running `docker compose up` on a laptop; disabled with a clear message on Vercel). The owner now runs all operations alone, so the
+admin dashboard must be complete. Items marked `(agent)` were built by parallel agents in worktrees and merged by the lead.
+
+### Hosting
+- [ ] **P4-01 Vercel layout.** `vercel.json`, serverless `api/` entry wrapping the Express app, static Vite build, SPA fallback, security headers.
+- [ ] **P4-02 Serverless-safe backend.** Cached Mongoose connection, env validation for Vercel, reaper and request-counter flush made serverless-safe, `DOCKER_ENABLED` flag with `DOCKER_DISABLED` API error.
+- [ ] **P4-03 Remove VM-only files.** `azure-setup.sh`, `AZURE_SETUP.md`, SSH deploy workflow and stale Azure/VM wording gone; local `docker compose` mode kept.
+- [ ] **P4-04 Deploy docs.** `docs/DEPLOY_VERCEL.md` (env vars, Atlas network access, Cognito callback URLs, local Docker mode, limits); README updated.
+- [ ] **P4-05 First real Vercel deploy.** Owner imports the repo, sets env vars, updates Cognito callback/logout URLs, `curl https://<app>/api/health` works. *Acceptance:* sign-in with MFA works on the Vercel URL.
+
+### Bugs
+- [ ] **P4-06 Terminal score discrepancy.** Max is 160 but a player reached 176 (suspected double-count or first-blood bonus 160 x 1.1). Root cause fixed, scores can never exceed the documented maximum, regression + concurrency tests.
+- [ ] **P4-07 Terminal output errors.** Runtime errors in terminal command output investigated and fixed.
+
+### Performance
+- [ ] **P4-08 Backend query optimisation.** Compound indexes matching real query shapes, `lean()` and projections, no N+1, parallel awaits, bounded caching, ETag on leaderboard.
+- [ ] **P4-09 Frontend load time.** Route code-splitting, vendor chunks, API de-dupe and short cache, polling backoff, listener/timer cleanup, bounded terminal scrollback. Record before/after bundle sizes.
+- [ ] **P4-10 Memory pass.** Backend and frontend memory review after the above merges (unbounded buffers, caches, listeners).
+- [ ] **P4-11 Lint pass.** ESLint (or equivalent) added and clean for backend and frontend, with a one-line reason for the dependency.
+
+### Admin dashboard v2
+- [ ] **P4-12 Admin API v2.** Stats and time series, users, teams (incl. score adjustment with audit), challenges (publish, duplicate, import/export without flags), submissions and solves, integrity review, instances, audit log, platform settings and announcement, CSV export. Contract in `docs/API_SPEC.md` "Admin API v2".
+- [ ] **P4-13 Admin dashboard UI.** Sidebar layout, overview charts, and a page per area from P4-12, all admin-guarded.
+- [ ] **P4-14 Admin QA.** Real `admin` Cognito user walkthrough of every admin page and action.
+
+### Close-out
+- [ ] **P4-15 Docs sync and final tag.** API_SPEC, DATABASE_SCHEMA, README, SETUP match the code; tag `v1.1-vercel`. (The older `v1.0-release` tag sits on `580482e`, before the terminal game; leave it as the presentation snapshot.)
