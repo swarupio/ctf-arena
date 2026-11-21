@@ -92,7 +92,8 @@ export default function ChallengeDetail() {
             </div>
           </> : <>
             <p>Your team gets its own private container with its own flag.</p>
-            <button disabled={busy || solved} onClick={() => run(() => startInstance(id), 'Instance started.')}>{busy ? 'Working…' : 'Start instance'}</button>
+            {challenge.dockerAvailable === false && <p className="muted">Docker challenges are only available when the platform is run locally.</p>}
+            <button disabled={busy || solved || challenge.dockerAvailable === false} onClick={() => run(() => startInstance(id), 'Instance started.')}>{busy ? 'Working…' : 'Start instance'}</button>
           </>}
         </div>}
 

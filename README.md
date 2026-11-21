@@ -15,7 +15,7 @@ submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
 | 1 | IAM + MFA | AWS Cognito (TOTP authenticator app) | Sign up, login, 6-digit code, `player` / `admin` roles |
 | 2 | Database as a Service | MongoDB Atlas (free tier) | Teams, challenges, solves, submissions, leaderboard |
 | 3 | Docker + scaling | Docker, Docker Compose, Nginx | One container per team per challenge, 3 backend replicas |
-| 4 | Deployment | Azure VM + GitHub Actions | Public URL, auto-deploy on push to `main` |
+| 4 | Deployment | Vercel (free) + GitHub Actions CI | Public URL, auto-deploy from Git; Docker challenges run locally only |
 
 ## Who builds what
 
@@ -29,11 +29,18 @@ submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
 
 All three phases are in the code base: login with MFA and teams, challenges with one Docker container per team,
 flags and scoring, the live leaderboard, the admin dashboard, Nginx load balancing across backend replicas, a load
-test, and the Azure VM deployment scripts with CI/CD. What is still open (see `docs/TASKS.md`): creating the real Azure
-VM (P3-09), the live end-to-end check with two teams on two devices (P3-12), demo data and script (P3-13), report
+test, and hosting on Vercel (the Azure VM plan was dropped; see `docs/DEPLOY_VERCEL.md`). What is still open (see `docs/TASKS.md`): the live end-to-end check with two teams on two devices (P3-12), demo data and script (P3-13), report
 and slides (P3-14) and the final tag `v1.0-release` (P3-15). Handoffs: `docs/handoffs/`.
 
-## Quick start (whole stack on your machine)
+## Hosting: Vercel (hosted) and local Docker mode
+
+The public site runs on **Vercel**: the Vite frontend is static output and the Express app runs as one serverless
+function under `/api` (`api/index.js`, `vercel.json`). Arena Terminal, static challenges, teams, leaderboard and admin
+all work there. **Docker challenges cannot run on Vercel**, so with `DOCKER_ENABLED=false` (the Vercel default) they are
+listed but their Start button is disabled (`503 DOCKER_DISABLED`). To play Docker challenges, run the full stack on a
+laptop with the Quick start below. Step by step: [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md).
+
+## Quick start (whole stack on your machine, Docker challenges included)
 
 ```bash
 cp .env.example .env                      # then fill in Atlas + Cognito values (docs/SETUP.md); never commit .env
@@ -67,7 +74,7 @@ Unit tests need no database, but the variables of `.env.example` must be set (a 
 8. `docs/SETUP.md` - local setup, Atlas, Cognito
 9. `docs/SECURITY.md` - rules that keep the platform safe, plus the production checklist
 10. `docs/DEMO_AND_REPORT.md` - demo script and report outline
-11. `docs/AZURE_SETUP.md` - create the Azure VM and deploy (runbook for whoever owns the Azure account)
+11. `docs/DEPLOY_VERCEL.md` - host the site on Vercel (free), env vars, Cognito and Atlas settings, local Docker mode
 
 ## Backend foundation (P1-01 through P1-04)
 
@@ -205,9 +212,7 @@ of `/var/run/docker.sock`; both are explained at the end of `.env.example`). Rep
 admin dashboard are container ids. A free load test with results at
 1, 3 and 5 replicas is in [`deploy/loadtest/`](deploy/loadtest/README.md).
 
-Deployment is one Ubuntu VM on Azure. [`docs/AZURE_SETUP.md`](docs/AZURE_SETUP.md) is the step-by-step runbook
-(VM, network rules, `deploy/azure-setup.sh`, `.env` for production, first deploy, troubleshooting).
-On the VM, `bash deploy/deploy.sh` builds the frontend and challenge images and restarts the stack; the GitHub
-Actions workflow `.github/workflows/deploy.yml` runs the same script after the tests on every push to `main`
-(pull requests run only the tests, `.github/workflows/ci.yml`). Before real players arrive, tick the production
-checklist in [`docs/SECURITY.md`](docs/SECURITY.md).
+Hosting is on Vercel ([`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md)); Vercel builds from Git on every push. Locally,
+`bash deploy/deploy.sh` builds the frontend and challenge images and restarts the docker compose stack. GitHub Actions
+(`.github/workflows/ci.yml`) runs the backend and frontend tests and the frontend build on pull requests. Before real
+players arrive, go through the checklist in [`docs/SECURITY.md`](docs/SECURITY.md).

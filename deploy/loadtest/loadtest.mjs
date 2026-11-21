@@ -120,7 +120,7 @@ if (result.non2xx > 0) {
   const codes = Object.entries(result.statusCodeStats ?? {}).map(([code, stat]) => `${code}: ${stat.count}`).join(', ');
   process.stdout.write(`Status codes:  ${codes}\n`);
   if ((result.statusCodeStats ?? {})['429']) {
-    process.stdout.write('Note: 429 means the Nginx per-IP rate limit engaged. Run the test from the VM itself (loopback and Docker ranges are exempt).\n');
+    process.stdout.write('Note: 429 means the Nginx per-IP rate limit engaged. Run the test from the host itself (loopback and Docker ranges are exempt).\n');
   }
 }
 

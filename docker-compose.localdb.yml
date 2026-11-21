@@ -8,8 +8,8 @@
 #
 # It runs as a one-node replica set (like Atlas) because teams use multi-document transactions.
 #
-# NEVER use this on the Azure VM or any shared server: the database has no password. It is only reachable from the Docker
-# network and from this computer (127.0.0.1). On the VM keep using Atlas (the VM has a fixed address, see docs/AZURE_SETUP.md).
+# NEVER use this on any shared or public server: the database has no password. It is only reachable from the Docker
+# network and from this computer (127.0.0.1). Hosted deployments (Vercel) use Atlas.
 #
 # Data lives in the named volume `ctf-mongo-data` and survives restarts. Fill an empty database from the backend folder with
 #   MONGODB_URI='mongodb://127.0.0.1:27017/ctf-arena?directConnection=true'  npm run seed / seed:challenges / seed:terminal

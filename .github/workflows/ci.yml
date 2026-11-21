@@ -1,4 +1,4 @@
-# Pull request checks: same tests as the deploy pipeline, but never deploys.
+# Pull request checks: backend and frontend tests plus the frontend build.
 name: CI
 
 on:

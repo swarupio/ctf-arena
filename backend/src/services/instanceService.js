@@ -52,7 +52,14 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
     throw new AppError(503, 'NO_FREE_PORT', 'No free challenge ports are available. Try again shortly.');
   }
 
+  function requireDocker() {
+    if (config.DOCKER_ENABLED === false) {
+      throw new AppError(503, 'DOCKER_DISABLED', 'Docker challenges are only available when the platform is run locally.');
+    }
+  }
+
   async function start({ challenge, team, user }) {
+    requireDocker();
     if (challenge.type !== 'docker') {
       throw new AppError(400, 'NOT_DOCKER_CHALLENGE', 'This challenge does not use an instance.');
     }

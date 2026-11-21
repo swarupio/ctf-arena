@@ -28,8 +28,26 @@
                               [teamA-cookie] [teamB-cookie] ...  one container per team per challenge
                               port 30001     port 30002          (limits, TTL, own flag)
 
-All of the above runs on one Azure Virtual Machine (Deployment). Only Cognito stays on AWS.
+The diagram is the LOCAL full-stack mode (docker compose on a laptop), the only mode where Docker challenges run.
+The hosted site runs on Vercel instead (see section 1b). Only Cognito stays on AWS.
 ```
+
+## 1b. Hosted mode on Vercel (serverless)
+
+```
+Browser -> Vercel CDN: static frontend/dist (Vite build, hashed assets cached for a year)
+        -> /api/*: one serverless function (api/index.js) wrapping backend/src/app.js -> MongoDB Atlas
+        -> login / MFA: AWS Cognito
+```
+
+- `vercel.json` builds the frontend, rewrites `/api/*` to the function and everything else to `index.html`, and sets
+  the security headers Nginx/helmet set locally (CSP, X-Frame-Options, HSTS, ...). Helmet still runs inside the API.
+- The Mongo connection is cached on `globalThis` per warm function instance (`config/db.js`), with a tiny pool.
+- No long-lived processes: the reaper and the request-counter flush timer are not used. `DOCKER_ENABLED=false`
+  (default on Vercel) skips the reaper, instance routes answer `503 DOCKER_DISABLED`, and docker challenges are
+  listed with `dockerAvailable: false`. The per-replica request counter is off, so `requestsByReplica` is `{}`.
+- Everything else (Arena Terminal, static challenges, teams, leaderboard, admin) is stateless and works unchanged.
+- Setup: `docs/DEPLOY_VERCEL.md`.
 
 ## 2. Components
 
@@ -46,7 +64,7 @@ All of the above runs on one Azure Virtual Machine (Deployment). Only Cognito st
 | Leaderboard module + UI | Aggregation, timeline chart, live polling | Shubham |
 | Admin dashboard | Stats, instance table, ban team | Shubham |
 | Nginx + scaling | Load balancer config, replica header, load test | Shubham |
-| Deployment | Azure VM setup, GitHub Actions deploy, domain/HTTPS (optional) | Shubham |
+| Deployment | Vercel project, GitHub Actions CI, local docker compose mode | Shubham |
 
 ## 3. Key flows
 
@@ -126,8 +144,7 @@ from `GET /api/leaderboard/timeline` as an inline SVG (no chart library).
 |------|---------|---------|
 | 80 (and 443 if HTTPS) | Nginx: website + API | Yes |
 | 4000 | Backend replicas (inside Docker network) | No |
-| 30000-30100 | Player challenge instances | Yes (Azure network security group rule) |
-| 22 | SSH for deployment | Only our IPs / GitHub Actions |
+| 30000-30100 | Player challenge instances (local Docker mode only) | Only on the local network |
 
 ## 6. Decisions and fallbacks
 

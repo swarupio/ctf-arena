@@ -27,7 +27,7 @@ Reduce the risk:
 1. Only the backend service gets the mount, and the backend never runs user-provided code.
 2. Validate everything that reaches `dockerService` (image must start with `ctf/`; ports come from the allowed range; no user-supplied command, volume or env).
 3. Optional hardening: run `tecnativa/docker-socket-proxy` and point the backend at it, allowing only `CONTAINERS` and `NETWORKS` APIs.
-4. Keep the Azure network security group tight: SSH (22) only from known IPs.
+4. Docker challenges are LOCAL-ONLY (`DOCKER_ENABLED`): on Vercel the socket is never mounted and no container can start, so this risk exists only on a machine you run yourself. Do not expose that machine's challenge ports to the internet unless you accept the risk.
 
 ## 3. Container creation checklist (`dockerService.createInstance`)
 ```js
@@ -49,8 +49,8 @@ Env: ['FLAG=<team flag>']
 ## 4. Secrets handling
 - Only `.env.example` is committed.
 - Share real values privately, never in screenshots.
-- GitHub Actions secrets: `AZURE_VM_HOST`, `AZURE_VM_USER`, `AZURE_VM_SSH_KEY` (a key pair used only for deployments),
-  and optionally `AZURE_VM_HOST_KEY` to pin the VM's SSH host key. Setup steps: `docs/AZURE_SETUP.md` section 11.
+- Vercel: secrets live in the project's Environment Variables (Settings > Environment Variables), never in `vercel.json`. Only the
+  `VITE_*` Cognito values are public by design (they are compiled into the frontend). GitHub Actions needs no secrets.
 - If a secret leaks: rotate it immediately (Atlas password, Cognito app client, `FLAG_SECRET`).
 
 ## 5. Ethics and rules for players (put on the site footer or rules page)
@@ -59,7 +59,15 @@ Env: ['FLAG=<team flag>']
 - Breaking these rules gets the team banned.
 
 ## 6. Production checklist (P3-11)
-Tick every box on the VM before real players arrive. Commands run on the VM in `~/ctf-arena`.
+Tick every box before real players arrive. Items marked (local) apply only to the docker compose mode on your own machine; on Vercel use the Vercel items.
+
+**Vercel**
+- [ ] `FLAG_SECRET`, `MONGODB_URI` and the Cognito values are set under Environment Variables for Production only as needed; nothing secret is in git or `vercel.json`.
+- [ ] `DOCKER_ENABLED` is unset or `false` on Vercel.
+- [ ] Atlas Network Access: serverless functions have no fixed IP, so `0.0.0.0/0` is required. Compensate with a strong DB password, a least-privilege DB user (read/write on `ctf_arena` only) and no other data in the cluster.
+- [ ] Cognito callback and sign-out URLs list only the real Vercel domain (and localhost for development); no wildcards.
+- [ ] Preview deployments use their own `FLAG_SECRET`/DB (or are disabled), so previews cannot forge production flags.
+- [ ] HTTPS and HSTS come from Vercel; check the response headers of `/` once after deploy.
 
 **Secrets and configuration**
 - [ ] `FLAG_SECRET` is a real random value, at least 32 characters (`openssl rand -hex 32`), not the placeholder and not a value used on a laptop. Set it once before play: changing it changes every team's dynamic flag. With `NODE_ENV=production` the backend refuses to start while `FLAG_SECRET` still looks like the public `.env.example` placeholder.
@@ -77,11 +85,9 @@ Tick every box on the VM before real players arrive. Commands run on the VM in `
   Expected with the defaults: `mem=134217728 cpu=250000000 pids=64 caps=[ALL] sec=[no-new-privileges] ro=true` and `ctf.instance` / `ctf.team` labels.
 - [ ] The instance disappears after `INSTANCE_TTL_MINUTES` (the reaper), and `MAX_INSTANCES_PER_TEAM` is enforced.
 
-**Network**
-- [ ] Azure NSG inbound allows only 22 (known IPs, or key-only with a deploy key), 80, 443 (only if HTTPS is on) and 30000-30100. Nothing for 4000, 27017 or the Docker API (2375/2376). From your laptop: `nc -vz <ip> 4000` must fail.
-- [ ] `docker compose ps` shows the backend as `4000/tcp` only (not published). Docker bypasses ufw for published ports, so the NSG and not ufw is the perimeter.
-- [ ] MongoDB Atlas Network Access lists only the VM's public IP (remove `0.0.0.0/0` and personal IPs after setup).
-- [ ] SSH uses keys only: `sudo sshd -T | grep -i passwordauthentication` prints `no`. Optional: `sudo apt install fail2ban`.
+**Network (local)**
+- [ ] Only the Nginx port and 30000-30100 are reachable from outside your machine. Nothing for 4000, 27017 or the Docker API (2375/2376).
+- [ ] `docker compose ps` shows the backend as `4000/tcp` only (not published).
 
 **Runtime hardening already in `docker-compose.yml`**
 - Backend and Nginx: `restart: unless-stopped`, log rotation (3 x 10 MB), memory limits, `cap_drop: ALL` (Nginx re-adds only the four it needs), `no-new-privileges`, read-only root filesystem with `tmpfs` scratch space.
@@ -89,13 +95,13 @@ Tick every box on the VM before real players arrive. Commands run on the VM in `
 - The backend keeps the Docker socket mount (see section 2); nothing else does.
 - Nginx exempts loopback and Docker-bridge source addresses from the rate limit so load tests measure the replicas. Internet clients always arrive with a public address, so they are limited. If you add a TLS proxy (below), enable the `real_ip` lines in `nginx/nginx.conf`, otherwise every client looks local and the limit stops working.
 
-### Optional: HTTPS with Caddy (free certificate, about 10 minutes)
-Needs a DNS name pointing at the VM. The Azure public IP gets one for free: `<label>.<region>.cloudapp.azure.com`. NSG 80 and 443 must be open.
-1. Move Nginx off port 80: put `NGINX_HOST_PORT=8080` in `.env` (keep 8080 closed in the NSG) and run `bash deploy/deploy.sh`.
+### Optional (local mode): HTTPS with Caddy (free certificate, about 10 minutes)
+Only relevant if you expose the docker compose stack under a DNS name; Vercel already serves HTTPS. Ports 80 and 443 must be reachable.
+1. Move Nginx off port 80: put `NGINX_HOST_PORT=8080` in `.env` (keep 8080 closed to the outside) and run `bash deploy/deploy.sh`.
 2. In `nginx/nginx.conf` uncomment `set_real_ip_from 172.16.0.0/12;` and `real_ip_header X-Forwarded-For;` so client IPs (and the rate limit) stay correct, then redeploy.
-3. Install Caddy on the VM (official apt repository, see caddyserver.com/docs/install#debian-ubuntu-raspbian), then write `/etc/caddy/Caddyfile`:
+3. Install Caddy on the host (official apt repository, see caddyserver.com/docs/install#debian-ubuntu-raspbian), then write `/etc/caddy/Caddyfile`:
    ```
-   <label>.<region>.cloudapp.azure.com {
+   <your-domain> {
        reverse_proxy 127.0.0.1:8080
    }
    ```

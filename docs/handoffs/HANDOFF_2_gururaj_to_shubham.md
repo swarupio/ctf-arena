@@ -1,5 +1,8 @@
 # Handoff: Phase 2 -> Phase 3 (engine)
 
+
+> **Update 2026-11-22:** the Azure VM was dropped. The site is hosted on Vercel and Docker challenges are local-only (`DOCKER_ENABLED`); see `docs/DEPLOY_VERCEL.md`. Mentions of Azure, SSH deploy and `deploy/azure-setup.sh` below are historical; those files were removed.
+
 Status (updated on the release branch): backend engine, challenge images and challenge UI implemented, **browser-verified**, and the Phase 3 code (leaderboard, admin, Nginx, deploy) is integrated. Written by the Foundation
 agent on Swarup's request while Gururaj's own work was in flight. **Gururaj: review this before tagging `v0.2-engine`.**
 

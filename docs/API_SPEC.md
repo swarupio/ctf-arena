@@ -94,7 +94,7 @@ available seat and an unassigned user; failed claims roll back both documents.
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| GET | `/challenges` | player, admin | G | List visible challenges. Item: `{ id, slug, title, category, difficulty, points, type, solveCount, solvedByMyTeam }` |
+| GET | `/challenges` | player, admin | G | List visible challenges. Item: `{ id, slug, title, category, difficulty, points, type, solveCount, solvedByMyTeam }`. Docker challenges (`type: 'docker'`) also carry `dockerAvailable` (boolean, additive): `false` when the server runs with `DOCKER_ENABLED=false` (Vercel), so clients can disable the Start button |
 | GET | `/challenges/:id` | player, admin | G | Adds `description`, `attachments:[{name,url}]`, `hasInstance`, `myInstance` (see below) |
 | POST | `/challenges/:id/submit` | player | G | Body `{ flag }`. Response `{ correct:boolean, pointsAwarded:number, firstBlood:boolean, message }`. 429 after 5 tries per minute per team per challenge. 409 if already solved. |
 
@@ -108,7 +108,7 @@ Phase 2 implementation notes (Challenges):
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| POST | `/challenges/:id/instance` | player | G | Start container for my team. Returns `{ id, status, url, expiresAt }`. Errors: `NO_TEAM`, `INSTANCE_LIMIT`, `ALREADY_RUNNING`, `NOT_DOCKER_CHALLENGE`, `NO_FREE_PORT`. |
+| POST | `/challenges/:id/instance` | player | G | Start container for my team. Returns `{ id, status, url, expiresAt }`. Errors: `NO_TEAM`, `INSTANCE_LIMIT`, `ALREADY_RUNNING`, `NOT_DOCKER_CHALLENGE`, `NO_FREE_PORT`, and 503 `DOCKER_DISABLED` ("Docker challenges are only available when the platform is run locally.") when `DOCKER_ENABLED=false`. |
 | GET | `/instances` | player | G | My team's active instances |
 | POST | `/instances/:id/extend` | player | G | Adds 15 minutes, allowed once per instance |
 | DELETE | `/instances/:id` | player | G | Stops and removes the container |
@@ -204,7 +204,7 @@ Notes:
 | POST | `/admin/challenges` | G | Create. Body: see **Challenge body** below |
 | PUT | `/admin/challenges/:id` | G | Update |
 | DELETE | `/admin/challenges/:id` | G | Delete (also stops its instances) |
-| GET | `/admin/stats` | H | `{ users, teams, solves, submissions, wrongRate, activeInstances, requestsByReplica:{ "backend-1": 120, ... } }` |
+| GET | `/admin/stats` | H | `{ users, teams, solves, submissions, wrongRate, activeInstances, requestsByReplica:{ "backend-1": 120, ... } }`. On Vercel the per-replica request counter is off, so `requestsByReplica` is `{}` |
 | GET | `/admin/instances` | H | All active instances with team and challenge names |
 | POST | `/admin/instances/:id/kill` | H | Force stop |
 | GET | `/admin/teams` | H | All teams with score and ban state |

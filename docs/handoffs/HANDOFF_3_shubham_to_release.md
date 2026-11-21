@@ -1,6 +1,9 @@
 # Handoff: Phase 3 -> release
 From: Shubham (Phase 3 code, integrated and hardened on `release/phase3`)   To: the whole team   Tag: `v1.0-release` (not created yet)
 
+> **Update 2026-11-22:** the Azure VM was dropped. The site is hosted on Vercel and Docker challenges are local-only (`DOCKER_ENABLED`); see `docs/DEPLOY_VERCEL.md`. Mentions of Azure, SSH deploy and `deploy/azure-setup.sh` below are historical; those files were removed.
+
+
 ## What is built
 - Leaderboard API + page (rank, tie-breaks, timeline chart, 10 s polling, my team highlighted).
 - Admin API + dashboard: stats, requests per replica (`replicastats`), active instances with forced Kill, teams with Ban/Unban.

@@ -1,13 +1,14 @@
+# LOCAL full-stack mode (needed for Docker challenges; the hosted site runs on Vercel, see docs/DEPLOY_VERCEL.md).
 # Mini CTF Arena stack: Nginx + N stateless backend replicas (P1-05, finished in P3-06/P3-11).
 #   docker compose up -d --build                  # 3 replicas (deploy.replicas)
 #   docker compose up -d --scale backend=5        # scale without any code change
 #
 # Optional variables (put them in .env or the shell; both have safe defaults):
-#   DOCKER_GID       group id of /var/run/docker.sock. Linux/Azure VM: getent group docker | cut -d: -f3
+#   DOCKER_GID       group id of /var/run/docker.sock. Linux: getent group docker | cut -d: -f3
 #   NGINX_HOST_PORT  host port for the website. Default 80. Use another value if 80 is taken
 #                    (for example behind Caddy for HTTPS, see docs/SECURITY.md).
 
-# Keep container logs from filling the VM disk: 3 files of 10 MB per container.
+# Keep container logs from filling the disk: 3 files of 10 MB per container.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -28,14 +29,14 @@ services:
       # Lets the backend start challenge containers. See docs/SECURITY.md section 2.
       - /var/run/docker.sock:/var/run/docker.sock
     # The backend runs as the non-root 'node' user; it needs the docker socket's group
-    # to start challenge containers. Linux/Azure VM: DOCKER_GID=$(getent group docker | cut -d: -f3).
+    # to start challenge containers. Linux: DOCKER_GID=$(getent group docker | cut -d: -f3).
     group_add:
       - "${DOCKER_GID:-0}"
     deploy:
       replicas: 3            # override with: docker compose up -d --scale backend=5
       resources:
         limits:
-          memory: 512M       # a leaking replica cannot take the whole VM down
+          memory: 512M       # a leaking replica cannot take the whole machine down
     networks:
       - ctf-net
     restart: unless-stopped

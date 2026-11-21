@@ -13,11 +13,39 @@ dotenv.config({
   quiet: true,
 });
 
+// On Vercel (serverless) Docker challenges are unavailable, so the container-only settings get inert defaults
+// and need not be configured. Real values in process.env always win.
+const ON_VERCEL = Boolean(process.env.VERCEL);
+const VERCEL_DEFAULTS = {
+  PORT: '4000',
+  PUBLIC_HOST: 'localhost',
+  CHALLENGE_PORT_MIN: '30000',
+  CHALLENGE_PORT_MAX: '30100',
+  INSTANCE_TTL_MINUTES: '30',
+  MAX_INSTANCES_PER_TEAM: '2',
+  CHALLENGE_MEMORY_MB: '128',
+  CHALLENGE_CPU_LIMIT: '0.25',
+  CHALLENGE_PIDS_LIMIT: '64',
+};
+
+// Defaults fill in unset or empty variables only.
+const withDefaults = (source) => ({
+  ...VERCEL_DEFAULTS,
+  ...Object.fromEntries(Object.entries(source).filter(([, value]) => value !== undefined && value !== '')),
+});
+
 const PLACEHOLDER_SECRET = /replace_with|placeholder|changeme|change_me|your[-_]secret/i;
 const text = z.string().trim().min(1, 'is required');
 const positiveInteger = text.pipe(z.coerce.number().int().positive());
 const port = positiveInteger.pipe(z.number().max(65535));
+// DOCKER_ENABLED: true on a laptop / docker compose, false on Vercel unless set explicitly.
+const dockerEnabled = z.preprocess(
+  (value) => (value === undefined || value === '' ? !ON_VERCEL : value),
+  z.union([z.boolean(), z.string().trim().toLowerCase().pipe(z.enum(['true', 'false', '1', '0']))])
+    .transform((value) => value === true || value === 'true' || value === '1'),
+);
 const schema = z.object({
+  DOCKER_ENABLED: dockerEnabled,
   NODE_ENV: z.enum(['development', 'test', 'production']),
   PORT: port,
   MONGODB_URI: text.regex(/^mongodb(?:\+srv)?:\/\//, 'must start with mongodb:// or mongodb+srv://'),
@@ -45,7 +73,7 @@ const schema = z.object({
   message: 'must be a private random value in production (the .env.example placeholder is public)',
 });
 
-const result = schema.safeParse(process.env);
+const result = schema.safeParse(ON_VERCEL ? withDefaults(process.env) : process.env);
 
 if (!result.success) {
   // Report names and constraints only; never include supplied values.
