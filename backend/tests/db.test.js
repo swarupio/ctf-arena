@@ -12,7 +12,9 @@ describe('MongoDB connection', () => {
     mongoose.connect.mockResolvedValueOnce(mongoose);
     const uri = 'mongodb://test-user:test-password@localhost:27017/test';
     await connectDB(uri);
-    expect(mongoose.connect).toHaveBeenCalledWith(uri, { serverSelectionTimeoutMS: 10000 });
+    expect(mongoose.connect).toHaveBeenCalledWith(uri, {
+      serverSelectionTimeoutMS: 10000, maxPoolSize: 10, minPoolSize: 1, maxIdleTimeMS: 60000,
+    });
     expect(stdout).toHaveBeenCalledExactlyOnceWith('MongoDB connected\n');
   });
 

@@ -26,7 +26,7 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
   // Claims a free port by inserting the instance document. The partial unique index
   // on port makes the claim atomic across replicas; collisions just try another port.
   async function claimPort({ team, user, challenge }) {
-    const taken = new Set((await Instance.find({ status: { $in: ACTIVE_STATUSES } }, 'port')).map((i) => i.port));
+    const taken = new Set((await Instance.find({ status: { $in: ACTIVE_STATUSES } }, 'port -_id', { lean: true })).map((i) => i.port));
     const free = [];
     for (let port = config.CHALLENGE_PORT_MIN; port <= config.CHALLENGE_PORT_MAX; port += 1) {
       if (!taken.has(port)) { free.push(port); }
@@ -56,10 +56,10 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
     if (challenge.type !== 'docker') {
       throw new AppError(400, 'NOT_DOCKER_CHALLENGE', 'This challenge does not use an instance.');
     }
-    const active = await Instance.countDocuments({ teamId: team._id, status: { $in: ACTIVE_STATUSES } });
-    const existing = await Instance.exists({
-      teamId: team._id, challengeId: challenge._id, status: { $in: ACTIVE_STATUSES },
-    });
+    const [active, existing] = await Promise.all([
+      Instance.countDocuments({ teamId: team._id, status: { $in: ACTIVE_STATUSES } }),
+      Instance.exists({ teamId: team._id, challengeId: challenge._id, status: { $in: ACTIVE_STATUSES } }),
+    ]);
     if (existing) {
       throw new AppError(409, 'ALREADY_RUNNING', 'Your team already has an instance of this challenge.');
     }
@@ -125,17 +125,17 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
   async function stopTeamChallenge(teamId, challengeId) {
     const instance = await Instance.findOne({
       teamId, challengeId, status: { $in: ['starting', 'running'] },
-    });
+    }, '_id', { lean: true });
     if (instance) { await stop(instance._id); }
   }
 
   async function stopTeamInstances(teamId) {
-    const instances = await Instance.find({ teamId, status: { $in: ['starting', 'running'] } }, '_id');
+    const instances = await Instance.find({ teamId, status: { $in: ['starting', 'running'] } }, '_id', { lean: true });
     for (const instance of instances) { await stop(instance._id); }
   }
 
   async function stopChallengeInstances(challengeId) {
-    const instances = await Instance.find({ challengeId, status: { $in: ['starting', 'running'] } }, '_id');
+    const instances = await Instance.find({ challengeId, status: { $in: ['starting', 'running'] } }, '_id', { lean: true });
     for (const instance of instances) { await stop(instance._id); }
   }
 
@@ -150,7 +150,7 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
       { new: true },
     );
     if (updated) { return updated; }
-    const current = await Instance.findOne({ _id: instanceId, teamId });
+    const current = await Instance.findOne({ _id: instanceId, teamId }, 'status', { lean: true });
     if (!current || !ACTIVE_STATUSES.includes(current.status)) {
       throw new AppError(404, 'NOT_FOUND', 'Instance not found.');
     }

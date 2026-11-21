@@ -65,12 +65,15 @@ async function claimTeam(user, team, session) {
 }
 
 async function teamProfile(team, session) {
-  const members = await User.find({ _id: { $in: team.memberIds } }, 'displayName', { session });
+  const [members, score] = await Promise.all([
+    User.find({ _id: { $in: team.memberIds } }, 'displayName', { session, lean: true }),
+    teamScore(team._id),
+  ]);
   const names = new Map(members.map((member) => [String(member._id), member.displayName]));
   return {
     id: String(team._id), name: team.name, inviteCode: team.inviteCode,
     members: team.memberIds.map((id) => ({ id: String(id), displayName: names.get(String(id)) })),
-    score: (await teamScore(team._id)) ?? 0,
+    score: score ?? 0,
     ...(team.banned ? { banned: true } : {}),
   };
 }
@@ -130,10 +133,10 @@ router.post('/join', async (req, res) => {
 });
 
 router.get('/me', async (req, res) => {
-  const user = await User.findOne({ cognitoSub: req.user.cognitoSub });
+  const user = await User.findOne({ cognitoSub: req.user.cognitoSub }, '_id teamId', { lean: true });
   if (!user?.teamId) { throw noTeam(); }
   const Team = await teamModel();
-  const team = await Team.findById(user.teamId);
+  const team = await Team.findById(user.teamId, 'name inviteCode memberIds banned', { lean: true });
   if (!team || !team.memberIds.some((id) => String(id) === String(user._id))) { throw noTeam(); }
   res.json(await teamProfile(team));
 });

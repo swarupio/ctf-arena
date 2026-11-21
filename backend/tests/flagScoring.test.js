@@ -68,7 +68,7 @@ describe('scoringService', () => {
     expect(Solve.updateOne).toHaveBeenCalledWith(
       { teamId: 't1', challengeId: 'c1' }, { $set: { points: 110, firstBlood: true } },
     );
-    expect(Challenge.findOneAndUpdate).toHaveBeenCalledWith({ _id: 'c1' }, { $inc: { solveCount: 1 } }, { new: true });
+    expect(Challenge.findOneAndUpdate).toHaveBeenCalledWith({ _id: 'c1' }, { $inc: { solveCount: 1 } }, { new: true, projection: 'solveCount', lean: true });
   });
 
   it('awards plain points to a later solver', async () => {

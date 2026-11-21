@@ -6,7 +6,7 @@ import User from '../src/models/User.js';
 
 // Use the existing auth middleware with the same verifier mock as auth.test.js.
 vi.mock('../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
-vi.mock('../src/models/User.js', () => ({ default: { findOneAndUpdate: vi.fn() } }));
+vi.mock('../src/models/User.js', () => ({ default: { findOneAndUpdate: vi.fn(), findOne: vi.fn() } }));
 
 const claims = { sub: 'cognito-alice', email: 'alice@example.com', 'cognito:groups': ['player'] };
 let verify;
@@ -18,6 +18,7 @@ beforeEach(() => {
   verify = vi.fn().mockResolvedValue({ ...claims });
   getCognitoVerifier.mockReturnValue({ verify });
   // Emulate insert-only defaults and updates without opening a MongoDB connection.
+  User.findOne.mockImplementation(async (filter) => users.get(filter.cognitoSub) ?? null);
   User.findOneAndUpdate.mockImplementation(async (filter, update) => {
     let user = users.get(filter.cognitoSub);
     if (!user) {
@@ -51,7 +52,7 @@ describe('current user profile', () => {
     expect(User.findOneAndUpdate).toHaveBeenCalledWith(
       { cognitoSub: claims.sub },
       { $set: { email: claims.email, role: 'player' }, $setOnInsert: { displayName: 'alice' } },
-      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true, lean: true },
     );
     expect(verify).toHaveBeenCalledWith('test-token');
   });

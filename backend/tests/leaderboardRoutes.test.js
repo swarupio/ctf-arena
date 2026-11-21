@@ -122,7 +122,7 @@ describe('GET /api/leaderboard/timeline', () => {
         { teamId: oid(2), teamName: 'Chasers', points: [{ t: at(10).toISOString(), score: 0 }, { t: at(20).toISOString(), score: 100 }] },
       ],
     });
-    expect(Solve.find).toHaveBeenCalledWith({ teamId: { $in: [oid(1), oid(2)] } }, 'teamId points solvedAt');
+    expect(Solve.find).toHaveBeenCalledWith({ teamId: { $in: [oid(1), oid(2)] } }, 'teamId points solvedAt', { lean: true });
     expect(solves.sort).toHaveBeenCalledWith({ solvedAt: 1, _id: 1 });
   });
 

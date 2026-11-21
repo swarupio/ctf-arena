@@ -62,7 +62,7 @@ They use the existing schemas; no seed-marker field or new model was added.
 | solveCount | N | incremented with `$inc` on each first solve per team |
 | createdAt | D | |
 
-Index: `{ type: 1, 'terminal.mode': 1 }` (loads the codes of a terminal mode in one query).
+Indexes: `{ type: 1, 'terminal.mode': 1 }` (loads the codes of a terminal mode in one query), `{ visible: 1, points: 1, title: 1 }` (the player challenge list: filter and sort).
 
 Terminal challenges (Arena Terminal game, `docs/TERMINAL_GAME.md`) have `type: 'terminal'`, `category: 'terminal'`,
 slug `terminal-<mode>-<n>`, title `Terminal <Mode> #<n>`, `difficulty` equal to the mode and the points of the mode
@@ -89,6 +89,8 @@ Indexes:
 - **Partial unique** on `{ port: 1 }` where `status` in `starting|running|stopping` -> atomic port claim across replicas.
 - **Partial unique** on `{ teamId: 1, challengeId: 1 }` where status is active -> one live instance per team per challenge.
 - `{ status: 1, expiresAt: 1 }` for the reaper.
+- `{ teamId: 1, status: 1, createdAt: 1 }` for the team's active instances (list, limit checks).
+- `{ status: 1, port: 1 }` so the free-port scan is answered from the index alone.
 
 `stopping` is the short claim state while a replica removes the container. If that replica crashes mid-stop the
 instance stays `stopping` (still holding its port); the reaper and the player routes only claim `starting|running`,
@@ -118,7 +120,7 @@ which uses the index above.
 | firstBlood | B | |
 | solvedAt | D | |
 
-Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline.
+Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline, `{ teamId: 1, points: 1, solvedAt: 1 }` (covers the leaderboard `$group` and the team score without reading solve documents).
 
 ## replicastats (H)
 Per-replica request counter for the admin dashboard (`GET /admin/stats` -> `requestsByReplica`).
@@ -216,3 +218,11 @@ users --(teamId)--> teams <--(teamId)-- instances --(challengeId)--> challenges
                       ^                                                 ^
                       +--------------- solves / submissions ------------+
 ```
+
+## Performance notes
+- Read paths use `lean()` (via the query options argument) with field projections; flag fields are never selected for player lists.
+- The ranking is memoised in each replica for about 5 s (one entry, public data only), and `GET /api/leaderboard` sends
+  `Cache-Control: private, max-age=5` plus an ETag. Staleness is therefore at most a few seconds.
+- Indexes are built by Mongoose `autoIndex` at startup, in the background on modern MongoDB (no blocking of reads and writes).
+  Existing deployments get the new indexes the next time a replica starts; the old ones stay valid.
+- Connection pool: `maxPoolSize: 10`, `minPoolSize: 1` per replica.
