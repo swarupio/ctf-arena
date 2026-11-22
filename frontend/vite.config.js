@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { missingAuthVariables } from './src/auth/logic.js';
 
 export default defineConfig(({ mode, command }) => {
   // Proxy-only setting: stays on the dev server and is not exposed to the browser.
@@ -8,6 +9,11 @@ export default defineConfig(({ mode, command }) => {
   // honour that and bake React's development build into `vite build` (about 700 KB more JS, 90 KB more gzip). An empty
   // value tells Vite there is no user NODE_ENV, so builds stay production builds; the dev server is unaffected.
   if (command === 'build') process.env.VITE_USER_NODE_ENV = '';
+  // The Cognito settings are baked into the bundle at build time: say so loudly instead of shipping a "not configured" site.
+  if (command === 'build') {
+    const missing = missingAuthVariables(loadEnv(mode, '..', 'VITE_'));
+    if (missing.length) process.stderr.write(`\n[auth] WARNING: ${missing.join(', ')} not set at build time. Sign-in will show "Authentication is not configured".\n`);
+  }
   return {
     plugins: [react()],
     envDir: '..',
