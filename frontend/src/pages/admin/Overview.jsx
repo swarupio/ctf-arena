@@ -6,6 +6,7 @@ import { useAdminData } from '../../admin/hooks.js';
 import { formatDay, formatNumber, formatPercent } from '../../admin/format.js';
 import AsyncBlock from '../../components/admin/AsyncBlock.jsx';
 import DataTable from '../../components/admin/DataTable.jsx';
+import EventSummary from '../../components/admin/EventSummary.jsx';
 import PageHeader, { Badge, Panel } from '../../components/admin/PageHeader.jsx';
 import StatCard, { StatGrid } from '../../components/admin/StatCard.jsx';
 import { SvgBarChart, SvgLineChart } from '../../components/admin/SvgCharts.jsx';
@@ -57,13 +58,14 @@ export default function Overview() {
 
     <AsyncBlock loading={loading} error={error} hasData={Boolean(data)} onRetry={reload} label="the overview" lines={6}>
       {error && <p role="alert" className="error">{error}</p>}
+      <EventSummary />
       <StatGrid label="Platform totals">
         <StatCard label="Users" value={formatNumber(totals.users)} to="/admin/users" hint={totals.bannedUsers ? `${formatNumber(totals.bannedUsers)} banned` : ''} />
         <StatCard label="Teams" value={formatNumber(totals.teams)} to="/admin/teams" hint={totals.bannedTeams ? `${formatNumber(totals.bannedTeams)} banned` : ''} />
         <StatCard label="Solves" value={formatNumber(totals.solves)} to="/admin/activity" />
         <StatCard label="Submissions" value={formatNumber(totals.submissions)} to="/admin/activity?tab=submissions" hint="last 30 days kept" />
         <StatCard label="Wrong flags" value={formatPercent(totals.wrongRate)} />
-        <StatCard label="Active instances" value={docker ? formatNumber(data.instances?.active ?? totals.activeInstances) : 'Off'} hint={docker ? '' : 'Docker disabled'} to="/admin/instances" tone={docker ? '' : 'muted'} />
+        <StatCard label="Active instances" value={docker ? formatNumber(data?.instances?.active ?? totals.activeInstances) : 'Off'} hint={docker ? '' : 'Docker disabled'} to="/admin/instances" tone={docker ? '' : 'muted'} />
       </StatGrid>
 
       <div className="adm-grid-2">
@@ -106,7 +108,7 @@ export default function Overview() {
       </Panel>
       <Panel title="Arena Terminal per mode" id="ov-terminal">
         <DataTable caption="Terminal statistics per mode" columns={terminalColumns} rows={data?.terminal?.modes ?? []} rowKey={(row) => row.mode}
-          emptyTitle="The terminal game is not seeded" emptyHint="Run npm run seed:terminal on the backend." />
+          emptyTitle="The Arena Terminal is not seeded" emptyHint="Run npm run seed:terminal on the backend." />
       </Panel>
     </AsyncBlock>
   </>;

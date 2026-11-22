@@ -1,4 +1,4 @@
-// Scripted, client-side simulation of one full CTF game for the "Demo playoff" page.
+// Scripted, client-side simulation of one full CTF match for the "Demo playoff" page.
 // No network calls and no real secrets: every flag below is an obviously fake demo value.
 // STEPS is the story; stateAt(index) folds the step effects into the state shown by the UI.
 // Each step also plays as numbered hops, one request hop at a time:
@@ -404,7 +404,7 @@ export const STEPS = [
       {
         edge: ['browser', 'nginx'],
         title: 'Browser -> Nginx',
-        text: 'Alice clicks Start on Cookie Monster and the browser posts the request to nginx.',
+        text: 'Alice presses Start on Cookie Monster and the browser posts the request to nginx.',
         lines: [],
       },
       {
@@ -1006,7 +1006,7 @@ export const STEPS = [
     id: 'replica-failover',
     phase: 'Defence',
     title: 'A backend replica crashes, nobody notices',
-    narration: 'backend2 is stopped mid-game, like a crash or a redeploy. '
+    narration: 'backend2 is stopped mid-match, like a crash or a redeploy. '
       + 'Nginx sends the next request to backend1, which answers from the same MongoDB data, so nobody is logged out and no container is lost.',
     minute: 23,
     actor: 'System',
@@ -1232,7 +1232,7 @@ export const STEPS = [
     id: 'what-it-proved',
     phase: 'Result',
     title: 'What this demo proved',
-    narration: 'One game showed the main guarantees: MFA sign-in, stateless replicas, per-team flags, isolated containers and shared rate limits. '
+    narration: 'One match showed the main guarantees: MFA sign-in, stateless replicas, per-team flags, isolated containers and shared rate limits. '
       + 'All state lives in MongoDB or Cognito, so a replica can be added or lost without changing the outcome.',
     minute: 35,
     actor: 'System',

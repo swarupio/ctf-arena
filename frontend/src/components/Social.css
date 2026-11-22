@@ -12,7 +12,7 @@
 }
 .fx-event:first-child { border-top: 0; }
 .fx-tag { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; padding: 1px 6px; border: var(--border); background: var(--color-surface-2); white-space: nowrap; }
-.fx-first_blood .fx-tag, .fx-badge .fx-tag { background: var(--color-accent); }
+.fx-first_blood .fx-tag, .fx-badge .fx-tag { color: var(--color-on-accent); background: var(--color-accent); }
 .fx-text { overflow-wrap: anywhere; min-width: 0; }
 .fx-time { font-size: 0.75rem; color: var(--color-muted); white-space: nowrap; }
 @media (max-width: 520px) {
@@ -21,15 +21,15 @@
 }
 
 .fx-daily { border-left: 8px solid var(--color-accent); }
-.fx-bonus { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; background: var(--color-accent); border: var(--border); }
+.fx-bonus { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; color: var(--color-on-accent); background: var(--color-accent); border: var(--border); }
 .fx-daily-name { margin: 0 0 var(--space-2); font-size: 1.25rem; font-weight: 700; overflow-wrap: anywhere; }
 .fx-daily-meta { margin: 0 0 var(--space-3); }
 
 .fx-toast {
-  position: fixed; z-index: 50; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+  position: fixed; z-index: 50; left: 50%; bottom: max(var(--space-5), calc(var(--safe-b) + var(--space-3))); transform: translateX(-50%);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2) var(--space-4);
   max-width: calc(100vw - 2 * var(--space-4)); padding: var(--space-3) var(--space-4);
-  background: var(--color-accent); border: var(--border); box-shadow: var(--shadow-hard); animation: fx-in 240ms ease-out;
+  color: var(--color-on-accent); background: var(--color-accent); border: var(--border); box-shadow: var(--shadow-hard); animation: fx-in 240ms ease-out;
 }
 .fx-live-region { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .fx-confetti { position: fixed; inset: 0; z-index: 49; overflow: hidden; pointer-events: none; }

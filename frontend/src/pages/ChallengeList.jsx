@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listChallenges } from '../api/challenges.js';
-import { challengeErrorMessage, groupByCategory, splitTerminalChallenges } from './challengeHelpers.js';
+import { challengeErrorMessage, groupByCategory, solveCountLabel, splitTerminalChallenges } from './challengeHelpers.js';
+import '../overview.css';
 import './Challenge.css';
 import '../terminal/terminal.css';
 
-// One card for the whole Arena Terminal game; its individual codes are played inside the terminal, not listed here.
+// One card for the whole Arena Terminal category; its individual codes are played inside the terminal, not listed here.
 function TerminalPromo({ summary }) {
-  const progress = summary.count > 0 ? `${summary.solved}/${summary.count} codes found` : 'easy, medium and hard modes';
+  const progress = summary.count > 0 ? `${summary.solved}/${summary.count} flags captured` : 'easy, medium and hard modes';
   return <Link to="/terminal" className="challenge-card tm-promo">
     <span className="tm-promo-prompt" aria-hidden="true">guest@arena:~$ _</span>
     <span className="challenge-title">Arena Terminal</span>
@@ -43,12 +44,13 @@ export default function ChallengeList() {
   if (!challenges) return <p role="status">Loading challenges…</p>;
   const { regular, terminal } = splitTerminalChallenges(challenges);
 
-  return <section className="challenges">
-    <h1>Challenges</h1>
-    {regular.length === 0 && <p>No challenges are available yet.</p>}
+  return <section className="challenges ov-page">
+    <header className="ov-header"><h1>Challenges</h1></header>
+    {regular.length === 0 && terminal.count === 0 && <p>No challenges are available yet. Try the Range instead.</p>}
+    <div className="challenge-groups">
     {groupByCategory(regular).map(({ category, items }) => <div key={category} className="challenge-group">
-      <h2>{category}</h2>
-      <div className="challenge-grid">
+      <h2>{category}<span className="ov-count" aria-hidden="true">{items.length}</span></h2>
+      <div className="challenge-grid" data-count={items.length}>
         {items.map((challenge) => <Link key={challenge.id} to={`/challenges/${challenge.id}`} className={`challenge-card${challenge.solvedByMyTeam ? ' solved' : ''}`}>
           <span className="challenge-title">{challenge.title}</span>
           <span className="tags">
@@ -57,15 +59,23 @@ export default function ChallengeList() {
             {challenge.type === 'docker' && <span className="tag">instance</span>}
           </span>
           <span className="challenge-foot">
-            <span className="challenge-meta">{challenge.solveCount} {challenge.solveCount === 1 ? 'solve' : 'solves'}</span>
-            {challenge.solvedByMyTeam && <span className="badge">Solved</span>}
+            <span className="challenge-meta" title={challenge.solveCount == null ? 'Solve counts are hidden while the scoreboard is frozen.' : undefined}>{solveCountLabel(challenge.solveCount)}</span>
+            {challenge.solvedByMyTeam && <span className="badge">Captured</span>}
           </span>
         </Link>)}
       </div>
     </div>)}
     <div className="challenge-group">
-      <h2>terminal</h2>
-      <div className="challenge-grid"><TerminalPromo summary={terminal} /></div>
+      <h2>range<span className="ov-count" aria-hidden="true">{terminal.count > 0 ? 2 : 1}</span></h2>
+      <div className="challenge-grid" data-count={terminal.count > 0 ? 2 : 1}>
+        {terminal.count > 0 && <TerminalPromo summary={terminal} />}
+        <Link to="/range" className="challenge-card">
+          <span className="challenge-title">The Range</span>
+          <span className="challenge-meta">Terminal, Cipher Lab, Web Lab, Forensics, Crackme and OSINT live on the Range.</span>
+          <span className="challenge-foot"><span className="tm-promo-go">open the Range <span aria-hidden="true">{'▸'}</span></span></span>
+        </Link>
+      </div>
+    </div>
     </div>
   </section>;
 }

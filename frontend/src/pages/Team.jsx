@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiWrite } from '../api/client.js';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { useTeam } from '../layout/TeamContext.jsx';
 import { normalizeInviteCode, validInviteCode, validTeamName, teamErrorMessage } from './teamHelpers.js';
 import './Team.css';
 
 export default function Team() {
+  const { user } = useAuth();
+  if (user?.role === 'admin') return <section className="team-page"><h1>Team</h1><p role="status">Admins do not join teams. Use the Admin area.</p><Link className="button" to="/admin">Admin area</Link></section>;
+  return <PlayerTeam />;
+}
+
+function PlayerTeam() {
   const { team, loading, error: loadError, refresh } = useTeam();
   const [name, setName] = useState('');
   const [inviteCode, setInviteCode] = useState('');

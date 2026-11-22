@@ -130,7 +130,7 @@ function UserDetail({ id, onChanged }) {
       </ConfirmDialog>
       <ConfirmDialog open={dialog === 'reset'} danger title="Reset terminal progress?" confirmLabel="Reset progress" phrase={RESET_PHRASE} pending={act.isPending('reset')} onCancel={close}
         onConfirm={() => run('reset', () => resetUserTerminal(id), (result) => `Terminal progress reset: ${result.solvesRemoved} solves and ${result.activityRemoved} activity records removed.`)}>
-        <p>Deletes the terminal solves that {user.displayName} submitted (their team&apos;s score drops by those points, and a removed first-blood bonus moves to the next solver) and their command pacing records. Teammates&apos; solves stay. This cannot be undone.</p>
+        <p>Deletes the terminal solves that {user.displayName} submitted (their team&apos;s score drops by those points; terminal codes carry no first-blood bonus, so no other team&apos;s score changes) and their command pacing records. Teammates&apos; solves stay. This cannot be undone.</p>
       </ConfirmDialog>
     </>}
   </AsyncBlock>;

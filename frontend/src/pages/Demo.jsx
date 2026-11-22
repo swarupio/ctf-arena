@@ -29,7 +29,7 @@ const WATCH_FOR = [
 ];
 
 const PROVED = [
-  ['Stateless replicas behind Nginx.', 'backend2 crashed mid-game and play carried on, because every decision comes from MongoDB, not from replica memory.'],
+  ['Stateless replicas behind Nginx.', 'backend2 crashed mid-match and play carried on, because every decision comes from MongoDB, not from replica memory.'],
   ['Per-team dynamic flags.', 'Alpha and Beta got different flags for the same challenge, so the flag Beta copied from Alpha was rejected.'],
   ['Isolated, hardened containers.', 'The containers of each team were capped on memory, CPU and processes, ran without capabilities and were always cleaned up.'],
   ['Rate limiting shared through MongoDB.', 'Guesses are limited to 5 per minute per challenge across all replicas, so brute-forcing is blocked.'],
@@ -166,7 +166,7 @@ export default function Demo() {
   return <div className="demo-page">
     <section className={`demo-hero${started ? ' is-compact' : ''}`} aria-labelledby="demo-title">
       <h1 id="demo-title">Demo playoff</h1>
-      <p className="demo-lead">A scripted match between two teams, Demo Alpha and Demo Beta. Nothing here talks to the server: it replays exactly what the real platform does during one game.</p>
+      <p className="demo-lead">A scripted match between two teams, Demo Alpha and Demo Beta. Nothing here talks to the server: it replays exactly what the real platform does during one match.</p>
       {!started && <button type="button" className="demo-start" onClick={begin}>
         <span aria-hidden="true" className="demo-glyph">▶</span>Play demo
       </button>}
@@ -192,7 +192,7 @@ export default function Demo() {
         <div className="demo-readout">
           <span className="demo-counter">{stepCounter(index, TOTAL)}</span>
           <span className="demo-counter demo-hopcount">{hopCounter(hopIndex, hops.length)}</span>
-          <span className="demo-clock"><span className="demo-sr">Game clock </span>{formatClock(minute)}</span>
+          <span className="demo-clock"><span className="demo-sr">Match clock </span>{formatClock(minute)}</span>
         </div>
       </div>
       <div className="demo-progress">
@@ -208,7 +208,7 @@ export default function Demo() {
         {step && <span className="demo-chip demo-chip-actor">{step.actor}</span>}
       </div>
       <h2 id="demo-step-title">{step ? step.title : 'Before you press play'}</h2>
-      <p className="demo-text" aria-live="polite">{step ? step.narration : 'This is a replay of one complete game between two teams. Every click, request and score is scripted, so it plays out the same way each time and needs no server.'}</p>
+      <p className="demo-text" aria-live="polite">{step ? step.narration : 'This is a replay of one complete match between two teams. Every tap, request and score is scripted, so it plays out the same way each time and needs no server.'}</p>
       {!step && <ul className="demo-watch" aria-label="What to watch for">
         {WATCH_FOR.map(([name, text]) => <li key={name}><span><strong>{name}</strong> {text}</span></li>)}
       </ul>}

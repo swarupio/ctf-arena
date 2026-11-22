@@ -1,4 +1,4 @@
-// Pure maths for the Games hub. Every game's overview is reduced to the same shape by its registry `summarize`:
+// Pure maths for The Range hub. Every category's overview is reduced to the same shape by its registry `summarize`:
 // { tracks: [{ id, title, difficulty, solved, total, pointsEarned, maxPoints }] }.
 
 const DIFFICULTY_ORDER = ['easy', 'medium', 'hard', 'insane', 'expert'];
@@ -39,8 +39,8 @@ export function sumTracks(tracks) {
 }
 
 /**
- * Combine the per-game results ({ id, tracks } or { id, error }) into the arena header numbers.
- * Failed games are skipped (and counted) so one broken endpoint never zeroes the rest.
+ * Combine the per-category results ({ id, tracks } or { id, error }) into the arena header numbers.
+ * Failed categories are skipped (and counted) so one broken endpoint never zeroes the rest.
  */
 export function aggregate(results) {
   const ok = list(results).filter((item) => item && !item.error && Array.isArray(item.tracks));
@@ -51,7 +51,7 @@ export function aggregate(results) {
   };
 }
 
-/** First game (registry order) with unsolved levels; inside it the easiest unsolved track. null when nothing is left. */
+/** First category (registry order) with unsolved levels; inside it the easiest unsolved track. null when nothing is left. */
 export function recommendNext(results) {
   for (const item of list(results)) {
     if (!item || item.error || !Array.isArray(item.tracks)) continue;

@@ -27,14 +27,13 @@
 .demo-transport, .demo-hopnav, .demo-speed { display: flex; min-width: 0; }
 .demo-transport button + button, .demo-hopnav button + button, .demo-speed button + button { margin-left: -1px; }
 .demo-transport button, .demo-hopnav button, .demo-speed button { position: relative; }
-.demo-transport button:hover:not(:disabled), .demo-transport button:focus-visible,
-.demo-hopnav button:hover:not(:disabled), .demo-hopnav button:focus-visible,
-.demo-speed button:hover:not(:disabled), .demo-speed button:focus-visible { z-index: 1; }
+.demo-transport button:focus-visible, .demo-hopnav button:focus-visible, .demo-speed button:focus-visible { z-index: 1; }
+@media (hover: hover) { .demo-transport button:hover:not(:disabled), .demo-hopnav button:hover:not(:disabled), .demo-speed button:hover:not(:disabled) { z-index: 1; } }
 .demo-page .demo-hopnav button { min-width: 72px; padding-inline: var(--space-3); white-space: nowrap; }
 .demo-page .demo-play { min-width: 112px; }
 /* Pressed = lime fill with an ink underline bar, so it never relies on colour alone */
 .demo-page .demo-play[aria-pressed='true'],
-.demo-page .demo-speed button[aria-pressed='true'] { color: var(--color-ink); background: var(--color-accent); box-shadow: inset 0 -4px 0 var(--color-ink); }
+.demo-page .demo-speed button[aria-pressed='true'] { color: var(--color-on-accent); background: var(--color-accent); box-shadow: inset 0 -4px 0 var(--color-on-accent); }
 .demo-page .demo-speed button { min-width: 52px; padding-inline: var(--space-3); }
 .demo-readout { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); margin-left: auto; }
 .demo-counter { font-size: 0.875rem; font-weight: 700; white-space: nowrap; }
@@ -42,7 +41,7 @@
 .demo-clock {
   min-width: 7ch; padding: 0 var(--space-3); text-align: center; white-space: nowrap;
   font-size: 0.875rem; font-weight: 700; line-height: 1.9; font-variant-numeric: tabular-nums;
-  color: var(--color-accent); background: var(--color-ink); border: var(--border);
+  color: var(--color-on-ink-accent); background: var(--color-ink); border: var(--border);
 }
 
 .demo-progress { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px solid var(--color-line-soft); }
@@ -62,11 +61,11 @@
   font-size: 0.6875rem; font-weight: 700; line-height: 1;
   color: var(--color-ink); background: var(--color-surface);
 }
-.demo-page .demo-tick:hover:not(:disabled) { color: var(--color-ink); background: var(--color-accent-tint); }
+@media (hover: hover) { .demo-page .demo-tick:hover:not(:disabled) { color: var(--color-ink); background: var(--color-accent-tint); } }
 .demo-page .demo-tick.is-done { color: var(--color-ink-contrast); background: var(--color-ink); }
-.demo-page .demo-tick.is-done:hover:not(:disabled) { color: var(--color-ink); background: var(--color-accent); }
-.demo-page .demo-tick.is-current,
-.demo-page .demo-tick.is-current:hover:not(:disabled) { color: var(--color-ink); background: var(--color-accent); box-shadow: 0 3px 0 var(--color-ink); }
+@media (hover: hover) { .demo-page .demo-tick.is-done:hover:not(:disabled) { color: var(--color-on-accent); background: var(--color-accent); } }
+.demo-page .demo-tick.is-current { color: var(--color-on-accent); background: var(--color-accent); box-shadow: 0 3px 0 var(--color-shadow); }
+@media (hover: hover) { .demo-page .demo-tick.is-current:hover:not(:disabled) { color: var(--color-on-accent); background: var(--color-accent); box-shadow: 0 3px 0 var(--color-shadow); } }
 .demo-page .demo-tick:active:not(:disabled) { transform: none; }
 
 /* Narration card */
@@ -77,14 +76,14 @@
   font-size: 0.75rem; font-weight: 700; line-height: 1.7; letter-spacing: 0.06em; text-transform: uppercase;
   overflow-wrap: anywhere; color: var(--color-ink); background: var(--color-surface); border: var(--border);
 }
-.demo-chip-phase { background: var(--color-accent); }
+.demo-chip-phase { color: var(--color-on-accent); background: var(--color-accent); }
 .demo-chip-actor { color: var(--color-ink-contrast); background: var(--color-ink); }
 .demo-narration h2 { margin-bottom: var(--space-3); font-size: clamp(1.5rem, 1.1rem + 1vw, 1.875rem); overflow-wrap: anywhere; }
 .demo-narration h2::before { content: '> '; content: '> ' / ''; }
 .demo-text { max-width: 78ch; font-size: 1.0625rem; overflow-wrap: anywhere; }
 .demo-watch { display: grid; gap: var(--space-2); margin: var(--space-4) 0 0; padding: 0; list-style: none; }
 .demo-watch li, .demo-proof li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--space-3); overflow-wrap: anywhere; }
-.demo-watch li::before { content: ''; width: 10px; height: 10px; margin-top: 0.5em; background: var(--color-ink); }
+.demo-watch li::before { content: ''; width: 10px; height: 10px; margin-top: 0.5em; background: var(--color-line); }
 
 /* Final "what this proved" card */
 .demo-proof { padding: var(--space-5); background: var(--color-accent-tint); border: var(--border); box-shadow: var(--shadow-hard); }
@@ -94,7 +93,7 @@
 .demo-proof ul { display: grid; gap: var(--space-3); margin: 0 0 var(--space-5); padding: 0; list-style: none; }
 .demo-proof li::before {
   content: '\2713'; content: '\2713' / ''; display: grid; place-items: center; flex: none;
-  width: 24px; height: 24px; font-weight: 700; line-height: 1; background: var(--color-accent); border: var(--border);
+  width: 24px; height: 24px; font-weight: 700; line-height: 1; color: var(--color-on-accent); background: var(--color-accent); border: var(--border);
 }
 .demo-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
@@ -106,8 +105,17 @@
 /* Two rows of panels. Row 1 (stage): diagram (the star, wider) + step terminal. Row 2 (grid): what the player
    sees + containers on the left, scoreboard on the right. One column on narrow screens. */
 .demo-stage, .demo-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-5); }
+.demo-stage { align-items: stretch; }
 .demo-col { display: grid; align-content: start; gap: var(--space-5); min-width: 0; }
 .demo-col > * { min-width: 0; }
+
+/* Equal-height rows: the lone panel of a column fills it. Diagram and terminal share one height; the terminal
+   body scrolls inside whatever is left under its title bar (never shorter than the old fixed 300px). */
+.demo-stage > .demo-col { grid-template-rows: minmax(0, 1fr); }
+.demo-stage .demo-arch { display: flex; flex-direction: column; height: 100%; border: var(--border); }
+.demo-stage .demo-arch .demo-arch__scroll { display: flex; flex: 1 1 auto; align-items: center; }
+.demo-stage .demo-term { display: flex; flex-direction: column; height: 100%; }
+.demo-stage .demo-term .demo-term__body { flex: 1 1 0; height: 0; min-height: 300px; max-height: none; }
 
 /* Full server log, folded away so it does not compete with the diagram and the terminal */
 .demo-fulllog { min-width: 0; background: var(--color-surface); border: var(--border); }
@@ -118,10 +126,10 @@
 .demo-fulllog > summary::-webkit-details-marker { display: none; }
 .demo-fulllog > summary::before {
   content: '+'; content: '+' / ''; display: grid; place-items: center; flex: none;
-  width: 24px; height: 24px; line-height: 1; background: var(--color-accent); border: var(--border);
+  width: 24px; height: 24px; line-height: 1; color: var(--color-on-accent); background: var(--color-accent); border: var(--border);
 }
 .demo-fulllog[open] > summary::before { content: '\2212'; content: '\2212' / ''; }
-.demo-fulllog > summary:hover { background: var(--color-accent-tint); }
+@media (hover: hover) { .demo-fulllog > summary:hover { background: var(--color-accent-tint); } }
 .demo-fulllog > summary:focus-visible { outline-offset: -3px; }
 .demo-fulllog[open] > summary { border-bottom: var(--border); }
 .demo-fulllog > .demo-pnl { border: 0; }
@@ -166,3 +174,13 @@
 .demo-jump { padding: var(--space-3) var(--space-4) var(--space-4); background: var(--color-surface); border: var(--border); }
 .demo-narration .demo-hops { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--color-line-soft); }
 .demo-hero.is-compact { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; white-space: nowrap; }
+
+/* Narrow screens: the diagram keeps a readable minimum width and scrolls sideways; say so. */
+@media (max-width: 600px) {
+  .demo-page .demo-arch::after { content: 'Swipe sideways to see the whole diagram.'; display: block; padding: var(--space-1) var(--space-2); font-size: 0.75rem; color: var(--color-muted); }
+}
+
+/* Touch: phase names wrap instead of being cut with an ellipsis (no hover title on a phone). */
+@media (pointer: coarse) {
+  .demo-phase-label { overflow: visible; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; line-height: 1.2; }
+}

@@ -1,0 +1,131 @@
+/*
+  Shared layout for the overview (landing) pages: Games, Challenges, Cipher Lab, Arena Terminal, Web Exploit Lab,
+  Forensics Desk, Crackme Arcade and OSINT Trail. Tokens come from styles.css.
+
+  Anatomy (every page root carries .ov-page):
+    .ov-header                page header: back link, kicker, h1, lead
+    .ov-summary + .ov-stat    summary strip with label-over-value cells
+    .ov-grid[data-count=N]    card grid that never orphans a card (1 column <= 600px, 2 or 3 above, by item count)
+    .ov-card                  card whose rows (head, mid, low, foot) line up across the cards of one grid row (subgrid)
+    .ov-progress + .ov-bar    progress bar; its text label sits beside the bar, never inside it
+
+  Every rule starts with .ov-page so it wins over the older per-game rules whatever the CSS load order is.
+*/
+
+.ov-page { display: grid; gap: var(--space-5); min-width: 0; align-content: start; }
+.ov-page > * { min-width: 0; }
+
+/* ---------- Header ---------- */
+.ov-page .ov-header { display: grid; gap: var(--space-2); justify-items: start; }
+.ov-page .ov-header > * { margin: 0; max-width: 100%; }
+.ov-page .ov-header h1 { margin-bottom: 0; }
+.ov-page .ov-header .back-games { margin-bottom: var(--space-2); }
+.ov-page .ov-kicker { margin: 0; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+.ov-page .ov-lead { max-width: 70ch; margin: var(--space-2) 0 0; color: var(--color-ink); }
+.ov-page .ov-note {
+  margin: 0; padding: var(--space-3) var(--space-4); overflow-wrap: anywhere;
+  background: var(--color-accent-tint); border: var(--border); border-left: 8px solid var(--color-accent);
+}
+
+/* ---------- Summary strip ---------- */
+.ov-page .ov-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: var(--space-4) var(--space-5);
+  align-items: stretch; padding: var(--space-4) var(--space-5);
+  background: var(--color-surface); border: var(--border);
+}
+/* Label on top, value centred in a fixed-height row, so labels and values line up across the strip */
+.ov-page .ov-stat { display: grid; grid-template-rows: auto minmax(36px, 1fr); gap: var(--space-1); align-content: start; min-width: 0; }
+.ov-page .ov-stat > :nth-child(2) { align-self: center; }
+.ov-page .ov-stat > :first-child { font-size: 0.75rem; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+.ov-page .ov-stat > strong { font-family: var(--font-display); font-size: 2rem; font-weight: 400; line-height: 1; overflow-wrap: anywhere; }
+.ov-page .ov-stat > strong small { font-family: var(--font-body); font-size: 1rem; color: var(--color-muted); }
+.ov-page .ov-stat .ov-dim { font-size: 1rem; color: var(--color-muted); font-family: var(--font-body); }
+.ov-page .ov-stat--wide { grid-column: span 2; }
+.ov-page .ov-summary > .button { align-self: end; justify-self: stretch; min-height: 52px; }
+.ov-page .ov-summary > .ov-span-all { grid-column: 1 / -1; }
+
+/* ---------- Progress bar ---------- */
+.ov-page .ov-progress { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: var(--space-3); min-width: 0; }
+.ov-page .ov-progress.has-label { grid-template-columns: auto minmax(0, 1fr); }
+.ov-page .ov-progress-label { font-size: 0.8125rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ov-page .ov-bar {
+  position: relative; height: 14px; overflow: hidden; min-width: 0;
+  background: var(--color-surface-2); border: var(--border);
+}
+.ov-page .ov-bar > span {
+  display: block; height: 100%; max-width: 100%; background: var(--ov-accent, var(--color-accent)); border-right: var(--border);
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ov-page .ov-bar > span[style*='width: 0%'] { border-right: 0; }
+
+/* ---------- Difficulty tones (fills only, never text on a light surface) ---------- */
+.ov-page [data-tone='easy'] { --ov-accent: #b5f23d; }
+.ov-page [data-tone='medium'] { --ov-accent: #ffd95a; }
+.ov-page [data-tone='hard'] { --ov-accent: #ff9e57; }
+.ov-page [data-tone='insane'] { --ov-accent: #ff6b6b; }
+
+/* ---------- Grid ---------- */
+.ov-page .ov-grid { --ov-cols: 1; display: grid; grid-template-columns: repeat(var(--ov-cols), minmax(0, 1fr)); gap: var(--space-5); align-items: stretch; }
+@media (min-width: 601px) {
+  .ov-page .ov-grid:is([data-count='2'], [data-count='4'], [data-count='6'], [data-count='8']) { --ov-cols: 2; }
+}
+@media (min-width: 1000px) {
+  .ov-page .ov-grid:is([data-count='3'], [data-count='6'], [data-count='9']) { --ov-cols: 3; }
+}
+/* Compact cards (labs) can go three-up on tablets too */
+@media (min-width: 700px) {
+  .ov-page .ov-grid--compact[data-count='3'] { --ov-cols: 3; }
+}
+@media (max-width: 600px) {
+  .ov-page .ov-grid { gap: var(--space-4); }
+}
+
+/* ---------- Card: four rows shared with the neighbours through subgrid ---------- */
+.ov-page .ov-card {
+  position: relative; display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; min-width: 0;
+  background: var(--color-surface); border: var(--border); border-top: 8px solid var(--ov-accent, var(--color-ink));
+  transition: background-color 0.12s;
+}
+.ov-page .ov-card.is-done { background: var(--color-accent-tint); }
+.ov-page .ov-card:focus-within { box-shadow: 4px 4px 0 var(--color-ink); }
+@media (hover: hover) { .ov-page .ov-card:hover { box-shadow: 4px 4px 0 var(--color-ink); } }
+.ov-page .ov-card h2 { margin: 0; font-size: 1.75rem; overflow-wrap: anywhere; }
+.ov-page .ov-card p { margin: 0; }
+.ov-page .ov-card-head, .ov-page .ov-card-mid, .ov-page .ov-card-low, .ov-page .ov-card-foot {
+  display: grid; gap: var(--space-2); align-content: start; min-width: 0; padding: 0 var(--space-5) var(--space-3);
+}
+.ov-page .ov-card-head { grid-row: 1; padding-top: var(--space-5); }
+.ov-page .ov-card-mid { grid-row: 2; }
+.ov-page .ov-card-low { grid-row: 3; }
+.ov-page .ov-card-foot { grid-row: 4; align-content: end; padding-bottom: var(--space-5); }
+.ov-page .ov-card-foot .button { justify-self: start; }
+.ov-page .ov-card-head:last-child, .ov-page .ov-card-mid:last-child, .ov-page .ov-card-low:last-child { padding-bottom: var(--space-5); }
+.ov-page .ov-card-stats { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+.ov-page .ov-card-stats > div { display: grid; gap: 2px; }
+.ov-page .ov-card-stats strong { font-size: 1.5rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.ov-page .ov-card-desc { color: var(--color-muted); font-size: 0.9375rem; }
+.ov-page .ov-card-ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+
+/* ---------- Challenges page: category panels in two columns, one stack of cards per panel ---------- */
+.ov-page .ov-count {
+  display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 var(--space-2);
+  font-family: var(--font-body); font-size: 0.8125rem; font-weight: 700; line-height: 1;
+  color: var(--color-on-accent); background: var(--color-accent); border: var(--border);
+}
+.ov-page .challenge-groups { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+@media (min-width: 900px) {
+  .ov-page .challenge-groups { display: block; columns: 2; column-gap: var(--space-6); }
+  .ov-page .challenge-groups > .challenge-group { break-inside: avoid; margin-bottom: var(--space-6); }
+}
+
+@media (max-width: 600px) {
+  .ov-page .ov-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: var(--space-4); }
+  .ov-page .ov-stat--wide, .ov-page .ov-summary > .button { grid-column: 1 / -1; }
+  .ov-page .ov-card-head, .ov-page .ov-card-mid, .ov-page .ov-card-low, .ov-page .ov-card-foot { padding-inline: var(--space-4); }
+  .ov-page .ov-card-head { padding-top: var(--space-4); }
+  .ov-page .ov-card h2 { font-size: 1.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ov-page .ov-bar > span, .ov-page .ov-card { transition: none; }
+}

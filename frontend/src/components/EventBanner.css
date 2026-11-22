@@ -1,0 +1,17 @@
+/* Scheduled-event bar. The phase is spelled out in text; colour is only a second cue. */
+.event-banner {
+  padding: var(--space-1, 4px) max(var(--gutter), calc((100% - var(--content-width)) / 2 + var(--gutter)), var(--safe-r)) var(--space-1, 4px) max(var(--gutter), calc((100% - var(--content-width)) / 2 + var(--gutter)), var(--safe-l));
+  background: var(--color-accent-tint); color: var(--color-ink);
+  border-bottom: var(--border); border-left: 8px solid var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+.event-banner p { margin: 0; overflow-wrap: anywhere; }
+.event-label { text-transform: uppercase; letter-spacing: 0.04em; margin-right: var(--space-2); }
+.event-live { border-left-color: var(--color-ok-border); }
+.event-frozen { background: var(--color-info-tint); border-left-color: var(--color-info-border); }
+.event-ended { border-left-color: var(--color-line); }
+/* Visually hidden, still announced. */
+.event-sr {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}

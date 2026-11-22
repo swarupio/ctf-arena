@@ -1,0 +1,87 @@
+/* First-run onboarding. Tokens come from styles.css. Mobile first: one column, 44px targets, nothing wider than the viewport. */
+
+.ob-checklist, .ob-welcome, .ob-preview { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.ob-checklist, .ob-welcome {
+  display: grid; gap: var(--space-4); align-content: start; padding: var(--space-4);
+  background: var(--color-surface); border: var(--border);
+}
+.ob-welcome { background: var(--color-accent-tint); margin-top: var(--space-5); }
+.ob-checklist h2, .ob-welcome h2 { margin: 0; overflow-wrap: anywhere; }
+.ob-checklist h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.ob-lead, .ob-objective, .ob-meta, .ob-next, .ob-cleared, .ob-note { margin: 0; overflow-wrap: anywhere; }
+.ob-lead, .ob-objective, .ob-meta { color: var(--color-muted); }
+.ob-welcome .ob-lead { color: var(--color-ink); }
+
+/* Meter: label above the bar (never inside it) */
+.ob-meter { display: grid; gap: var(--space-2); }
+.ob-meter-label { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ob-bar { height: 14px; overflow: hidden; background: var(--color-surface-2); border: var(--border); }
+.ob-bar > span { display: block; height: 100%; max-width: 100%; background: var(--color-accent); border-right: var(--border); }
+.ob-bar > span[style*='width: 0%'] { border-right: 0; }
+
+.ob-note, .ob-preview, .ob-cleared {
+  padding: var(--space-3) var(--space-4); background: var(--color-accent-tint); border: var(--border); border-left: 8px solid var(--color-accent);
+}
+.ob-preview { margin: 0; overflow-wrap: anywhere; }
+
+/* Steps */
+.ob-steps { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.ob-step {
+  display: grid; gap: var(--space-3); min-width: 0; padding: var(--space-3) var(--space-4);
+  border: var(--border); background: var(--color-surface);
+}
+.ob-step.is-captured { background: var(--color-accent-tint); }
+.ob-step.is-unavailable { border-style: dashed; color: var(--color-muted); }
+.ob-step-main { display: grid; gap: var(--space-1); min-width: 0; }
+.ob-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); font-size: 0.8125rem; }
+.ob-step-side { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.ob-status {
+  display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--space-2);
+  border: var(--border); background: var(--color-surface); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.is-captured .ob-status { background: var(--color-accent); color: var(--color-on-accent); }
+.is-captured .ob-status::before { content: '\2713\00a0'; }
+.ob-step .button, .ob-step button, .ob-welcome .button, .ob-welcome button { min-height: 44px; min-width: 44px; }
+
+/* How it works strip */
+.ob-how { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.ob-how li { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-3); row-gap: 2px; align-items: start; min-width: 0; }
+.ob-how li > span:last-child { grid-column: 2; color: var(--color-muted); overflow-wrap: anywhere; }
+.ob-how li > strong { grid-column: 2; }
+.ob-how-num {
+  grid-row: 1 / span 2; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  background: var(--color-accent); color: var(--color-on-accent); border: var(--border); font-family: var(--font-display); font-size: 1.125rem;
+}
+
+.ob-welcome-actions { display: grid; gap: var(--space-3); }
+.ob-welcome-actions > * { width: 100%; text-align: center; justify-content: center; }
+
+/* Explainer disclosure */
+.ob-explainer { border: var(--border); background: var(--color-surface); min-width: 0; }
+.ob-explainer-heading { margin: 0; }
+.ob-disclosure {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 44px;
+  padding: var(--space-2) var(--space-4); text-align: left; background: transparent; color: var(--color-ink); border: 0; box-shadow: none;
+}
+.ob-chevron { font-family: var(--font-display); font-size: 1.5rem; line-height: 1; }
+.ob-explainer-panel { display: grid; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); overflow-wrap: anywhere; }
+.ob-explainer-panel[hidden] { display: none; }
+.ob-explainer-panel p, .ob-explainer-panel ul { margin: 0; }
+.ob-explainer-panel ul { display: grid; gap: var(--space-2); padding-left: var(--space-5); }
+
+.ob-next a, .ob-cleared a, .ob-note a { display: inline-flex; align-items: center; min-height: 44px; }
+
+.ob-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (min-width: 640px) {
+  .ob-step { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .ob-step-side { justify-content: flex-end; }
+  .ob-how { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ob-welcome-actions { grid-template-columns: repeat(3, auto); justify-content: start; }
+  .ob-welcome-actions > * { width: auto; }
+  .ob-checklist, .ob-welcome { padding: var(--space-5); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-bar > span { transition: width 0.4s ease; }
+}

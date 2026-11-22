@@ -1,0 +1,21 @@
+/* Shared hint ladder. New file on purpose: no other stylesheet is touched. */
+.hl { display: grid; gap: var(--space-2); min-width: 0; }
+.hl-head { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: baseline; justify-content: space-between; margin: 0; }
+.hl-used { font-weight: 700; font-size: 0.875rem; }
+.hl-cost, .hl-note, .hl-none, .hl-done { margin: 0; color: var(--color-muted); font-size: 0.875rem; }
+.hl-tiers { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.hl-tier { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-line-soft); background: var(--color-surface); overflow-wrap: anywhere; min-width: 0; }
+.hl-tier.is-open { background: var(--color-surface-2); border: 1px solid var(--color-line); border-left: 4px solid var(--color-ink); }
+.hl-tier.is-locked { opacity: 0.85; }
+.hl-tier-name { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.hl-locked { color: var(--color-muted); font-size: 0.875rem; }
+.hl-text { white-space: pre-wrap; }
+.hl-button { min-height: 44px; min-width: 44px; max-width: 100%; justify-self: start; white-space: normal; text-align: left; }
+.hl-confirm { display: grid; gap: var(--space-2); padding: var(--space-3); border: 2px solid var(--color-ink); background: var(--color-accent-tint); }
+.hl-confirm p { margin: 0; }
+.hl-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.hl-live { margin: 0; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.hl-result { margin: 0; font-size: 0.875rem; font-weight: 700; }
+@media (max-width: 520px) {
+  .hl-button, .hl-actions .hl-button { width: 100%; justify-self: stretch; }
+}

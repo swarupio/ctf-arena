@@ -4,10 +4,12 @@ import { useAct, useAdminData } from '../../admin/hooks.js';
 import {
   ANNOUNCEMENT_LEVELS, ANNOUNCEMENT_MAX, settingsPatch, settingsToDraft, validateSettings,
 } from '../../admin/forms.js';
+import { stableKey } from '../../admin/draftSync.js';
 import { formatDate } from '../../admin/format.js';
 import { BannerView } from '../../components/AnnouncementBanner.jsx';
 import AsyncBlock from '../../components/admin/AsyncBlock.jsx';
 import ConfirmDialog from '../../components/admin/ConfirmDialog.jsx';
+import EventPanel from '../../components/admin/EventPanel.jsx';
 import PageHeader, { Panel } from '../../components/admin/PageHeader.jsx';
 
 export default function Settings() {
@@ -24,8 +26,9 @@ function SettingsForm({ saved, onSaved }) {
   const act = useAct();
   const [draft, setDraft] = useState(() => settingsToDraft(saved));
   const [confirm, setConfirm] = useState(false);
-  // Re-sync when the server copy changes (after a save).
-  useEffect(() => { setDraft(settingsToDraft(saved)); }, [saved]);
+  // Re-sync only when this form's own slice changed on the server; saving the event form must not wipe unsaved edits here.
+  const sliceKey = stableKey(settingsToDraft(saved));
+  useEffect(() => { setDraft(settingsToDraft(saved)); }, [sliceKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const patch = settingsPatch(saved, draft);
   const dirty = Object.keys(patch).length > 0;
@@ -76,6 +79,8 @@ function SettingsForm({ saved, onSaved }) {
         {saved.updatedAt && <span className="adm-muted">Last saved {formatDate(saved.updatedAt)}</span>}
       </div>
     </form>
+
+    <EventPanel saved={saved.event} onSaved={onSaved} />
 
     <ConfirmDialog open={confirm} danger title="Apply these settings?" confirmLabel="Save settings" pending={act.isPending('save')} onCancel={() => setConfirm(false)} onConfirm={save}>
       {freezing && <p>Players will not be able to submit flags or terminal answers until you unfreeze submissions.</p>}

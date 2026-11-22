@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getLeaderboard, getTimeline } from '../api/leaderboard.js';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { useTeam } from '../layout/TeamContext.jsx';
 import ActivityTicker from '../components/ActivityTicker.jsx';
+import ScoreboardFreezeNote from '../components/ScoreboardFreezeNote.jsx';
 import {
   assignSeriesStyles, buildChart, findMyStanding, formatTick, hasSolves, isMyTeam,
   leaderboardErrorMessage, scoresAt, snapToTime, sortStandings,
@@ -50,10 +52,10 @@ function ScoreChart({ teams, myTeamId }) {
   const { plot } = chart;
 
   // Draw highlighted lines last so they sit on top.
-  const emphasised = (line) => line.teamId === focused || (focused === null && isMyTeam(line, myTeamId));
+  const emphasised = useCallback((line) => line.teamId === focused || (focused === null && isMyTeam(line, myTeamId)), [focused, myTeamId]);
   const drawOrder = useMemo(
     () => [...chart.series].sort((a, b) => Number(emphasised(a)) - Number(emphasised(b))),
-    [chart.series, focused, myTeamId],
+    [chart.series, emphasised],
   );
 
   const readout = hover ? { ...hover, rows: scoresAt(chart, hover.ms) } : null;
@@ -115,6 +117,7 @@ function ScoreChart({ teams, myTeamId }) {
 }
 
 export default function Leaderboard() {
+  const { user } = useAuth();
   const { team, profile } = useTeam() ?? {};
   const myTeamId = team?.id ?? profile?.team?.id ?? null;
   const [state, setState] = useState(EMPTY);
@@ -158,16 +161,17 @@ export default function Leaderboard() {
         {updatedAt && `Updated ${updatedAt.toLocaleTimeString()} · `}refreshes every {POLL_INTERVAL_MS / 1000} s
       </p>
     </div>
+    <ScoreboardFreezeNote />
     {error && <p role="alert" className="error">Could not refresh the leaderboard, showing the last data. {error}</p>}
     {mine && <p className="lb-summary">Your team <strong>{mine.teamName}</strong> is ranked #{mine.rank} with {mine.points} {mine.points === 1 ? 'point' : 'points'}.</p>}
-    {!mine && myTeamId === null && <p className="lb-summary">Join or create a team on the Team page to appear on the leaderboard.</p>}
+    {!mine && myTeamId === null && user?.role !== 'admin' && <p className="lb-summary">Join or create a team on the Team page to appear on the leaderboard.</p>}
     {!mine && team?.banned && <p className="lb-summary">Your team has been banned and is hidden from the leaderboard.</p>}
 
     <div className="lb-card">
       <h2>Standings</h2>
       {standings.length === 0
         ? <p className="lb-note">No teams yet. Create a team on the Team page, then solve a challenge to get on the board.</p>
-        : <table className="lb-table">
+        : <div className="lb-scroll" role="region" aria-label="Team standings table" tabIndex={0}><table className="lb-table">
           <caption className="lb-sr">Team standings</caption>
           <thead><tr>
             <th scope="col" className="lb-rank">Rank</th><th scope="col">Team</th>
@@ -184,7 +188,7 @@ export default function Leaderboard() {
               </tr>;
             })}
           </tbody>
-        </table>}
+        </table></div>}
     </div>
 
     <ActivityTicker limit={6} />

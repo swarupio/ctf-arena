@@ -1,13 +1,25 @@
+import { EVENT_MESSAGES } from '../event/messages.js';
+// "N solves", or a neutral dash while the scoreboard is frozen (the server sends solveCount: null to players then).
+export function solveCountLabel(count) {
+  if (typeof count !== 'number' || !Number.isFinite(count)) { return '-'; }
+  return `${count} ${count === 1 ? 'solve' : 'solves'}`;
+}
+
 export const CATEGORY_ORDER = ['web', 'crypto', 'forensics', 'pwn', 'misc', 'terminal'];
 
-// Terminal-game codes are challenges too (docs/TERMINAL_GAME.md section 9), but they are played inside the terminal,
+// Arena Terminal codes are challenges too (docs/TERMINAL_GAME.md section 9), but they are played inside the terminal,
 // so the card grid hides them and shows one promo card. `regular` are the cards; the rest feeds the promo.
 export const isTerminalChallenge = (challenge) => challenge?.type === 'terminal';
+
+// The other categories (Cipher Lab, Web Lab, Forensics, Crackme, OSINT) also store their levels as challenges and are
+// played on their own pages, so the card grid hides them too; The Range lists them.
+const GAME_TYPES = ['game', 'weblab', 'forensics', 'reversing', 'osint'];
+export const isGameChallenge = (challenge) => GAME_TYPES.includes(challenge?.type);
 
 export function splitTerminalChallenges(challenges) {
   const terminal = challenges.filter(isTerminalChallenge);
   return {
-    regular: challenges.filter((challenge) => !isTerminalChallenge(challenge)),
+    regular: challenges.filter((challenge) => !isTerminalChallenge(challenge) && !isGameChallenge(challenge)),
     terminal: {
       count: terminal.length,
       solved: terminal.filter((challenge) => challenge.solvedByMyTeam).length,
@@ -41,6 +53,8 @@ export function formatCountdown(expiresAt, now = Date.now()) {
 export const isExpired = (expiresAt, now = Date.now()) => new Date(expiresAt).getTime() <= now;
 
 const MESSAGES = {
+  ...EVENT_MESSAGES,
+  FORBIDDEN: 'Admins can preview only.',
   NO_TEAM: 'Join or create a team first (Team page) to play.',
   TEAM_BANNED: 'Your team has been banned.',
   INSTANCE_LIMIT: 'Your team has reached its instance limit. Stop another instance first.',

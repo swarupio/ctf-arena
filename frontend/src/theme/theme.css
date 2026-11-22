@@ -1,0 +1,30 @@
+/* Theme toggle: one cycling button (System, Light, Dark). Colours come from the tokens in styles.css. */
+.theme-toggle { display: flex; flex: none; align-items: center; }
+.theme-toggle .theme-btn { min-height: 36px; min-width: 44px; padding: 0 var(--space-2); gap: var(--space-2); font-size: 0.875rem; }
+.theme-icon { flex: none; display: block; }
+.theme-btn-text { white-space: nowrap; }
+/* Live status text for screen readers only. */
+.theme-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Wide header: icon only, 44px square, text is dropped (the aria-label carries it). */
+@media (min-width: 1101px) {
+  .theme-toggle .theme-btn { width: 44px; min-height: 44px; padding: 0; }
+  .theme-btn-text { display: none; }
+  /* The 44px button must not push the nav onto a second row: the (ellipsised, title-tooltipped) email gives up the same width. */
+  .account:has(.theme-toggle) .email { max-width: 96px; }
+}
+/* Just above the menu breakpoint there is no room even for that: show the status square only (the address stays in the title and for screen readers). */
+@media (min-width: 1101px) and (max-width: 1160px) {
+  .account:has(.theme-toggle) .email { max-width: 16px; font-size: 0; }
+}
+
+/* Mobile menu panel: icon and visible text, full row width. */
+@media (max-width: 1100px) {
+  .theme-toggle { flex: 1 1 100%; }
+  .theme-toggle .theme-btn { width: 100%; justify-content: flex-start; padding: 0 var(--space-3); }
+}
+
+/* Phase C: the Web Lab skins (pizza, hospital, retro-bank, vault) are fake sites with their own light or dark paper. Lime (the dark focus colour) is invisible on the cream and
+   teal ones, so in dark the focus ring takes the skin's own ink. Light is untouched (rule only matches in dark). */
+:root[data-theme-enabled][data-theme='dark'] :is(.wl-track, .wl-frame) :focus-visible { outline-color: var(--t-ink); }
+@media (prefers-color-scheme: dark) { :root[data-theme-enabled]:not([data-theme='light']) :is(.wl-track, .wl-frame) :focus-visible { outline-color: var(--t-ink); } }

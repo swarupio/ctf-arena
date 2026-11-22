@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as auth from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { configurationError } from './amplify.js';
@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
     return () => { active = false; unsubscribe(); };
   }, []);
 
-  const acceptSignIn = async (result) => {
+  const acceptSignIn = useCallback(async (result) => {
     if (result.isSignedIn) {
       const nextUser = userFromSession(await auth.fetchAuthSession());
       if (!nextUser) throw new Error('Missing ID token');
@@ -71,12 +71,12 @@ export function AuthProvider({ children }) {
       }
     }
     return result;
-  };
+  }, []);
 
-  const confirmTotp = async (code) => {
+  const confirmTotp = useCallback(async (code) => {
     if (!/^\d{6}$/.test(code)) throw Object.assign(new Error(), { name: 'CodeMismatchException' });
     return acceptSignIn(await auth.confirmSignIn({ challengeResponse: code }));
-  };
+  }, [acceptSignIn]);
 
   const value = useMemo(() => ({
     loading, user, step, email, configurationError, profile, profileError,
@@ -112,7 +112,7 @@ export function AuthProvider({ children }) {
       setStep(null);
       setEmail('');
     },
-  }), [loading, user, step, email, profile, profileError]);
+  }), [loading, user, step, email, profile, profileError, acceptSignIn, confirmTotp]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

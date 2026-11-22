@@ -301,7 +301,7 @@ function placeChips(flows) {
 }
 
 const ARIA_LABEL =
-  'Architecture of Mini CTF Arena. The browser signs in with AWS Cognito, the only AWS service, ' +
+  'Architecture of CTF Arena. The browser signs in with AWS Cognito, the only AWS service, ' +
   'and sends requests over HTTPS to Nginx. Nginx load balances round-robin across three stateless ' +
   'Express backend replicas. The backends verify Cognito tokens, keep all shared state in MongoDB ' +
   'Atlas, and start one hardened Docker container per team on the ctf-challenges network, ports ' +

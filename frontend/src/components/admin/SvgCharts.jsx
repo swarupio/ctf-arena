@@ -38,10 +38,10 @@ export function SvgLineChart({ rows, xKey = 'date', series, height = 220, format
     <div className="adm-chart-wrap" ref={wrapRef}>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
         <g className="adm-chart-grid">
-          {model.ticks.map((tick) => <line key={tick.value} x1={area.left} x2={area.right} y1={tick.y} y2={tick.y} />)}
+          {model.ticks.map((tick, index) => <line key={`${index}-${tick.value}`} x1={area.left} x2={area.right} y1={tick.y} y2={tick.y} />)}
         </g>
         <g className="adm-chart-axis">
-          {model.ticks.map((tick) => <text key={tick.value} x={area.left - 6} y={tick.y} textAnchor="end" dominantBaseline="middle">{tick.value}</text>)}
+          {model.ticks.map((tick, index) => <text key={`${index}-${tick.value}`} x={area.left - 6} y={tick.y} textAnchor="end" dominantBaseline="middle">{tick.value}</text>)}
           {labels.map((position) => <text key={position} x={model.xs[position]} y={area.bottom + 18}
             textAnchor={position === 0 ? 'start' : position === rows.length - 1 ? 'end' : 'middle'}>{formatX(rows[position][xKey])}</text>)}
         </g>
