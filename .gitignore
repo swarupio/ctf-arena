@@ -10,3 +10,7 @@ coverage/
 
 # Local assistant/agent scratch data
 .claude/
+
+# Python bytecode (stray tooling output)
+__pycache__/
+*.pyc
