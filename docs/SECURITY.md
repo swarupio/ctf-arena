@@ -19,7 +19,7 @@ The full API security review (findings, tests, open items) is in `docs/SECURITY_
 | Players attacking the host or each other | Challenge containers on their own network, no access to Mongo or backend |
 | Secrets leaking | `.env` ignored by git, secrets only in env, rotate `FLAG_SECRET` if exposed |
 | Misbehaving team | Admin dashboard: Ban (exact `admin` role, flips `teams.banned` then stops the team's containers; a banned team gets 403 on submit and instance routes, cannot leave its team (so it cannot start over with a fresh one), and is hidden from the leaderboard) and Kill (forced stop, also for an instance stuck in `stopping`) |
-| API abuse | `limit_req` in Nginx (20 requests/s per IP, burst 60, JSON 429), `helmet`, 128 KB request bodies at Nginx and 100 KB in the backend |
+| API abuse | `limit_req` in Nginx (30 requests/s per IP, burst 100, JSON 429; `/api/event` and `/api/announcement` are micro-cached for 2 s), `helmet`, 128 KB request bodies at Nginx and 100 KB in the backend |
 
 ## 2. The Docker socket risk (read this)
 Mounting `/var/run/docker.sock` into the backend means a bug in the backend could control the host.

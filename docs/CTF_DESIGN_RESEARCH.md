@@ -274,7 +274,7 @@ the low observed copy rate [S9].
 | Topic | Convention (source) | Current state in CTF Arena | Recommendation (Opinion) |
 |-------|---------------------|----------------------------|--------------------------|
 | Score vs progression | Points decide standings; XP/rank/belts are separate and cosmetic (HTB, TryHackMe, pwn.college) [S6][S12] | Points drive leaderboard; badges never change points (`docs/ACHIEVEMENTS.md`) | Keep the separation; add a cosmetic Rank title (rec 11) |
-| Currency vs points | CTFd hints cost points, so there is one currency [S3] | Hints are free in OSINT per `OsintCase.jsx`; other games vary | One policy per mode: Training = free graduated hints; Event = hints cost points. Show the cost before the click |
+| Currency vs points | CTFd hints cost points, so there is one currency [S3] | Hints were free in OSINT per `OsintCase.jsx`; other games varied (since this note, all six categories charge a percent of the level points, see `docs/HINTS.md`) | One policy per mode: Training = free graduated hints; Event = hints cost points. Show the cost before the click |
 | Hint ladder | Graduated 3-5 levels [S25] | Weblab has numbered hint levels (`HintList`, `getHint(slug, level)`); others vary | Standardise to 3 levels: nudge, direction, near-answer |
 | Unlock gating | Ordered series (OverTheWire, pwn.college) vs open boards (CTFd) [S12][S13] | Tracks are per game; flat list in the hub | Keep boards open, add optional guided Paths (rec 10); gate only capstones (for example the final accusation after evidence) |
 | Difficulty curve | Easy to hard inside a topic [S13]; escalating Flare-On [S15] | Difficulty labels per track | Check each track's first level is solvable in under 5 minutes without hints; use hint-usage rate as the curve metric [S25] |
@@ -378,7 +378,7 @@ Status is yes / partial / no, with the main path as evidence. Effort S/M/L.
 |---|---------------------------|----------|--------------------|--------|
 | 1 | Single coherent vocabulary and hub name | partial: "Games" in `frontend/src/layout/Layout.jsx`, `frontend/src/pages/Games.jsx`, `frontend/src/games/registry.js`; units called levels, codes, stages, questions | Adopt the section 6 vocabulary; rename the hub to The Range; "flag" as the universal unit label | S |
 | 2 | Guided first-flag onboarding | partial: `frontend/src/pages/Demo.jsx` only | Dismissible 3-step checklist and one guaranteed easy first flag per game [S8] | M |
-| 3 | Unified hint ladder with visible cost | partial: separate `components/cipherlab/HintPanel.jsx`, `components/crackme/HintPanel.jsx`, weblab `HintList`, free hints in OSINT | Shared hint component; 3 levels; cost policy per Training/Event [S3][S25] | M |
+| 3 | Unified hint ladder with visible cost | partial: separate `components/cipherlab/HintPanel.jsx`, `components/crackme/HintPanel.jsx`, weblab `HintList`, free hints in OSINT (now priced, see `docs/HINTS.md`) | Shared hint component; 3 levels; cost policy per Training/Event [S3][S25] | M |
 | 4 | Skills / framework mapping (NICE, OWASP, ATT&CK) | no | `skills` tags per level and a Skills page; credit the frameworks [S18] | M |
 | 5 | Scheduled event mode with countdown and auto-freeze | partial: manual flag in Settings, `components/AnnouncementBanner.jsx` | Server-side start/end, countdown component, freeze with admin-live view [S2] | M |
 | 6 | Weekly cohort / seasonal ladder | no | Cosmetic league or season with activity thresholds [S4][S6] | L |

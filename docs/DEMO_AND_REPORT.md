@@ -50,7 +50,7 @@
 10. **Testing and results:** unit tests, end-to-end checklist, load-test table
 11. **Screenshots:** login + MFA, team page, challenge page, running container, leaderboard, admin, GitHub Actions, Vercel deployment page
 12. **Challenges faced and lessons learned**
-13. **Future scope:** Kubernetes, per-challenge subdomains, dynamic scoring, hints, scoreboard freeze, SSE live updates
+13. **Future scope:** Kubernetes, per-challenge subdomains, dynamic scoring, scoreboard freeze, SSE live updates
 14. **Conclusion**
 15. **References**
 

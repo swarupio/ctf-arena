@@ -375,20 +375,20 @@ One row per distinct literal found. "Token (by role)" lists the options by conte
 | `#8dffa8` | 1 | **keep** (not a token) | Weblab retro-bank skin. Files: weblab:1 |
 | `#39ff6a` | 1 | **keep** (not a token) | Weblab retro-bank skin. Files: weblab:1 |
 | `#0d2a16` | 1 | **keep** (not a token) | Weblab retro-bank skin. Files: weblab:1 |
-| `#1f6b38` | 1 | **keep** (not a token) | Weblab retro-bank skin. Files: weblab:1 |
+| `#2f8f4e` | 1 | **keep** (not a token) | Weblab retro-bank skin. Files: weblab:1 |
 | `#04110a` | 1 | **keep** (not a token) | Weblab retro-bank skin. Files: weblab:1 |
 | `#fff6e0` | 1 | **keep** (not a token) | Weblab pizza skin. Files: weblab:1 |
 | `#3b1a0a` | 1 | **keep** (not a token) | Weblab pizza skin. Files: weblab:1 |
 | `#8c2f1b` | 1 | **keep** (not a token) | Weblab pizza skin. Files: weblab:1 |
 | `#f2fbfb` | 1 | **keep** (not a token) | Weblab hospital skin. Files: weblab:1 |
 | `#0b3b44` | 1 | **keep** (not a token) | Weblab hospital skin. Files: weblab:1 |
-| `#0a8a9a` | 1 | **keep** (not a token) | Weblab hospital skin. Files: weblab:1 |
+| `#087a89` | 1 | **keep** (not a token) | Weblab hospital skin. Files: weblab:1 |
 | `#d7f1f3` | 1 | **keep** (not a token) | Weblab hospital skin. Files: weblab:1 |
-| `#7cc4cc` | 1 | **keep** (not a token) | Weblab hospital skin. Files: weblab:1 |
+| `#3b919d` | 1 | **keep** (not a token) | Weblab hospital skin. Files: weblab:1 |
 | `#e6e6ff` | 1 | **keep** (not a token) | Weblab vault skin. Files: weblab:1 |
 | `#b388ff` | 1 | **keep** (not a token) | Weblab vault skin. Files: weblab:1 |
 | `#17172b` | 1 | **keep** (not a token) | Weblab vault skin. Files: weblab:1 |
-| `#4b3a8f` | 1 | **keep** (not a token) | Weblab vault skin. Files: weblab:1 |
+| `#6d5bc0` | 1 | **keep** (not a token) | Weblab vault skin. Files: weblab:1 |
 | `#a31515` | 1 | **keep** (not a token) | Weblab pizza skin kicker. Files: weblab:1 |
 | `#8a0016` | 1 | `--color-diff-insane-text` | weblab critical badge text. Exact value, no light shift. Files: weblab:1 |
 | `#ffe3e6` | 1 | `--color-diff-insane-tint` | weblab critical badge background. Exact value, no light shift. Files: weblab:1 |

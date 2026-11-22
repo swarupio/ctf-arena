@@ -3,10 +3,10 @@
 Models are written with Mongoose. Field types: S = string, N = number, D = date, B = boolean, OID = ObjectId.
 Owner: **S** Swarup, **G** Gururaj, **H** Shubham.
 Arena Terminal addition: `challenges.type` / `category` gain `terminal` plus the `terminal` sub-document (see below).
-Implementation status: all 19 models, listed here with their collection names, exist and are described in this file: (`User`, `Team`, `Challenge`, `Instance`, `Submission`, `Solve`, `ReplicaStat`, `AuditLog`, `AppSetting`, `AttemptCounter`, `Achievement`, `CheatSignal`, `TaintedFlag`, `TerminalActivity`, `CipherHint`, `CrackmeHint`, `OsintHint`, `CrackmePatch`, `OsintBoard`)
+Implementation status: all 20 models, listed here with their collection names, exist and are described in this file: (`User`, `Team`, `Challenge`, `Instance`, `Submission`, `Solve`, `ReplicaStat`, `AuditLog`, `AppSetting`, `AttemptCounter`, `Achievement`, `CheatSignal`, `TaintedFlag`, `TerminalActivity`, `CipherHint`, `CrackmeHint`, `OsintHint`, `CrackmePatch`, `OsintBoard`, `HintOpen`)
 exist (collections: `users`, `teams`, `challenges`, `instances`, `submissions`, `solves`, `replicastats`, `auditlogs`, `appsettings`,
 `attemptcounters`, `achievements`, `cheatsignals`, `taintedflags`, `terminalactivities`, `cipherhints`, `crackmehints`, `osinthints`,
-`crackmepatches`, `osintboards`). The core six were verified live on Atlas; `ReplicaStat` was also exercised live by the
+`crackmepatches`, `osintboards`, plus `hintopens`, see below). The core six were verified live on Atlas; `ReplicaStat` was also exercised live by the
 end-to-end browser run. The leaderboard query is implemented in `services/leaderboardService.js`.
 Mongoose also adds its default `__v` version key to documents, except on the collections whose schema sets `versionKey: false`
 (`replicastats` keeps it; `auditlogs`, `appsettings`, `attemptcounters`, `cheatsignals`, `taintedflags`, `terminalactivities`, the three hint
@@ -14,7 +14,7 @@ collections, `crackmepatches` and `osintboards` do not).
 Fair-play addition (`docs/FAIR_PLAY.md`): `cheatsignals`, `taintedflags` and `terminalactivities`, all with TTL indexes.
 Phase 2 detail: `instances` has no `updatedAt`; a failed start sets `status: 'failed'`, which sits outside the
 partial unique indexes and so frees the port. `solves.points` starts as the base points and is raised to include
-the bonus when the team is the first solver (`solveCount` becomes 1 atomically). Team score is the sum of `solves.points`.
+the bonus when the team is the first solver (`solveCount` becomes 1 atomically). For Cipher Lab, Crackme and OSINT (and the categories wired in phase 2) the starting value is the base points minus the hint cost of the level (`docs/HINTS.md` "Hint costs"), never below 1. Team score is the sum of `solves.points`.
 
 ## users (S)
 | Field | Type | Notes |
@@ -90,7 +90,7 @@ first-blood allowlist. Hints opened by teams are logged in the collection `osint
 createdAt }`, unique on `{ teamId, key, index }`, TTL 90 days; `key` is `<track>:<question>`). Created by
 `npm run seed:osint` (idempotent upsert keyed by slug).
 
-Terminal challenges (Arena Terminal, `docs/TERMINAL_GAME.md`) have `type: 'terminal'`, `category: 'terminal'`,
+Terminal challenges (Arena Terminal, `docs/ARENA_TERMINAL.md`) have `type: 'terminal'`, `category: 'terminal'`,
 slug `terminal-<mode>-<n>`, title `Terminal <Mode> #<n>`, `difficulty` equal to the mode and the points of the mode
 definition. Nothing is stored for their flag: like docker challenges it is derived per team
 (`dynamicFlag` over the slug, team id and challenge id), so `flagHash` and `flagSalt` stay unset. They are created by
@@ -255,6 +255,9 @@ Read on demand by every replica; nothing is cached in a process.
 | event.name | S | optional, max 80 |
 | event.startsAt, event.endsAt | D | both required for the event to count; `endsAt` > `startsAt` (validated by the admin API) |
 | event.freezeAt | D | optional, strictly between start and end; the public scoreboard shows solves with `solvedAt <= freezeAt` from then until `endsAt` |
+| hintCosts | object | optional hint costs (`docs/HINTS.md`); absent = defaults `{ enabled: true, nudge: 5, approach: 10, walkthrough: 25, maxPercent: 40 }`. Replaced as a whole by `PUT /admin/settings`, cleared with `$unset`; read through `normalizeCosts` (clamped, defaulted) |
+| hintCosts.enabled | B | false = hints are free |
+| hintCosts.nudge, .approach, .walkthrough, .maxPercent | N | integers 0..100: percent of the level's base points for the 1st, 2nd and 3rd-or-later hint, and the cap on the level total |
 | updatedBy | S | email of the last admin who saved |
 | updatedAt | D | |
 
@@ -274,7 +277,7 @@ in memory with the tie-breaks points desc, earliest `lastSolveAt`, team name, te
 order. The timeline reads the `solves` of the top 10 teams in `solvedAt` order (the `{ teamId: 1, challengeId: 1 }` index, then a small in-memory sort).
 
 ## cipherhints (G)
-One row per hint a team opened in Cipher Lab (an admin audit log; hints are free). Admin previews write no row.
+One row per hint a team opened in Cipher Lab (an admin audit log, and the source of the hint cost of the level, `docs/HINTS.md`). Admin previews write no row.
 | Field | Type | Notes |
 |-------|------|-------|
 | teamId, userId | OID | who opened it |
@@ -311,9 +314,23 @@ Cosmetic Patch Bay badges (model `CrackmePatch`): written once when a team's pat
 Indexes: **unique** `{ teamId: 1, levelId: 1 }` (an atomic `$setOnInsert` upsert), no TTL. No points are stored here.
 
 ## crackmehints and osinthints (G)
-Same shape and purpose as `cipherhints` (free hints, admin audit log, no `updatedAt`, no `__v`). Fields: `teamId`, `userId`, `index` (0-based),
+Same shape and purpose as `cipherhints` (admin audit log and hint-cost source, no `updatedAt`, no `__v`). Fields: `teamId`, `userId`, `index` (0-based),
 `createdAt`, plus `levelId` (S, `crackmehints`, for example `h2`) or `key` (S, `osinthints`, `<track>:<question>`). Indexes: **unique**
 `{ teamId, levelId, index }` (`crackmehints`) or `{ teamId, key, index }` (`osinthints`), and a TTL on `{ createdAt: 1 }` of 90 days.
+
+## hintopens (G)
+Ledger of hints a team opened, for categories without an older hint collection (Web Exploit Lab, Forensics, Terminal; all wired). Written by `services/hintLedger.js` `recordHintOpen`, read together with `cipherhints`, `crackmehints` and `osinthints` by `spentForLevel` (every index counted once). No `updatedAt`, no `__v`.
+| Field | Type | Notes |
+|-------|------|-------|
+| teamId, userId | OID | team charged, user who opened it |
+| scope | S | category id, for example `weblab`, `forensics`, `terminal` |
+| key | S | level within the category (lab slug, `<track>:<stage>`, ...) |
+| index | N | 0-based hint number, min 0 |
+| percent | N | percent of the level's base charged by this open, fixed when it was opened (cumulative tiers: the marginal cost). Absent on older rows (current rates apply) |
+| capPercent | N | the `maxPercent` in force at that moment (0 when costs were off) |
+| createdAt | D | |
+
+Indexes: **unique** `{ teamId: 1, scope: 1, key: 1, index: 1 }` (an atomic `$setOnInsert` upsert: a repeated open never costs twice) and a TTL on `{ createdAt: 1 }` of 400 days. Declared in the model; create it with `npm run db:indexes` (not run by this change). Without the unique index a concurrent double open could write two rows, which the union still counts once.
 
 ## attemptcounters (security)
 Fixed-window counters shared by all replicas (`services/attemptLimiter.js`). One document per limiter key; used by team join (`join:<cognito sub>`: 10 attempts per 15 minutes, then 429) and by every range category's answer, hint and request limits (`cipherlab:`, `crackme:`, `forensics:`, `osint:`, `weblab-req:`, `weblab-submit:`, `crackme-patch:`, `osint-board:` keys and `forensics:<teamId>:<track>:interview:<i>`).

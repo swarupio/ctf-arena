@@ -98,7 +98,7 @@ No first-blood bonus: `scoringService.hasFirstBloodBonus(challenge)` is false fo
   level after its team solve are ignored. A wrong answer returns streak 0 and the page says the streak was lost.
 - **Speed-run badge** (cosmetic): for a fully solved track, the span between its first and last `Solve.solvedAt`.
   Gold, silver, bronze thresholds per track (easy 10/20/40 min, medium 20/40/90, hard 30/60/120, insane 45/90/180).
-- **Hints**: free, optional, one at a time, logged in `cipherhints` (`CipherHint`, unique per team/level/index) and
+- **Hints**: optional, one at a time, priced as a percent of the level's points and deducted when the level is captured (`docs/HINTS.md`), logged in `cipherhints` (`CipherHint`, unique per team/level/index) and
   readable by admins at `GET /api/cipherlab/admin/hints`. Admins previewing a level see every hint and
   `POST /levels/:id/hints` returns them all without writing a `CipherHint` row; admins still cannot answer.
 

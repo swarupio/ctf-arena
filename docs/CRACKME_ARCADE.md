@@ -21,7 +21,7 @@ Code: `backend/src/games/crackme/**` (VM, assembler, levels, service), `backend/
   returns the team's dynamic flag `CTF{crackme_<id>_<12 hex>}` (`flagService`, `HMAC(FLAG_SECRET, teamId:challengeId)`).
   The flag is never sent before the solve. The same flag is also accepted by `POST /api/challenges/:id/submit` (the
   `reversing` type is dynamic, like `weblab`).
-- Easy, medium and hard cabinets have free hints, opened one at a time and logged for admins (`CrackmeHint`). The
+- Easy, medium and hard cabinets have hints, opened one at a time in order, priced as a percent of the level's points and deducted when the level is captured (`docs/HINTS.md`), and logged for admins (`CrackmeHint`). The
   Insane track has no hints.
 
 ## Per-team variation, statelessness

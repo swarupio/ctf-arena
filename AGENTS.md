@@ -36,7 +36,7 @@ ctf-arena/
 │   │   ├── app.js  server.js
 │   │   ├── config/            # env.js, db.js, cognito.js
 │   │   ├── middleware/        # auth.js, requireRole.js, errorHandler.js, servedBy.js, requestCounter.js, lazyRouter.js
-│   │   ├── models/            # 19 models: User Team Challenge Instance Submission Solve + admin, fair-play, hint and counter models
+│   │   ├── models/            # 20 models: User Team Challenge Instance Submission Solve + admin, fair-play, hint and counter models
 │   │   ├── routes/            # auth teams challenges instances leaderboard health announcement event social honeypot admin/* + one per range category
 │   │   ├── services/          # dockerService flagService scoringService reaper admin* leaderboardService *Service per range category
 │   │   ├── games/             # range categories: cipherlab crackme weblab (level data + services)

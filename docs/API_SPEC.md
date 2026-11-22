@@ -4,11 +4,11 @@ Base path: `/api`. JSON in, JSON out.
 Implementation status: every endpoint in this file is implemented and mounted: Health, identity and Teams
 (Phase 1), Challenges, Instances and `/admin/challenges` (Phase 2), Leaderboard and `/admin/stats`,
 `/admin/instances`, `/admin/teams` (Phase 3), and the Arena Terminal under `/terminal` (see
-`docs/TERMINAL_GAME.md`) and the fair-play review endpoints under `/admin/integrity` (see `docs/FAIR_PLAY.md`).
+`docs/ARENA_TERMINAL.md`) and the fair-play review endpoints under `/admin/integrity` (see `docs/FAIR_PLAY.md`).
 Paths that are not listed here return 404 `NOT_FOUND`, with one deliberate exception: a few public decoy paths answer
 200 with invented data (and a tainted flag) so that scrapers and automated agents give themselves away. They are not
 part of the contract, no client may call them, and they are not listed here on purpose (see `docs/FAIR_PLAY.md`).
-Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`, `/api/announcement` and `/api/event` (all public).
+Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`, `/api/announcement`, `/api/event` and `/api/hint-costs` (all public).
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
 `req.user = { cognitoSub, email, role }` from verified ID-token claims;
@@ -41,7 +41,7 @@ Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2)
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
 | GET | `/health` | none | S | `{ "status":"ok", "db":"up", "replica":"backend-2", "indexes":"ok" }`. `indexes` is additive: `ok` or `missing` (the critical unique indexes of solves, teams, users, attempt counters, decoy flags, signals and instance ports; names are only in the server log, never in the response). The field is absent when the database is down or the check fails or times out; the route never fails because of it. Cached for 5 minutes. Fix `missing` with `npm run db:indexes`. |
-| GET | `/me` | any | S | Current user: `{ id, email, displayName, role, team: { id, name } or null }`, plus `banned: true` (additive, only present for a banned account so the UI can show the ban message; `/me` itself keeps working) |
+| GET | `/me` | any | S | Current user: `{ id, email, displayName, role, team: { id, name } or null }`, plus `teamBanned` (additive boolean, always present: `true` only when the user's team is banned, `false` for a normal team and for no team; read with the team lookup `/me` already does, no extra query) and `banned: true` (additive, only present for a banned account so the UI can show the ban message; `/me` itself keeps working) |
 | PATCH | `/me` | any | S | Body `{ displayName }` (3-30 chars). 403 `USER_BANNED` for a banned account |
 
 GET `/me` upserts by the verified Cognito `sub`, refreshing email and role from
@@ -141,17 +141,17 @@ Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderbo
 
 ## Terminal (Arena Terminal)
 
-A Unix-terminal CTF mode (design and engine contract: `docs/TERMINAL_GAME.md`). Players type commands into a
+A Unix-terminal CTF mode (design and engine contract: `docs/ARENA_TERMINAL.md`). Players type commands into a
 **virtual** shell and find hidden codes (flags) in three modes: `easy`, `medium`, `hard`. All routes are mounted at
 `/api/terminal` and need `Authorization: Bearer <ID token>`.
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
 | GET | `/terminal/modes` | player, admin | API | `[{ mode, title, tagline, difficulty, codes, solved, points, pointsEarned, lore }]` |
-| GET | `/terminal/:mode/progress` | player, admin | API | `{ mode, total, solved:[{ n, title, points, firstBlood }], remaining }` |
-| POST | `/terminal/:mode/exec` | player, admin | API | Body `{ command, cwd, mailSeen? }` (`mailSeen`: optional integer 0..4095, a cosmetic bit mask of mails the browser has read, used only to print unread letters in `mail`). Response `{ output, cwd, exit, effect? }`. Unknown fields or an out-of-range `mailSeen` are 400 |
+| GET | `/terminal/:mode/progress` | player, admin | API | `{ mode, total, solved:[{ n, title, points, firstBlood }], remaining, hint? }`. Players with a team also get `hint: { code, total, base, opened:[tier numbers, 1-based], pricing:[{ index, tier, percent, points }], spent:{ points, percent, cap } }` for the code the in-shell `hint` command targets (the lowest unsolved code that has hints; no hint text); absent for admins and when nothing is left (see Hint costs) |
+| POST | `/terminal/:mode/exec` | player, admin | API | Body `{ command, cwd, mailSeen? }` (`mailSeen`: optional integer 0..4095, a cosmetic bit mask of mails the browser has read, used only to print unread letters in `mail`). Response `{ output, cwd, exit, effect? }`. The in-shell `hint [n]` command records the opened tier server-side for players (scope `terminal`, key `<mode>:<code>`; the reply text is unchanged); admins record nothing. Unknown fields or an out-of-range `mailSeen` are 400 |
 | POST | `/terminal/:mode/complete` | player, admin | API | Body `{ partial, cwd }`. Response `{ matches: string[] }` (at most 50) |
-| POST | `/terminal/:mode/submit` | player | API | Body `{ flag }`. Response `{ correct, code?, title?, alreadySolved?, pointsAwarded, firstBlood, message, solved, total }` |
+| POST | `/terminal/:mode/submit` | player | API | Body `{ flag }`. Response `{ correct, code?, title?, alreadySolved?, pointsAwarded, hintCost?, firstBlood, message, solved, total }` (`pointsAwarded` is net of the hint cost; `hintCost` only when something was deducted) |
 
 Notes:
 - **Roles.** `modes`, `progress`, `exec` and `complete` accept `player` and `admin`; `submit` is `player` only (an admin
@@ -210,8 +210,8 @@ Level ids are `e1`-`e4`, `m1`-`m4`, `h1`-`h4`, `i1`-`i3` (anything else is 404 `
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/cipherlab/overview` | player, admin | `{ maxPoints, pointsEarned, solved, total, streak, tracks:[{ id, title, difficulty, story, hintsAllowed, total, solved, maxPoints, pointsEarned, complete, speedrun:{ ms, badge }\|null, levels:[{ id, n, title, points, boss, status: solved\|open\|locked, solvedAt, hintsTotal }] }], toolbox:[{ id, name, description, unlockedBy, unlocked }] }`. For admins every `toolbox[].unlocked` is `true` |
-| GET | `/cipherlab/levels/:id` | player, admin | This team's puzzle: `{ id, track, n, title, briefing, points, boss, status, ciphertext, params, hintsAllowed, hintsTotal, hints:[opened texts] }`. For admins `hints` holds all hint texts |
-| POST | `/cipherlab/levels/:id/hints` | player, admin | Body `{}`. Opens the next hint: `{ index, hint, used, total }`. Free; logged for admins. For an admin (preview puzzle) it returns `{ index, hint, used, total, hints:[all texts] }` and writes no `cipherhints` row; Insane levels give 403 `NO_HINTS` to admins too |
+| GET | `/cipherlab/levels/:id` | player, admin | This team's puzzle: `{ id, track, n, title, briefing, points, boss, status, ciphertext, params, hintsAllowed, hintsTotal, hints:[opened texts], hintPricing?, hintSpent? }`. For admins `hints` holds all hint texts and the two cost fields are absent |
+| POST | `/cipherlab/levels/:id/hints` | player, admin | Body `{}`. Opens the next hint: `{ index, hint, used, total, cost, spent }` (`cost: { percent, points, tier }`, `spent: { points, percent, cap }`, see Hint costs); logged for admins. For an admin (preview puzzle) it returns `{ index, hint, used, total, hints:[all texts] }` (no `cost`/`spent`) and writes no `cipherhints` row; Insane levels give 403 `NO_HINTS` to admins too |
 | POST | `/cipherlab/levels/:id/answer` | player | Body `{ answer }`. Wrong: `{ correct:false, pointsAwarded:0, firstBlood:false, message, streak:0 }`. Right: `{ correct:true, alreadySolved, pointsAwarded, firstBlood:false, flag, message, streak, trackComplete, nextLevelId, badges? }` (`badges` only when a new solve earned achievements) |
 | GET | `/cipherlab/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, levelId, hint, at }]` |
 
@@ -232,10 +232,10 @@ backed by `challenges` rows with `type: "weblab"` created by `npm run seed:webla
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/weblab/labs` | player, admin | `{ tracks: [{ id, title, difficulty, theme, company:{ name, tagline, brief }, labs:[lab], solved, total, points, pointsEarned, cleared }], totals: { labs, solved, points, pointsEarned, bountyUsd }, inspector }` |
-| GET | `/weblab/labs/:slug` | player, admin | One lab: summary fields plus `{ story, objective, company, theme, site, form, request, inspector }` |
-| GET | `/weblab/labs/:slug/hints/:level` | player, admin | `{ level, count, text }` (one hint per request, 1..`hintCount`; the server does not track which hints a team has seen, the UI reveals them in order) |
+| GET | `/weblab/labs/:slug` | player, admin | One lab: summary fields plus `{ story, objective, company, theme, site, form, request, inspector }`. Players with a team also get `hintsOpened:[levels, 1-based]`, `hintPricing:[{ index, tier, percent, points }]` (hints still closed, index 0-based, no text) and `hintSpent:{ points, percent, cap }`; admins get none (see Hint costs) |
+| POST | `/weblab/labs/:slug/hints/:level` | player, admin | Body `{}` (strict; extra fields are 400). The old `GET` of this path no longer exists (404). `{ level, count, text, cost, spent }` for players (one hint per request, 1..`hintCount`; the open is recorded for the team and priced at that moment, idempotent per lab and level: a repeat answers with the stored price; `cost: { percent, points, tier }` of this hint, cumulative over the cheaper tiers not yet open, `spent: { points, percent, cap }` of the lab so far). Players need a team that may play (404 `NO_TEAM`, 403 `TEAM_BANNED`). Admins get `{ level, count, text }` and nothing is recorded |
 | POST | `/weblab/labs/:slug/request` | player, admin | Body `{ method, path, headers, cookies, body }`. Response `{ status, contentType, body, setCookies, page, exploited, hint }` |
-| POST | `/weblab/labs/:slug/submit` | player | Body `{ flag }`. Response `{ correct, pointsAwarded, firstBlood, message, severity?, bountyUsd?, alreadySolved? }` |
+| POST | `/weblab/labs/:slug/submit` | player | Body `{ flag }`. Response `{ correct, pointsAwarded, hintCost?, firstBlood, message, severity?, bountyUsd?, alreadySolved? }` |
 
 Notes:
 - `:slug` is `weblab-<lab id>`; unknown or malformed slugs are 404 `NOT_FOUND`. A lab summary is
@@ -272,11 +272,12 @@ the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/a
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
 | GET | `/forensics/tracks` | player, admin | API | `[{ id, title, caseTitle, difficulty, tagline, stages, solved, seeded, maxPoints, pointsEarned }]` |
-| GET | `/forensics/tracks/:track` | player, admin | API | Case file: `{ id, title, caseTitle, difficulty, tagline, briefing[], artefacts[], maxPoints, stages[], evidence[], suspects[], solved, total, pointsEarned, caseClosed }` |
+| GET | `/forensics/tracks/:track` | player, admin | API | Case file: `{ id, title, caseTitle, difficulty, tagline, briefing[], artefacts[], maxPoints, stages[], evidence[], suspects[], solved, total, pointsEarned, caseClosed }`. Each stage: `{ n, title, prompt, points, format, hint, hasHint, whodunit, solved, locked, available, ... }`. `hint` is the text only after the team opened it (always `null` before; admins see it), `hasHint` says whether the stage has one. Players with a team also get per stage with a hint: `hintOpened`, `hintPricing:[{ index:0, tier, percent, points }]` (empty once opened) and `hintSpent:{ points, percent, cap }` |
 | GET | `/forensics/tracks/:track/artefacts/:artefact` | player, admin | API | One chunk of generated evidence (query below) |
 | GET | `/forensics/tracks/:track/interviews` | player, admin | API | Suspect interviews: `{ questions:[{ id, stage, text }], suspects:[{ id, name, role }] }`. One yes/no question per solved evidence stage (at most 3), quoting only that stage's confirmed evidence |
 | POST | `/forensics/tracks/:track/interviews` | player, admin | API | Body `{ suspectId: 's1'.., questionId: 'q1'.. }` (strict). Response `{ suspectId, questionId, answer: 'yes'\|'no', statement }`. Suspects do not always tell the truth: the culprit denies every question and each decoy tells exactly one false "no"; with two or more solved stages the culprit is the unique suspect with two or more false denials (shapes unchanged, see `docs/FORENSICS_DESK.md`). 400 validation, 404 unknown track/suspect or question not yet unlocked, 429 `RATE_LIMITED` (20 per minute, 120 per hour per team and case, keyed `forensics:<team>:<track>:interview:<i>`). No score and no stored state; admins read the preview world |
-| POST | `/forensics/tracks/:track/stages/:n/answer` | player | API | Body `{ answer }` (1-200 chars). Response `{ correct, pointsAwarded, firstBlood:false, message, solved, total, flag?, alreadySolved?, caseClosed? }` |
+| POST | `/forensics/tracks/:track/stages/:n/hint` | player, admin | API | Body `{}` (strict). Opens the stage hint: `{ index:0, hint, used:1, total:1, cost:{ percent, points, tier }, spent:{ points, percent, cap } }`, recorded once per team and stage (scope `forensics`, key `<track>:<stage>`), idempotent; charged when the stage is solved. 403 `NO_HINTS` (hard and insane tracks, the whodunit stage), 404 unknown track or stage, 404 `NO_TEAM` / 403 `TEAM_BANNED` for players. Admins get `{ index, hint, used, total }` free and nothing is recorded |
+| POST | `/forensics/tracks/:track/stages/:n/answer` | player | API | Body `{ answer }` (1-200 chars). Response `{ correct, pointsAwarded, hintCost?, firstBlood:false, message, solved, total, flag?, alreadySolved?, caseClosed? }` |
 
 - `stages[]`: `{ n, title, prompt, points, format, hint (string or null), whodunit, solved, locked, available, pointsEarned?, flag? }`.
   `flag` appears only on stages the team solved. `evidence[]` is `{ n, title, value }` for solved stages only.
@@ -311,8 +312,8 @@ Design, ISA, levels and points: `docs/CRACKME_ARCADE.md`. Mounted at `/api/crack
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/crackme/overview` | player, admin | `{ maxPoints, pointsEarned, solved, total, streak, tracks:[{ id, title, difficulty, story, hintsAllowed, total, solved, maxPoints, pointsEarned, complete, levels:[{ id, n, title, points, boss, status: solved\|open\|locked, solvedAt, hintsTotal }] }] }` |
-| GET | `/crackme/levels/:id` | player, admin | This team's cabinet: `{ id, track, n, title, briefing, points, boss, status, program:[[mnemonic, operand?]], inputMax, vm:{ version, codeBase, memSize, stackMax, codeMax, maxSteps }, hintsAllowed, hintsTotal, hints:[opened texts] }`. 403 `LEVEL_LOCKED` until the previous cabinet of the track is solved |
-| POST | `/crackme/levels/:id/hints` | player | Body `{}`. Opens the next hint: `{ index, hint, used, total }`. Free; logged for admins. 403 `NO_HINTS` on the insane track, 409 `NO_MORE_HINTS` |
+| GET | `/crackme/levels/:id` | player, admin | This team's cabinet: `{ id, track, n, title, briefing, points, boss, status, program:[[mnemonic, operand?]], inputMax, vm:{ version, codeBase, memSize, stackMax, codeMax, maxSteps }, hintsAllowed, hintsTotal, hints:[opened texts], hintPricing?, hintSpent? }`. 403 `LEVEL_LOCKED` until the previous cabinet of the track is solved |
+| POST | `/crackme/levels/:id/hints` | player | Body `{}`. Opens the next hint: `{ index, hint, used, total, cost, spent }` (see Hint costs); logged for admins. 403 `NO_HINTS` on the insane track, 409 `NO_MORE_HINTS` |
 | POST | `/crackme/levels/:id/answer` | player | Body `{ answer }` (1-32 printable ASCII characters, strict). The server runs the VM on it. Wrong: `{ correct:false, pointsAwarded:0, firstBlood:false, message, streak:0 }`. Right: `{ correct:true, alreadySolved, pointsAwarded, firstBlood:false, flag, message, streak, trackComplete, nextLevelId }` |
 | GET | `/crackme/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, levelId, hint, at }]` |
 | POST | `/crackme/levels/:id/patch` | player | Patch Bay (bonus mode on h1-h4 and i1-i4). Body `{ edits: [{ index: int 0..255, op: string }] }` (1-20 edits, strict). Response `{ valid, passed, total, serialOk, badge, message }`. 400 `VALIDATION_ERROR`, `PATCH_EMPTY`, `PATCH_TOO_MANY`, `PATCH_SHAPE`, `PATCH_RANGE`, `PATCH_DUPLICATE`, `PATCH_NOT_ALLOWED`; 403 `LEVEL_LOCKED`, `TEAM_BANNED` or admin; 404 `NO_PATCH_BAY` (easy and medium) or `NOT_FOUND`; 429 `RATE_LIMITED` (8 per minute per team and cabinet; a bad-shape patch costs no attempt). Counts toward the submissions freeze. The reward is a cosmetic badge only; hidden inputs are never returned |
@@ -337,11 +338,11 @@ The world of each team (a fully fictional cast, town, company, feed, registry, p
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/osint/cases` | player, admin | `[{ id, title, caseTitle, difficulty, tagline, questions, solved, seeded, hints, maxPoints, pointsEarned }]` |
-| GET | `/osint/cases/:track` | player, admin | Case file: `{ id, title, caseTitle, difficulty, tagline, story[], hintsAllowed, maxPoints, questions[{ n, title, prompt, points, format, kind, final, solved, locked, available, hintsTotal, hints[], pointsEarned?, confirmed?, flag? }], sources[{ id, label, total, max, fallback }], town, company, solved, total, pointsEarned, caseClosed }`. `confirmed` and `flag` exist only on solved questions |
+| GET | `/osint/cases/:track` | player, admin | Case file: `{ id, title, caseTitle, difficulty, tagline, story[], hintsAllowed, maxPoints, questions[{ n, title, prompt, points, format, kind, final, solved, locked, available, hintsTotal, hints[], hintPricing?, hintSpent?, pointsEarned?, confirmed?, flag? }], sources[{ id, label, total, max, fallback }], town, company, solved, total, pointsEarned, caseClosed }`. `confirmed` and `flag` exist only on solved questions |
 | GET | `/osint/cases/:track/sources/:source` | player, admin | One page of one source (`feed`, `cast`, `pages`, `docs`, `registry`, `photos`, `pastes`, `map`): `{ source, total, offset, limit, items[] }`. Query (strict): `offset` 0..10000, `limit` 1..50, and the optional filters `author` (`cNN`) and `date` (`YYYY-MM-DD`) |
 | GET | `/osint/cases/:track/search?q=&offset=&limit=` | player, admin | Search over the case corpus (`q` 2-64 chars, `offset` 0..1000, `limit` 1..20, default 10): `{ query, offset, limit, results:[{ source, id, title, snippet }], hasMore }` |
 | POST | `/osint/cases/:track/questions/:n/answer` | player | Body `{ answer }` (1-200 chars). Response `{ correct, pointsAwarded, firstBlood:false, message, solved, total, flag?, alreadySolved?, caseClosed? }` |
-| POST | `/osint/cases/:track/questions/:n/hints` | player | Body `{}`. Easy and medium only: opens the next free hint `{ index, hint, used, total }`, logged for admins |
+| POST | `/osint/cases/:track/questions/:n/hints` | player | Body `{}`. Easy and medium only: opens the next hint `{ index, hint, used, total, cost, spent }` (see Hint costs), logged for admins |
 | GET | `/osint/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, key, hint, at }]` (`key` is `<track>:<n>`) |
 | GET | `/osint/cases/:track/board` | player, admin | The team's shared evidence board: `{ version, pins:[{ id, kind, label, x, y }], links:[{ a, b, rel }], progress:{ level, total }, unlocked, nudge, limits:{ pins:40, links:2*M, size:1000 }, relations:[{ id, label, help }], readOnly }`. `readOnly` is true for admins, teamless players and banned teams (admins and teamless players get an empty preview board). `progress.level` is a coarse bucket, never an exact count: `complete` (the chain held at some save, sticky `unlocked`), `close` (all but at most one required link holds), `started` (at least half of the required links hold) or `none` (fewer than half, including zero). `total` is the number of required links |
 | PUT | `/osint/cases/:track/board` | player | Body `{ version: int >= 0, pins:[{ id, x, y }], links:[{ a, b, rel }] }` (strict). `id`, `a`, `b` look like `kind:id` and must be real evidence ids in the team's world; `x`,`y` are integers 0..1000; `rel` is one of `posted`, `at`, `owns`, `mentions`, `linked`. Returns the GET shape. Errors: 400 `BAD_EVIDENCE` / `BAD_BOARD`, 403 `NO_TEAM`, 409 `BOARD_CONFLICT` (stale `version`), 422 `BOARD_LIMIT` (over 40 pins or 2*M links; nothing stored), 423 `SUBMISSIONS_FROZEN`, 429 `RATE_LIMITED` (30 per minute, 200 per hour per team and case). A save reveals only the coarse `progress.level`, `unlocked` and one generic nudge, never an exact count and never which links are missing. A complete chain sets `unlocked` for good |
@@ -827,7 +828,12 @@ summaries (primitives and short strings, secret-looking keys dropped). `ip` is t
   "announcement": { "text": "CTF starts at 18:00 UTC", "level": "info" }, "updatedAt": "2026-11-22T10:00:00.000Z" }
 ```
 `announcement.text` 0-500 chars (empty hides the banner), `level` is `info | warning | critical`. Defaults: registration
-open, not frozen, no banner, no event (`"event": null`).
+open, not frozen, no banner, no event (`"event": null`), default hint costs.
+
+`hintCosts` (always present in the view, additive): `{ enabled, nudge, approach, walkthrough, maxPercent }`, integers 0..100, defaults
+`{ true, 5, 10, 25, 40 }`. `PUT` replaces it as a whole (`.strict()`: missing fields take the default; out-of-range numbers, fractions,
+strings, non-booleans and unknown keys are 400 `VALIDATION_ERROR`) or resets it with `{ "hintCosts": null }`. Audited as `settings.update`
+like the rest. Rules and examples: `docs/HINTS.md` "Hint costs".
 
 `event` is optional (scheduled Arena event, `docs/EVENT_MODE.md`): `null` or `{ name, startsAt, endsAt, freezeAt, phase }` where
 `phase` is `upcoming | live | frozen | ended` right now. `PUT` replaces it as a whole with `{ name?, startsAt, endsAt, freezeAt? }`
@@ -847,6 +853,18 @@ with `{ "event": null }`. Unknown keys, bad dates and an invalid window are 400 
   `live` and `frozen` accept submissions. `SUBMISSIONS_FROZEN` is checked first. With no event the guard is unchanged.
 - **`registrationOpen`** is stored and published only. Sign-up happens in Cognito (outside this API), so the backend cannot
   block it; the web app should hide its sign-up form when it is `false`. Closing Cognito self-sign-up is a follow-up.
+- **`GET /hint-costs`** (public, no token, `Cache-Control: public, max-age=10`): `{ enabled, nudge, approach, walkthrough, maxPercent }`, the same
+  five numbers as `hintCosts` above and nothing else, so the play screens can show a price before a hint is opened. Normalised: a missing
+  or unreadable setting answers the defaults. Percentages of the level's base points; `GET` only. No rate limit of its own in the app (nginx limits `/api`).
+- **Hint costs on the games (additive fields).** The cost of a hint is a percentage of the level's base points by the hint's position
+  (`tier`: `nudge` first, `approach` second, `walkthrough` third and later); the level total is capped at `maxPercent` and a solve awards at least 1.
+  It is deducted when the level is solved: `Solve.points` holds the net value, so `pointsAwarded`, the leaderboard and achievements use it unchanged.
+  Cipher Lab, Crackme and OSINT: hint-open responses add `cost: { percent, points, tier }` (this hint) and `spent: { points, percent, cap }` (the level
+  so far, `cap` in points); level views (Cipher Lab and Crackme `GET /levels/:id`, each OSINT question of `GET /cases/:track`) add, for players only,
+  `hintPricing: [{ index, tier, percent, points }]` for the hints still closed (no text) and `hintSpent: { points, percent, cap }`; a correct
+  answer adds `hintCost: { spent, openedCount, base, awarded }` only when something was deducted. Admin previews have none of these fields and
+  record nothing. The price is fixed when a hint is opened (stored on its ledger row) and tiers are cumulative: opening hint N also pays for the cheaper tiers below it, and `hintPricing` of a closed hint is what opening it would add. Web Exploit Lab (scope `weblab`, key lab slug), Forensics (`forensics`, `<track>:<stage>`) and Terminal (`terminal`, `<mode>:<code>`)
+  use the same `cost`, `spent`, `hintPricing`, `hintSpent` and `hintCost` shapes where they appear in the tables above; their answers add `hintCost` too.
 - **`GET /announcement`** (public, no token, `Cache-Control: no-store`):
   `{ "announcement": { "text": "...", "level": "info" }, "registrationOpen": true, "submissionsFrozen": false }`.
 - **`GET /event`** (public, no token, `Cache-Control: public, max-age=3`):

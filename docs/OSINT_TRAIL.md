@@ -27,7 +27,7 @@ Whole category: 22 questions, **2300 points**. Difficulty rises through the data
 
 - **easy**: one handle, one time zone (UTC), no look-alike data except a few colleagues' posts, hints on every question.
 - **medium**: hidden e-mail with a pattern to infer, near-miss verification codes, photos of other days, a document with
-  the same title style; free hints (fewer clues given).
+  the same title style; hints (fewer clues given).
 - **hard**: a town time zone other than UTC, archived page diffs with a red herring (a new hire, a title change), shared
   hosting (same A record, not same SPF text), a camera that writes UTC, a GPS-stripped photo to be geolocated from a
   street sign, a base64 dead drop, and a "walk N blocks" instruction with a cancelled older plan.
@@ -73,7 +73,7 @@ milliseconds and paged out; nothing is stored or cached in the process (Vercel-s
 - **Flags**: each question is a `challenges` row (`osint-<track>-<n>`); the per-team dynamic flag
   (`expectedFlagFor`) is returned only when the solve is recorded (and shown again on the solved question). A pasted decoy
   flag as an answer raises the usual integrity signal and is simply wrong.
-- **Hints** (easy, medium): `POST .../questions/:n/hints` opens the next hint for free, one row per
+- **Hints** (easy, medium): `POST .../questions/:n/hints` opens the next hint (it costs a percent of the question's points, deducted when the question is captured; see `docs/HINTS.md`), one row per
   `(team, question, index)` in `osinthints`, listed for admins at `GET /osint/admin/hints`.
 
 ## 3b. Case board (red-string pinboard)

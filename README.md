@@ -2,327 +2,252 @@
 
 *Train on the Range. Compete in the Arena.*
 
-A small Capture-The-Flag platform built for our Cloud Computing (CC) project.
-Players log in with **MFA**, join a team, start a **Docker container per challenge**,
-submit flags, and climb a **live leaderboard**. Everything runs in the cloud.
+CTF Arena is a cloud-hosted Capture-The-Flag platform built for our Cloud Computing (CC) project.
+Players sign in with a password and an authenticator code (MFA), join a team, capture flags and climb a live leaderboard.
+The **Arena** is the competition (teams, scoreboard, scheduled events, admin); **The Range** is practice: six categories of
+simulated flags that play in the browser with no Docker. Docker challenges (one container per team) run in local mode only.
 
-**Team (build order):** Swarup -> Gururaj -> Shubham
+**Live demo:** `https://<your-vercel-app>.vercel.app` (placeholder: fill in after the first deploy, `docs/TASKS.md` P4-05)
+
+<!-- Screenshot checklist (owner): capture these into docs/screenshots/ once the site is live. The exact pages, themes and
+     sizes are in docs/SLIDES.md ("Screenshots to capture"): S01 home hero, S06 The Range hub (dark), S07a Arena Terminal after a
+     capture, S08a Crackme debugger, S10a leaderboard, S10b frozen leaderboard. Then add 2 or 3 of them here as images. -->
+
+**Team (build order):** Swarup -> Gururaj -> Shubham.
+**Demo and report:** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (10 to 12 minute live demo and backup plan),
+[`docs/DEMO_AND_REPORT.md`](docs/DEMO_AND_REPORT.md) (report outline), [`docs/SLIDES.md`](docs/SLIDES.md) (slides and screenshot list).
 
 ---
 
+## What you can do in it
+
+Every category is browser-playable. A flag is one answer that earns points; its state is Captured, Open or Locked
+(wording rules: [`docs/VOCABULARY.md`](docs/VOCABULARY.md)). Flags are derived per team, so answers cannot be shared.
+Counts and points come from the level data in `backend/src` (they change when levels are added).
+
+| Category | What you do | Flags | Points | Feel | Design doc |
+|----------|-------------|-------|--------|------|-----------|
+| Arena Terminal | Shell puzzles in a virtual Unix box, with a reactive story and in-world mail | 15 (3 modes) | 1690 | easy, medium and hard modes | [`ARENA_TERMINAL.md`](docs/ARENA_TERMINAL.md) |
+| Cipher Lab | Break ciphers with a decoder toolbox and a chainable recipe workbench | 15 | 2060 | tracks from easy to insane | [`CIPHER_LAB.md`](docs/CIPHER_LAB.md) |
+| Web Exploit Lab | Attack simulated vulnerable sites with a request inspector | 10 | 1470 | one lab per web weakness | [`WEB_EXPLOIT_LAB.md`](docs/WEB_EXPLOIT_LAB.md) |
+| Forensics Desk | Case files with logs, files, a packet viewer, a timeline board and suspect interviews | 20 | 2310 | tracks from easy to insane, plus a whodunit | [`FORENSICS_DESK.md`](docs/FORENSICS_DESK.md) |
+| Crackme Arcade | Reverse small programs for a made-up VM, with a time-travel debugger and the Patch Bay bonus | 16 | 1905 | arcade cabinets, rising difficulty | [`CRACKME_ARCADE.md`](docs/CRACKME_ARCADE.md) |
+| OSINT Trail | Investigate a fictional town and company, pin evidence on a shared case board | 22 | 2300 | four cases of questions | [`OSINT_TRAIL.md`](docs/OSINT_TRAIL.md) |
+
+Separate from The Range, the Docker **challenges** (`/challenges`, templates in `challenges/`) start one container per team
+and run in local mode only.
+
+## Features
+
+- **Event mode:** optional scheduled event with start, end, countdown bar and scoreboard freeze; with none configured nothing
+  changes ([`docs/EVENT_MODE.md`](docs/EVENT_MODE.md)).
+- **Hint costs:** every play screen has the same three-step hint ladder (Nudge, Approach, Walkthrough-lite). Hints cost a
+  percentage of the level's points, taken when your team captures it: defaults 5%, 10% and 25%, capped at 40% of the level,
+  asked before opening, and adjustable or switchable off by admins under Settings. Backend and frontend are implemented for
+  all six categories ([`docs/HINTS.md`](docs/HINTS.md); parts of that file still describe the earlier free ladder) [CHECK].
+- **Fair play:** per-team flags, scraping and shared-solution signals, decoys and admin review
+  ([`docs/FAIR_PLAY.md`](docs/FAIR_PLAY.md)).
+- **Skills map and Debrief:** `/skills` maps flags to OWASP Top 10, MITRE ATT&CK, NICE and CTF areas; after a capture each
+  level shows a Debrief ([`docs/SKILLS_MAP.md`](docs/SKILLS_MAP.md), [`docs/DEBRIEF.md`](docs/DEBRIEF.md)).
+- **Onboarding, badges and profile:** a first-run "Capture your first flag" checklist, badges, streaks, activity feed and
+  daily spotlight ([`docs/ONBOARDING.md`](docs/ONBOARDING.md), [`docs/ACHIEVEMENTS.md`](docs/ACHIEVEMENTS.md)).
+- **Admin:** users, teams, challenges, solves, fair-play integrity view, audit log, settings and CSV exports ("Admin API v2" in
+  [`docs/API_SPEC.md`](docs/API_SPEC.md)).
+- **Light and dark theme** with a no-flash script ([`docs/THEMING.md`](docs/THEMING.md)).
+- **Devices:** phones, tablets, laptops and large monitors ([`docs/DEVICE_COMPATIBILITY.md`](docs/DEVICE_COMPATIBILITY.md)).
+
 ## The four cloud services (project requirement)
 
-| # | Cloud service | Tool we use | Where it shows up on the website |
-|---|---------------|-------------|----------------------------------|
+| # | Service | Tool | Where it shows up |
+|---|---------|------|-------------------|
 | 1 | IAM + MFA | AWS Cognito (TOTP authenticator app) | Sign up, login, 6-digit code, `player` / `admin` roles |
 | 2 | Database as a Service | MongoDB Atlas (free tier) | Teams, challenges, solves, submissions, leaderboard |
 | 3 | Docker + scaling | Docker, Docker Compose, Nginx | One container per team per challenge, 3 backend replicas |
 | 4 | Deployment | Vercel (free) + GitHub Actions CI | Public URL, auto-deploy from Git; Docker challenges run locally only |
 
-## Who builds what
+## Architecture
 
-| Phase | Owner | Part of the website | Ends with tag |
-|-------|-------|---------------------|---------------|
-| 1 | **Swarup** | Foundation: repo, IAM + MFA login, teams, database, frontend shell | `v0.1-foundation` |
-| 2 | **Gururaj** | Challenges, Docker engine, flag submission, scoring | `v0.2-engine` |
-| 3 | **Shubham** | Leaderboard, admin dashboard, scaling, deployment, demo, report | `v1.0-release` |
+```
+          Vercel (hosted)                              Local docker compose
+ Browser -> static React app (Vite)           Browser -> Nginx :80 (serves frontend/dist)
+         -> /api -> one serverless function           -> /api -> backend x3 (scale with --scale)
+                    (api/index.js -> Express)                     |  X-Served-By = replica id
+                          |                                       +-> Docker socket -> challenge containers
+                          +------> MongoDB Atlas <----------------+   (limits, TTL, ctf.* labels)
+ Sign-in: browser <-> AWS Cognito (password + TOTP); the backend only verifies the ID token (aws-jwt-verify)
+```
 
-## What is in the box
+Backend replicas are stateless: counters, locks and uniqueness live in MongoDB (atomic updates and unique indexes).
+More in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-Two sides, one platform. The **Arena** is the competition: teams, the live leaderboard, an optional scheduled event with a
-scoreboard freeze, and the admin dashboard. **The Range** is the practice side: six categories of simulated, browser-playable
-flags that need no Docker, so they also work on the hosted site. Every flag is derived per team, so answers cannot be shared.
+## Quick start
 
-| Category | What you do | Flags | Points | Design doc |
-|----------|-------------|-------|--------|-----------|
-| Arena Terminal | Shell puzzles in a virtual Unix box, with a reactive story and in-world mail | 15 (3 modes) | 1690 | [`docs/TERMINAL_GAME.md`](docs/TERMINAL_GAME.md) |
-| Cipher Lab | Break ciphers with a decoder toolbox and a chainable recipe workbench | 15 | 2060 | [`docs/CIPHER_LAB.md`](docs/CIPHER_LAB.md) |
-| Web Exploit Lab | Attack simulated vulnerable sites with a request inspector | 10 | 1470 | [`docs/WEB_EXPLOIT_LAB.md`](docs/WEB_EXPLOIT_LAB.md) |
-| Forensics Desk | Case files with logs, files, a packet viewer, a timeline board and suspect interviews | 20 | 2310 | [`docs/FORENSICS_DESK.md`](docs/FORENSICS_DESK.md) |
-| Crackme Arcade | Reverse small programs for a made-up VM, with a time-travel debugger and the Patch Bay bonus | 16 | 1905 | [`docs/CRACKME_ARCADE.md`](docs/CRACKME_ARCADE.md) |
-| OSINT Trail | Investigate a fictional town and company, pin evidence on a shared case board | 22 | 2300 | [`docs/OSINT_TRAIL.md`](docs/OSINT_TRAIL.md) |
+Three ways to run it. Use Node.js 20 or later.
 
-Counts and points come from the level data in `backend/src` (one flag is one answer that earns points; states are Captured,
-Open and Locked; wording rules in [`docs/VOCABULARY.md`](docs/VOCABULARY.md)). The Docker challenges at `/challenges` are separate and
-run in local mode only. Around the flags:
+| Way | When | What you get |
+|-----|------|--------------|
+| 1. Vercel | the public site and the demo | everything except Docker challenges; HTTPS, deploy from Git |
+| 2. Docker Compose | Docker challenges, replicas, load test | Nginx plus 3 backend replicas on `http://localhost` |
+| 3. Stub harness | offline layout, accessibility and device checks, demo fallback | the real frontend with stubbed sign-in and API data; no Cognito, database or backend; not a real capture |
 
-- **Learning aids:** a free three-step hint ladder on every play screen ([`docs/HINTS.md`](docs/HINTS.md)), a first-run
-  "Capture your first flag" checklist ([`docs/ONBOARDING.md`](docs/ONBOARDING.md)), a Skills map ([`docs/SKILLS_MAP.md`](docs/SKILLS_MAP.md))
-  and a Debrief after each capture ([`docs/DEBRIEF.md`](docs/DEBRIEF.md)).
-- **Competition:** event mode ([`docs/EVENT_MODE.md`](docs/EVENT_MODE.md)), badges, profile, activity feed and daily spotlight
-  ([`docs/ACHIEVEMENTS.md`](docs/ACHIEVEMENTS.md)), fair-play signals and decoys ([`docs/FAIR_PLAY.md`](docs/FAIR_PLAY.md)).
-- **Admin:** users, teams, challenges, solves, audit log, settings and CSV exports ("Admin API v2" in [`docs/API_SPEC.md`](docs/API_SPEC.md)).
-- **Devices:** phones, tablets, laptops and large monitors ([`docs/DEVICE_COMPATIBILITY.md`](docs/DEVICE_COMPATIBILITY.md)).
+**1. Vercel.** Follow [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md); [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) checks it
+step by step. The Express app runs as one serverless function under `/api` (`api/index.js`, `vercel.json`). With
+`DOCKER_ENABLED=false` (the Vercel default) Docker challenges are listed but Start is disabled (`503 DOCKER_DISABLED`).
 
-## Status
-
-All three phases are in the code base: login with MFA and teams, challenges with one Docker container per team,
-flags and scoring, the live leaderboard, the admin dashboard, Nginx load balancing across backend replicas, a load
-test, and hosting on Vercel (the Azure VM plan was dropped; see `docs/DEPLOY_VERCEL.md`). Phase 4 added the six Range
-categories, event mode, hints, onboarding, skills, debrief, device support and a security review. What is still open
-(see `docs/TASKS.md`, which separates owner-only actions): the live end-to-end check with two teams on two devices (P3-12),
-demo data and script (P3-13), report and slides (P3-14), the first real Vercel deploy (P4-05) and the final tags.
-The running log of the polish wave is `docs/PROGRESS.md`. Handoffs: `docs/handoffs/`.
-
-## Hosting: Vercel (hosted) and local Docker mode
-
-The public site runs on **Vercel**: the Vite frontend is static output and the Express app runs as one serverless
-function under `/api` (`api/index.js`, `vercel.json`). Arena Terminal, static challenges, teams, leaderboard and admin
-all work there. **Docker challenges cannot run on Vercel**, so with `DOCKER_ENABLED=false` (the Vercel default) they are
-listed but their Start button is disabled (`503 DOCKER_DISABLED`). To play Docker challenges, run the full stack on a
-laptop with the Quick start below. Step by step: [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md).
-
-## Quick start (whole stack on your machine, Docker challenges included)
+**2. Docker Compose** (needs Docker Desktop with Linux containers, a MongoDB Atlas URI and Cognito values from [`docs/SETUP.md`](docs/SETUP.md)):
 
 ```bash
-cp .env.example .env                      # then fill in Atlas + Cognito values (docs/SETUP.md); never commit .env
-cd backend && npm ci && npm run seed:challenges && cd ..          # register the starter challenges once
+cp .env.example .env            # fill in Atlas + Cognito values; never commit .env (PowerShell: Copy-Item)
+cd backend && npm ci && npm run seed:challenges && cd ..      # register the starter challenges once
 for d in challenges/*/; do s=$(basename "$d"); [ -f "$d/Dockerfile" ] && [ "${s#_}" = "$s" ] && docker build -t "ctf/$s" "$d"; done
-cd frontend && npm ci && npm run build && cd ..                   # Nginx serves frontend/dist
-docker compose up -d --build              # Nginx + 3 backend replicas on http://localhost
-# No Atlas (laptop): docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build, then seed the
-# local database (docs/SETUP.md section 6b: seed:challenges, seed:terminal, seed:cipherlab, seed:weblab, seed:forensics, seed:crackme, seed:osint;
-# optional: seed:demo for demo teams and solves)
+cd frontend && npm ci && npm run build && cd ..               # Nginx serves frontend/dist
+docker compose up -d --build                                  # Nginx + 3 backend replicas on http://localhost
+docker compose up -d --scale backend=5                        # optional: more replicas
 ```
+
+No Atlas: `docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build`, then seed the local database
+(`docs/SETUP.md` section 6b; the seed scripts are listed under "Commands"). Open `http://localhost`, and
+`http://localhost/api/health` for `{ "status": "ok", "db": "up", "replica": "...", "indexes": "ok" }` (`indexes: "missing"` means
+run `npm run db:indexes`). `bash deploy/deploy.sh` rebuilds the frontend and challenge images and restarts the stack. Set
+`NGINX_HOST_PORT` if port 80 is taken and, on Linux, `DOCKER_GID` (see the end of `.env.example`). Stop with `docker compose down`.
+
+**Hot reload (development):** `cd backend && npm run dev` and, in a second terminal, `cd frontend && npm run dev` (Vite proxies
+`/api` to port 4000). The backend loads the root `.env`, then `backend/.env`; process variables win.
+
+**3. Stub harness** (after `cd frontend && npm ci`):
+
+```bash
+cd docs/harness && PORT=5480 node ../../frontend/node_modules/vite/bin/vite.js --config vite.config.js
+# open http://127.0.0.1:5480/   (add ?as=admin or ?as=mfa)
+```
+
+Details: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) section 5 and [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+
+### Commands
+
+```bash
+# backend (cd backend)
+npm run dev | npm start | npm test | npm run lint
+npm run seed                    # two demo teams (Demo Alpha SEEDAA, Demo Beta SEEDBB); needs Atlas or a replica set; -- --reset removes them
+npm run seed:challenges | seed:terminal | seed:cipherlab | seed:weblab | seed:forensics | seed:crackme | seed:osint
+npm run seed:demo               # optional demo teams and solves
+npm run db:indexes              # build indexes where autoIndex is off (Vercel)
+# frontend (cd frontend)
+npm run dev | npm run build | npm run preview | npm test | npm run lint
+```
+
+### Pages and public endpoints
 
 | Page | Who | What |
 |------|-----|------|
-| `/`, `/login`, `/signup`, `/confirm`, `/mfa-setup`, `/mfa`, `/forgot`, `/demo`, `/fair-play` | everyone | home, Cognito sign-up and sign-in with TOTP MFA, password reset, demo page, fair-play rules |
-| `/challenges`, `/challenges/:id` | signed in | list by category, start/stop/extend an instance, submit a flag |
-| `/range` | signed in | The Range: hub of the six categories below (`/games` redirects here). First-run "Capture your first flag" checklist, see `docs/ONBOARDING.md`. Every play screen shares one hint ladder (Nudge, Approach, Walkthrough-lite; free, see `docs/HINTS.md`) |
-| `/skills` | everyone | Skills map: which skills each flag teaches (OWASP Top 10, MITRE ATT&CK, NICE categories, CTF areas), your team's coverage, printable summary. After a capture every level shows a collapsed Debrief (what, how it works, how defenders stop it, tools; write-ups open to all once the event has ended), see `docs/DEBRIEF.md` |
-| `/terminal`, `/terminal/:mode` | signed in | Arena Terminal (shell puzzles, three modes) |
-| `/cipherlab/*` | signed in | Cipher Lab (cryptography levels with a decoder toolbox) |
-| `/weblab`, `/weblab/:slug` | signed in | Web Exploit Lab (practice web vulnerabilities) |
-| `/forensics`, `/forensics/:track` | signed in | Forensics Desk (case files per track) |
-| `/reversing`, `/reversing/:levelId` | signed in | Crackme Arcade (reverse a small VM) |
-| `/osint`, `/osint/:track` | signed in | OSINT Trail (cases of questions) |
-| `/leaderboard` | players and admins | standings, score-over-time chart, your team highlighted, refreshes every 10 s |
-| `/team` | players | create or join a team, invite code, members, score |
-| `/profile`, `/profile/:id` | signed in | badges, streak and recent solves |
-| `/admin` | admins | sections: Overview, Users, Teams, Challenges (`/admin/challenges`), Submissions & solves, Fair play, Instances, Audit log, Settings, Exports |
+| `/`, `/login`, `/signup`, `/confirm`, `/mfa-setup`, `/mfa`, `/forgot`, `/demo`, `/fair-play` | everyone | home, sign-up and sign-in with TOTP MFA, password reset, demo page, fair-play rules |
+| `/range` | signed in | The Range hub (`/games` redirects here) |
+| `/terminal`, `/cipherlab`, `/weblab`, `/forensics`, `/reversing` (Crackme Arcade), `/osint` | signed in | the six categories |
+| `/skills` | everyone | Skills map and your team's coverage |
+| `/challenges`, `/challenges/:id` | signed in | Docker challenges: start, stop, extend, submit |
+| `/leaderboard` | players and admins | standings, score over time, refreshes every 10 s |
+| `/team`, `/profile`, `/profile/:id` | players / signed in | team and invite code; badges and recent solves |
+| `/admin` | admins | Overview, Users, Teams, Challenges, Submissions & solves, Fair play, Instances, Audit log, Settings, Exports |
 
-The public `GET /api/announcement` (no token) returns the banner text and the platform flags (`registrationOpen`,
-`submissionsFrozen`); admins set them under Settings. `GET /api/health` is also public.
+Public APIs without a token: `GET /api/health`, `GET /api/announcement` (banner text, `registrationOpen`, `submissionsFrozen`) and
+`GET /api/event` (event phase and times). Roles `admin` and `player` do not imply each other: a player gets 403 on `/api/admin/*`,
+and admins have no team and cannot submit flags. Full contract: [`docs/API_SPEC.md`](docs/API_SPEC.md).
 
-Optional scheduled **event mode** (start, end, scoreboard freeze, countdown bar, 423 outside the window): see `docs/EVENT_MODE.md`. Public `GET /api/event` returns its phase and times. With no event configured nothing changes.
+## Environment variables
 
-Roles: `admin` and `player` do not imply each other on role-specific routes (a player is redirected away from `/admin`
-and gets 403 on `/api/admin/*`; admins have no team and cannot submit flags). The leaderboard, challenge list and
-Range overviews accept both roles.
+Names only; copy `.env.example` to `.env` (git-ignored) and fill it in. Never commit real values.
 
-**Tests and lint.** `cd backend && npm test` (Vitest, no database needed), `cd frontend && npm test` (`node --test`) and
-`npm run lint` in each folder (ESLint; CI runs lint and tests on pull requests). The backend tests need the variables of
-`.env.example` to be set (a copy of it as `.env` is enough). All seed scripts are listed in `backend/package.json`
-(`seed:challenges`, `seed:terminal`, `seed:cipherlab`, `seed:weblab`, `seed:forensics`, `seed:crackme`, `seed:osint`, `seed:demo`), and
-`npm run db:indexes` builds the indexes on a database where `autoIndex` is off (Vercel).
+| Variable | Needed | Purpose |
+|----------|--------|---------|
+| `NODE_ENV`, `PORT`, `PUBLIC_HOST` | always (PORT and PUBLIC_HOST get defaults on Vercel) | runtime mode, internal port (keep 4000 for Nginx), host shown in container URLs |
+| `MONGODB_URI` | always | MongoDB Atlas or local MongoDB (`mongodb://` and `mongodb+srv://`) |
+| `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | always | backend token verification |
+| `VITE_COGNITO_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID` | always | the same pool for the browser (rebuild after changing) |
+| `FLAG_SECRET` | always | derives per-team flags; 32+ characters, private in production |
+| `CHALLENGE_PORT_MIN`, `CHALLENGE_PORT_MAX`, `INSTANCE_TTL_MINUTES`, `MAX_INSTANCES_PER_TEAM`, `CHALLENGE_MEMORY_MB`, `CHALLENGE_CPU_LIMIT`, `CHALLENGE_PIDS_LIMIT` | locally (inert defaults on Vercel) | Docker challenge limits |
+| `DOCKER_ENABLED`, `MONGOOSE_AUTO_INDEX`, `DOCKER_GID`, `NGINX_HOST_PORT`, `API_PROXY_TARGET`, `ARENA_TERMINAL_DEBUG` | optional | Docker on/off, index building, Linux socket group, host port, Vite dev proxy target, rethrow terminal errors (development only) |
 
-**Environment variables.** Required (startup exits without them): `NODE_ENV`, `MONGODB_URI`, `COGNITO_REGION`,
-`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, the three `VITE_COGNITO_*` values and `FLAG_SECRET` (32+ characters, private
-in production). `PORT`, `PUBLIC_HOST` and the Docker limits (`CHALLENGE_*`, `INSTANCE_TTL_MINUTES`,
-`MAX_INSTANCES_PER_TEAM`) are required locally but get inert defaults on Vercel. Optional: `DOCKER_ENABLED`,
-`MONGOOSE_AUTO_INDEX`, `DOCKER_GID`, `NGINX_HOST_PORT`, `API_PROXY_TARGET` (Vite dev proxy) and `ARENA_TERMINAL_DEBUG`
-(rethrow internal terminal errors, development only). See `.env.example`.
+Startup exits with code 1 and an error naming a missing required variable; MongoDB errors, URIs and passwords are never logged.
+
+## Tests and CI
+
+```bash
+cd backend  && npm ci && npm test && npm run lint     # Vitest + Supertest, in-memory database
+cd frontend && npm ci && npm test && npm run lint     # node --test; CHECK_DEBRIEF_COMPLETE=1 adds the full debrief check (CI sets it)
+cd frontend && npm run build && cd .. && node deploy/bundle-size.mjs   # production build and bundle budget
+```
+
+No database or real credentials are needed: the backend tests read the placeholder values of `.env.example`, so a copy as
+`.env` is enough. Last recorded run (`docs/PROGRESS.md`): backend 108 test files, 2,881 tests; frontend 624 tests (1 skipped).
+
+GitHub Actions (`.github/workflows/ci.yml`; `tests.yml` also exists) runs on pushes to `main`, pull requests and by hand
+(`gh workflow run CI --ref main`): backend lint and tests, frontend lint, tests and build, the bundle budget, a report-only
+`npm audit`, and a `Browser checks` job (axe accessibility, hover contrast in both themes, hero layout, header, Arena Terminal on
+phones; Lighthouse is report only). Each check and its local command: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md);
+browser tools: [`docs/LIGHTHOUSE.md`](docs/LIGHTHOUSE.md). Load test (Nginx plus 3 replicas): [`docs/LOADTEST.md`](docs/LOADTEST.md) and
+[`deploy/loadtest/`](deploy/loadtest/README.md).
+
+## Project structure
+
+```
+ctf-arena/
+├── backend/src/    app.js server.js | config/ middleware/ models/ (20) routes/ (+ admin/) services/ games/ terminal/ forensics/ osint/ scripts/
+├── backend/tests/  Vitest, one folder per area
+├── frontend/src/   auth/ api/ layout/ pages/ components/ games/ terminal/ cipherlab/ forensics/ osint/ hints/ onboarding/ skills/ debrief/ event/ theme/
+├── frontend/tests/ node --test
+├── challenges/     _template/ and one folder per Docker challenge (Dockerfile + app + solution notes)
+├── api/index.js    Vercel serverless entry           vercel.json   Vercel routing
+├── nginx/          nginx.conf                        docker-compose.yml  docker-compose.localdb.yml
+├── deploy/         deploy.sh, bundle-size.mjs, loadtest/
+├── docs/           documentation (below), handoffs/, harness/ (stub harness and browser checks)
+└── .github/        workflows/ci.yml, workflows/tests.yml, pull_request_template.md
+```
+
+## Security notes
+
+- No secrets in git: only `.env.example` is committed. Role, team, score and flag correctness are decided on the server.
+- Roles come only from verified Cognito groups; MFA (TOTP) is required. Flags and flag hashes are never sent to players.
+- Docker challenge containers get memory, CPU and pids limits, all capabilities dropped, `no-new-privileges`, a TTL and `ctf.*` labels.
+- The Arena Terminal uses a linear-time regex engine (no ReDoS), submissions have atomic attempt limits, and an index guard
+  fails closed when required indexes are missing.
+- Two security reviews are written up: [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md) and [`docs/SECURITY_REVIEW_2.md`](docs/SECURITY_REVIEW_2.md).
+  Before real players arrive, go through the checklist in [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ## Docs index
 
-Read the first group in order when you join; the rest are references per area. Everything lives in `docs/`, plus
-[`AGENTS.md`](AGENTS.md) for AI coding agents (Codex CLI, Claude Code, etc.).
+Read "Start here" in order when you join. Everything is in `docs/`, plus [`AGENTS.md`](AGENTS.md) for AI coding agents.
 
-**Start here**
+| Group | Files |
+|-------|-------|
+| Start here | [`PROJECT_BRIEF`](docs/PROJECT_BRIEF.md) (what and why), [`ARCHITECTURE`](docs/ARCHITECTURE.md), [`WORKFLOW`](docs/WORKFLOW.md) (handoffs, file ownership), [`TASKS`](docs/TASKS.md) (tasks and status), [`API_SPEC`](docs/API_SPEC.md), [`DATABASE_SCHEMA`](docs/DATABASE_SCHEMA.md) |
+| Setup and deployment | [`SETUP`](docs/SETUP.md) (local, Atlas, Cognito), [`DEPLOY_VERCEL`](docs/DEPLOY_VERCEL.md), [`RELEASE_CHECKLIST`](docs/RELEASE_CHECKLIST.md), [`BACKEND_RESILIENCE`](docs/BACKEND_RESILIENCE.md), [`CHALLENGES`](docs/CHALLENGES.md) (Docker challenges and template) |
+| Security | [`SECURITY`](docs/SECURITY.md), [`SECURITY_AUDIT`](docs/SECURITY_AUDIT.md), [`SECURITY_REVIEW_2`](docs/SECURITY_REVIEW_2.md), [`FAIR_PLAY`](docs/FAIR_PLAY.md) |
+| The Range | [`ARENA_TERMINAL`](docs/ARENA_TERMINAL.md), [`CIPHER_LAB`](docs/CIPHER_LAB.md), [`WEB_EXPLOIT_LAB`](docs/WEB_EXPLOIT_LAB.md), [`FORENSICS_DESK`](docs/FORENSICS_DESK.md), [`CRACKME_ARCADE`](docs/CRACKME_ARCADE.md), [`OSINT_TRAIL`](docs/OSINT_TRAIL.md) |
+| Product features and wording | [`EVENT_MODE`](docs/EVENT_MODE.md), [`ACHIEVEMENTS`](docs/ACHIEVEMENTS.md), [`HINTS`](docs/HINTS.md), [`ONBOARDING`](docs/ONBOARDING.md), [`SKILLS_MAP`](docs/SKILLS_MAP.md), [`DEBRIEF`](docs/DEBRIEF.md), [`DEVICE_COMPATIBILITY`](docs/DEVICE_COMPATIBILITY.md), [`VOCABULARY`](docs/VOCABULARY.md), [`THEMING`](docs/THEMING.md) |
+| Performance and quality | [`PERFORMANCE`](docs/PERFORMANCE.md), [`LIGHTHOUSE`](docs/LIGHTHOUSE.md), [`QUERY_PERFORMANCE`](docs/QUERY_PERFORMANCE.md), [`LOADTEST`](docs/LOADTEST.md), [`FIXLOG`](docs/FIXLOG.md) |
+| History and research | [`DEMO_SCRIPT`](docs/DEMO_SCRIPT.md), [`DEMO_AND_REPORT`](docs/DEMO_AND_REPORT.md), [`SLIDES`](docs/SLIDES.md), [`PROGRESS`](docs/PROGRESS.md), [`WORKQUEUE`](docs/WORKQUEUE.md), [`CTF_DESIGN_RESEARCH`](docs/CTF_DESIGN_RESEARCH.md), [`handoffs/`](docs/handoffs/README.md) |
 
-| File | What it is |
-|------|-----------|
-| [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) | What we are building and why, scope and success criteria |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the pieces fit together |
-| [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | How work is handed from one person to the next, file ownership |
-| [`docs/TASKS.md`](docs/TASKS.md) | The task list per phase, with acceptance lines and status |
-| [`docs/API_SPEC.md`](docs/API_SPEC.md) | The API contract, including Admin API v2 |
-| [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md) | The MongoDB collections, fields and indexes |
+## Contributing basics
 
-**Setup, deployment and security**
+Three people build it in order (Phase 1 Swarup: foundation, auth, teams; Phase 2 Gururaj: challenges, Docker, flags, scoring;
+Phase 3 Shubham: leaderboard, admin, scaling, deployment, demo). Only edit files owned by the current phase
+([`docs/WORKFLOW.md`](docs/WORKFLOW.md) section 1) and read [`AGENTS.md`](AGENTS.md) first. Conventions: ES modules, `zod` on every
+input, `AppError` for errors, tests for scoring and auth rules, docs updated with any contract change. Tags so far: `v0.1-foundation`,
+`v0.2-engine`, `v1.0-release` (the earlier presentation snapshot); `v1.1-vercel` is planned. Tagging and pushing are owner actions.
 
-| File | What it is |
-|------|-----------|
-| [`docs/SETUP.md`](docs/SETUP.md) | Local setup, Atlas, Cognito |
-| [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md) | Hosting on Vercel, env vars, Cognito and Atlas settings, local Docker mode |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | Rules that keep the platform safe, plus the production checklist |
-| [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md) | The API, access-control and infrastructure review with findings |
-| [`docs/FAIR_PLAY.md`](docs/FAIR_PLAY.md) | Scraping, AI agents and shared solutions: signals, decoys, admin review |
-| [`docs/CHALLENGES.md`](docs/CHALLENGES.md) | The starter challenges and the container template |
-| [`docs/DEMO_AND_REPORT.md`](docs/DEMO_AND_REPORT.md) | Demo script and report outline |
+There is no LICENSE file in the repository; this is a course project.
 
-**The Range (design and contract per category)**
+## Status
 
-| File | What it is |
-|------|-----------|
-| [`docs/TERMINAL_GAME.md`](docs/TERMINAL_GAME.md) | Arena Terminal: virtual shell, modes, codes, story and mail |
-| [`docs/CIPHER_LAB.md`](docs/CIPHER_LAB.md) | Cipher Lab: tracks, levels, toolbox and workbench |
-| [`docs/WEB_EXPLOIT_LAB.md`](docs/WEB_EXPLOIT_LAB.md) | Web Exploit Lab: simulated sites, labs and bounties |
-| [`docs/FORENSICS_DESK.md`](docs/FORENSICS_DESK.md) | Forensics Desk: cases, artefacts, packet tools, timeline and interviews |
-| [`docs/CRACKME_ARCADE.md`](docs/CRACKME_ARCADE.md) | Crackme Arcade: the VM, cabinets, debugger and Patch Bay |
-| [`docs/OSINT_TRAIL.md`](docs/OSINT_TRAIL.md) | OSINT Trail: the generated world, cases and the evidence board |
+All three phases are in the code base: login with MFA and teams, challenges with one Docker container per team, flags and
+scoring, the live leaderboard, the admin dashboard, Nginx load balancing, a load test, and the six Range categories with event
+mode, hints with costs, onboarding, skills, debrief, dark theme and device support. Hosting is on Vercel (the Azure VM plan
+was dropped). The running log is [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
-**Product features and wording**
-
-| File | What it is |
-|------|-----------|
-| [`docs/EVENT_MODE.md`](docs/EVENT_MODE.md) | The optional scheduled event: phases, freeze, countdown |
-| [`docs/ACHIEVEMENTS.md`](docs/ACHIEVEMENTS.md) | Badges, profile, activity feed and daily spotlight (cosmetic) |
-| [`docs/HINTS.md`](docs/HINTS.md) | The shared hint ladder |
-| [`docs/ONBOARDING.md`](docs/ONBOARDING.md) | The first-run checklist and welcome cards |
-| [`docs/SKILLS_MAP.md`](docs/SKILLS_MAP.md) | The `/skills` page and its framework mappings |
-| [`docs/DEBRIEF.md`](docs/DEBRIEF.md) | The after-capture explanation of what a level taught |
-| [`docs/DEVICE_COMPATIBILITY.md`](docs/DEVICE_COMPATIBILITY.md) | Device and display-size support and known limits |
-| [`docs/VOCABULARY.md`](docs/VOCABULARY.md) | The words and voice used in the UI and docs |
-
-**Project history and research**
-
-| File | What it is |
-|------|-----------|
-| [`docs/PROGRESS.md`](docs/PROGRESS.md) | Running log of the Phase 4 polish wave, decisions and owner actions |
-| [`docs/WORKQUEUE.md`](docs/WORKQUEUE.md) | The task board of the polish wave |
-| [`docs/CTF_DESIGN_RESEARCH.md`](docs/CTF_DESIGN_RESEARCH.md) | Research note behind the design and naming decisions |
-| [`docs/handoffs/`](docs/handoffs/README.md) | Phase handoff notes and the Phase 1 docs audit |
-| `docs/harness/` | Scripts for the headless-browser device and colour checks (not documentation) |
-
-## Backend foundation (P1-01 through P1-04)
-
-Use Node.js 20 or later. From the repository root:
-
-```bash
-cp .env.example .env
-cd backend
-npm ci
-npm run dev
-```
-
-On PowerShell use `Copy-Item .env.example .env` instead of `cp`.
-The backend loads the root `.env` and then `backend/.env`, regardless of the
-working directory. Existing process variables take precedence; root `.env`
-wins over `backend/.env`, which fills missing values. Every variable in
-`.env.example` is required. Keep real credentials private.
-Set `MONGODB_URI` in the root `.env` to your Atlas URI (see `docs/SETUP.md`)
-or a running local MongoDB. Both `mongodb://` (including multi-host URIs)
-and `mongodb+srv://` are accepted. Startup connects before listening, logs
-`MongoDB connected`, and exits with code 1 and a generic error if connection
-fails. Driver errors, URIs, and passwords are never logged. Initial server
-selection times out after 10 seconds.
-Replace Cognito placeholders before using protected routes and the flag secret
-before challenge features are implemented. Health does not contact Cognito.
-
-Visit `http://localhost:4000/api/health` for
-`{ "status": "ok", "db": "up", "replica": "<hostname>", "indexes": "ok" }` (`indexes` is `ok` or `missing`, and absent when it cannot be checked; `missing` means run `npm run db:indexes`).
-The response stays HTTP 200; `db` becomes `down` whenever Mongoose is not connected.
-Run `npm test` in `backend/` for API, startup, database, and environment tests
-(no real database or real credentials needed; the placeholder values of `.env.example`
-in a root `.env` or in the environment are enough, which is how CI runs them), or
-`npm start` to run without nodemon. Removing `MONGODB_URI` from the environment
-and both `.env` files makes startup exit with code 1 and an error naming the variable.
-
-Nginx serves the built frontend (`frontend/dist`, SPA fallback) and load-balances the API
-across the backend replicas.
-
-## Demo seed data (P1-14)
-
-With the root `.env` configured, run from `backend/`:
-
-```bash
-npm run seed
-npm run seed -- --reset
-```
-
-The first command creates two demo players and two linked teams, Demo Alpha
-and Demo Beta, with invite codes `SEEDAA` and `SEEDBB`. Repeating it preserves
-existing fixtures and creates only missing ones. `--reset` removes only these
-exact fixtures; run the first command again to recreate them. A collision,
-modified fixture, or another account referencing a fixture makes either command
-refuse without changing documents. Writes and removal use a single transaction,
-so Atlas or a MongoDB replica set is required. Standalone MongoDB is unsupported.
-
-These are database fixtures with synthetic Cognito subjects and `.invalid`
-emails, not login accounts. The script creates no Cognito users, passwords,
-admin roles, challenges, flags, scores, or containers. Real accounts still use
-the normal Cognito signup and required MFA flow. Gururaj adds challenge seed
-data in Phase 2.
-
-Production runs refuse unless explicitly passed `--force` (including resets).
-Success prints document counts and exits 0; failures exit 1 without database
-credentials or driver details. No new environment variables or dependencies
-are needed. Run `npm test` in `backend/` for fixture, collision, transaction
-rollback, command guard, and Mongoose validation coverage without a live database.
-
-## Authentication middleware (P1-07 and P1-09)
-
-`src/config/cognito.js` exposes `getCognitoVerifier()`, configured for ID tokens
-from `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID`. On protected routes, use
-`auth` from `src/middleware/auth.js`, followed by `requireRole('admin')` where
-needed. Authentication is not installed globally; `/api/health` stays public.
-Successful verification attaches `{ cognitoSub, email, role }` to `req.user`.
-The role comes only from verified Cognito groups. Tokens and verifier errors
-are never logged or returned.
-
-Run `npm test` in `backend/`. Auth tests use a test-only router and injected
-mock verifiers; configuration tests mock environment settings and AWS verifier
-creation, so no real `.env`, credentials, or AWS requests are needed. Production
-routes for teams are implemented with transactions. P1-08 provides GET/PATCH
-`/api/me`, with user persistence and display-name validation.
-
-Dependency reasons: Express handles HTTP; Helmet adds security headers;
-Zod validates configuration and future requests; dotenv loads local settings;
-Mongoose and aws-jwt-verify are the requested foundations for later database
-and Cognito work. Vitest runs tests, Supertest exercises HTTP, and nodemon
-restarts the development server.
-
-## Docker backend and Nginx (P1-05)
-
-Start Docker Desktop with Linux containers. From the repository root, copy
-`.env.example` to `.env` if you have not configured it yet. Keep `PORT=4000`
-for the internal proxy. Compose injects the root `.env` at runtime through
-`env_file`; no environment file is copied into the backend image.
-
-```bash
-cd frontend
-npm ci
-npm run build
-cd ..
-docker compose up --build   # starts nginx + 3 backend replicas
-```
-
-Build the frontend before Compose: Nginx mounts `frontend/dist`. For hot reload,
-start `npm run dev` in `backend/` and, in a second terminal, `npm run dev` in
-`frontend/`. Open Vite's printed URL; it proxies `/api` to port 4000. Rebuild or
-restart Vite after changing public Cognito settings in the root `.env`.
-
-See [the Phase 1 handoff](docs/handoffs/HANDOFF_1_swarup_to_gururaj.md) for
-remaining checks and [the audit](docs/handoffs/P1_DOCS_AUDIT.md) for mismatches.
-
-Open http://localhost for the web app, or
-http://localhost/api/health for the backend health response and `X-Served-By`
-header. Repeated requests should show different replica names:
-
-```powershell
-1..10 | ForEach-Object { (Invoke-WebRequest http://localhost/api/health).Headers['X-Served-By'] }
-```
-
-The backend image uses Node.js 20 Alpine, installs production dependencies
-only, and runs as the non-root `node` user. The built frontend is mounted
-into Nginx. Stop the stack with `docker compose down`.
-
-## Scaling, load test and deployment (Phase 3)
-
-Scale the backend without any code change (Nginx re-resolves the `backend` service every 10 seconds):
-
-```bash
-docker compose up -d --scale backend=5
-```
-
-Set `NGINX_HOST_PORT` (for example in `.env`) if host port 80 is taken, and on a Linux host `DOCKER_GID` (the group id
-of `/var/run/docker.sock`; both are explained at the end of `.env.example`). Replica names in the footer and on the
-admin dashboard are container ids. A free load test with results at
-1, 3 and 5 replicas is in [`deploy/loadtest/`](deploy/loadtest/README.md).
-
-Hosting is on Vercel ([`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md)); Vercel builds from Git on every push. Locally,
-`bash deploy/deploy.sh` builds the frontend and challenge images and restarts the docker compose stack. GitHub Actions
-(`.github/workflows/ci.yml`) runs the backend and frontend tests and the frontend build on pull requests. Before real
-players arrive, go through the checklist in [`docs/SECURITY.md`](docs/SECURITY.md).
+Honest limitations and open work (owner-only items are separated in [`docs/TASKS.md`](docs/TASKS.md)):
+- Not yet done: the first real Vercel deploy and smoke test (P4-05), the live check with two teams on two devices (P3-12),
+  demo rehearsal and backup video (P3-13), final report and slides (P3-14), and the final tags.
+- Docker challenges do not run on Vercel (local mode only).
+- Tests use stubbed sign-in and emulated devices: real Cognito login, real iOS Safari and real touch are unchecked.
+- Load-test numbers come from one laptop without real sign-in; treat them as indicative ([`docs/LOADTEST.md`](docs/LOADTEST.md)).
+- `npm run seed` uses a transaction, so it needs Atlas or a MongoDB replica set (standalone MongoDB is unsupported).

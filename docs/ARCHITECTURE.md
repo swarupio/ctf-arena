@@ -134,7 +134,7 @@ from `GET /api/leaderboard/timeline` as an inline SVG (no chart library).
 - Scaling is one command: `docker compose up -d --scale backend=5`. Nginx finds the new replicas through Docker DNS
   (it re-resolves the `backend` name every 10 s), so no restart or config change is needed. Measured results are in
   `deploy/loadtest/README.md`.
-- Nginx also rate-limits `/api` per client IP (20 requests/s, burst 60) and compresses text responses.
+- Nginx also rate-limits `/api` per client IP (30 requests/s, burst 100), micro-caches the public `/api/event` and `/api/announcement` for 2 s, and compresses text responses.
 - Port claims and instance expiry use **atomic database operations**, so replicas never clash.
 - Challenge containers are separate from the backend, so a crashing challenge never takes the site down.
 

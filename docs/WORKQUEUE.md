@@ -38,7 +38,7 @@ Status values: running, queued, blocked, waiting-for-report, done. Briefs live i
 | OW-2 | Admin click-through, Forgot password, real phone test | owner | open | none | n/a | no issues reported |
 | OW-3 | Review diff and commit per area (170+ files) | owner | open | FIN | git | clean commits |
 | OW-4 | Decide: event gating on practice categories | owner | open | none | `backend` event guard | decision recorded in PROGRESS.md |
-| OW-5 | Decide: admin type filter `game`, `TERMINAL_GAME.md` name, terminal rate limit, `registrationOpen`, Vercel rate limits | owner | open | none | n/a | decision recorded |
+| OW-5 | Decide: admin type filter `game`, terminal rate limit, `registrationOpen`, Vercel rate limits | owner | open | none | n/a | decision recorded |
 | OW-6 | Check least-certain skill mappings T1622, T1048 | owner | open | none | `frontend/src/skills` | confirmed or edited |
 | OW-7 | Vercel deploy (P4-05), repair terminal scores, seeds (P4-24/26), push main | owner | open | FIN | n/a | see TASKS.md P4-26 |
 
