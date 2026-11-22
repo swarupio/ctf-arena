@@ -226,15 +226,15 @@ test('transitions are suspended for two frames while the theme flips, and only w
   assert.equal(classes.has(SWITCHING_CLASS), true);
 });
 
-test('the toggle CSS has no colour fade, one global transition-off class, a 44px target on touch, and the selector is in the footer and the menu', () => {
+test('the toggle CSS has no colour fade, one global transition-off class, a 44px target on touch, and the "use device setting" line is in the footer and the menu', () => {
   const css = readFileSync(new URL('../src/theme/theme.css', import.meta.url), 'utf8');
   assert.ok(css.includes('.theme-toggle .theme-btn { transition: none; }'));
   assert.ok(css.includes(`:root.${SWITCHING_CLASS} *`));
   assert.ok(css.includes('transition: none !important;'));
-  assert.ok(css.includes('@media (pointer: coarse) { .theme-option span { min-height: 44px; } }'));
+  assert.ok(css.includes('@media (pointer: coarse) { .theme-auto-btn { min-height: 44px; padding: 0 var(--space-2); } }'));
   const layout = readFileSync(new URL('../src/layout/Layout.jsx', import.meta.url), 'utf8');
-  assert.ok(layout.includes('<ThemeSelect className="theme-select-menu" />'));
-  assert.ok(layout.includes('<ThemeSelect className="theme-select-footer" />'));
+  assert.ok(layout.includes('<ThemeAuto className="theme-auto-menu" />'));
+  assert.ok(layout.includes('<ThemeAuto className="theme-auto-footer" />'));
   const toggle = readFileSync(new URL('../src/theme/ThemeToggle.jsx', import.meta.url), 'utf8');
   assert.ok(toggle.includes('Switch to ${target} theme'));
   assert.ok(toggle.includes('Theme set to ${target}'));

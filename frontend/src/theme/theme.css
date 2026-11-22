@@ -9,43 +9,49 @@
 /* Live status text for screen readers only. */
 .theme-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Wide header: icon only, 44px square, text is dropped (the aria-label carries it). */
+/* Every control in the header account area has the same height, so the row is even: 40 px with a mouse, 44 px on touch. */
+.site-header { --hdr-ctl: 2.5rem; }
+@media (pointer: coarse) { .site-header { --hdr-ctl: 2.75rem; } }
+.site-header .account .small, .site-header .account .theme-btn { height: var(--hdr-ctl); min-height: var(--hdr-ctl); box-sizing: border-box; }
+
+/* Wide header: icon only, a square as tall as the other controls (the aria-label carries the text). */
 @media (min-width: 1101px) {
-  .theme-toggle .theme-btn { width: 44px; min-height: 44px; padding: 0; }
+  .theme-toggle .theme-btn { width: var(--hdr-ctl); min-width: var(--hdr-ctl); padding: 0; }
   .theme-btn-text { display: none; }
-  /* The 44px button must not push the nav onto a second row: the (ellipsised, title-tooltipped) email gives up the same width. */
-  .account:has(.theme-toggle) .email { max-width: 96px; }
-}
-/* Just above the menu breakpoint there is no room even for that: show the status square only (the address stays in the title and for screen readers). */
-@media (min-width: 1101px) and (max-width: 1160px) {
-  .account:has(.theme-toggle) .email { max-width: 16px; font-size: 0; }
+  /* The nav keeps its natural width and never wraps; the account area takes whatever room is left and the address is only cut
+     (with an ellipsis, the full address stays in the title and for screen readers) when it really does not fit. The account
+     area keeps room for the status square, Logout and the theme button (a fixed floor: min-content would count the whole address). */
+  .site-header nav { flex: 0 0 auto; }
+  .site-header .account { flex: 1 1 0; min-width: 12rem; }
+  .site-header .account .email { flex: 0 1 auto; min-width: 1.25rem; max-width: 100%; }
 }
 
-/* Selector: segmented radio group. The radios are visually hidden but stay keyboard and screen reader operable. */
-.theme-select { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); min-width: 0; margin: 0; padding: 0; border: 0; font-size: 0.8125rem; color: var(--color-muted); }
-.theme-select legend { float: left; padding: 0; margin-right: var(--space-3); font-weight: 700; color: var(--color-ink); }
-.theme-select-options { display: inline-flex; }
-.theme-option { position: relative; display: block; margin: 0; font-size: 0.8125rem; }
-.theme-option input { position: absolute; inset: 0; width: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
-.theme-option span { display: flex; align-items: center; justify-content: center; min-height: 32px; min-width: 64px; padding: 0 var(--space-3); color: var(--color-ink); background: var(--color-surface); border: var(--border); margin-left: -2px; font-weight: 700; }
-.theme-option:first-child span { margin-left: 0; }
-.theme-option input:focus-visible { outline: none; box-shadow: none; }
-.theme-option input:checked + span { color: var(--color-ink-contrast); background: var(--color-ink); }
-.theme-option input:focus-visible + span { outline: 3px solid var(--color-focus, var(--color-ink)); outline-offset: 2px; position: relative; z-index: 1; }
-@media (hover: hover) { .theme-option input:not(:checked):hover + span { background: var(--color-accent); color: var(--color-on-accent); } }
-.theme-hint { flex: 1 1 100%; margin: 0; }
-/* Footer: legend, segments and the short hint share one line. */
-.theme-select-footer { flex-wrap: nowrap; white-space: nowrap; }
-.theme-select-footer .theme-hint { flex: none; }
-@media (max-width: 640px) { .theme-select-footer { flex-wrap: wrap; } }
-@media (pointer: coarse) { .theme-option span { min-height: 44px; } }
+/* Account box in the header: initials in a bordered square as tall as the other header controls, with a small pixel accent. A single
+   word handle gets one bigger initial and a bigger accent. The full address stays in the title and the accessible name. */
+.avatar { position: relative; display: inline-flex; flex: none; align-items: center; justify-content: center; box-sizing: border-box; width: var(--hdr-ctl); height: var(--hdr-ctl); padding: 0; color: var(--color-ink); background: var(--color-surface); border: var(--border); font-family: var(--font-display); font-size: 1.4rem; line-height: 1; letter-spacing: 0.02em; text-decoration: none; }
+.avatar::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 6px; height: 6px; background: var(--color-accent); border: 1px solid var(--color-line); }
+.avatar.is-solo { font-size: 1.9rem; }
+.avatar.is-solo::after { width: 8px; height: 8px; }
+@media (hover: hover) { .avatar:hover { color: var(--color-on-accent); background: var(--color-accent); } }
+.avatar:focus-visible { outline: 3px solid var(--color-focus, var(--color-ink)); outline-offset: 2px; }
+/* The wide header shows the box only; the address text is for the mobile menu panel, where there is room for both. */
+@media (min-width: 1101px) { .site-header .account .email { display: none; } }
+
+/* Theme line for the footer and the menu: only shown after the header switch was used. */
+.theme-auto { position: relative; font-size: 0.8125rem; color: var(--color-muted); }
+.theme-auto-line { margin: 0; }
+.theme-auto-btn { padding: 0; min-height: 0; font-size: inherit; font-weight: 700; color: var(--color-ink); background: none; border: 0; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; cursor: pointer; }
+@media (hover: hover) { .theme-auto-btn:hover { background: var(--color-accent); color: var(--color-on-accent); } }
+@media (pointer: coarse) { .theme-auto-btn { min-height: 44px; padding: 0 var(--space-2); } }
+.theme-auto-footer { white-space: nowrap; }
+@media (max-width: 640px) { .theme-auto-footer { white-space: normal; } }
 /* The menu copy only exists for the mobile panel; the footer copy serves the wide header. */
-.theme-select-menu { display: none; }
+.theme-auto-menu { display: none; }
 
 /* Mobile menu panel: icon and visible text, full row width. */
 @media (max-width: 1100px) {
   .theme-toggle { flex: 1 1 100%; }
-  .theme-select-menu { display: flex; padding: var(--space-3) 0 0; }
+  .theme-auto-menu { display: block; padding: var(--space-3) 0 0; }
   .theme-toggle .theme-btn { width: 100%; justify-content: flex-start; padding: 0 var(--space-3); }
 }
 
