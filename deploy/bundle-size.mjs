@@ -47,6 +47,12 @@ for (const [key, limit] of Object.entries(BUDGET)) {
   if (measured[key] > limit) { failures.push(`${key} ${kb(measured[key])} is over the ${kb(limit)} budget`); }
 }
 if (!entry) { failures.push('entry chunk index-*.js not found: has the build output layout changed?'); }
+// The aws-amplify chunk (about 40 kB gzip) is loaded on demand for signed-out visitors (frontend/src/auth/session.js).
+// If index.html preloads it, a static import of aws-amplify crept back into the entry closure.
+try {
+  const html = readFileSync(join(dist, 'index.html'), 'utf8');
+  if (html.includes('/assets/amplify-')) { failures.push('index.html references the amplify chunk: the auth code is loaded in the first load again'); }
+} catch { failures.push('index.html not found in the dist directory'); }
 
 process.stdout.write(`${lines.join('\n')}\n`);
 if (process.env.GITHUB_STEP_SUMMARY) { appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Frontend bundle size\n\n${lines.join('\n')}\n`); }
