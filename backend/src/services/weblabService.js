@@ -8,6 +8,7 @@ import {
   LABS, TRACKS, TRACK_MAX, WEBLAB_MAX_POINTS, inspectorFor, labSlug, labTemplate, lockedReason, runLab,
 } from '../games/weblab/index.js';
 import { AppError } from '../utils/AppError.js';
+import { achievementService } from './achievementService.js';
 import { consumeAttempt } from './attemptLimiter.js';
 import { expectedFlagFor, hashSubmission, verifyFlag } from './flagService.js';
 import { recordSolve } from './scoringService.js';
@@ -169,7 +170,9 @@ export async function submitFlag({ lab, row, team, user, submitted }) {
   if (!solve) {
     return { correct: true, alreadySolved: true, pointsAwarded: 0, firstBlood: false, message: 'Your team already cashed this bounty.', ...cosmetics(lab) };
   }
+  const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id, memberCount: team.memberIds?.length }); // cosmetic; never throws
   return {
+    ...(badges.length ? { badges } : {}),
     correct: true, pointsAwarded: solve.points, firstBlood: false, ...cosmetics(lab),
     message: `BOUNTY PAID: ${lab.severity.toUpperCase()} severity, $${lab.bountyUsd.toLocaleString('en-US')}.`,
   };

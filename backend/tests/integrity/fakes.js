@@ -63,9 +63,24 @@ const query = (value) => {
 export const CheatSignalFake = { updateOne: vi.fn(), find: vi.fn(), deleteMany: vi.fn() };
 export const TaintedFlagFake = { insertMany: vi.fn(), findOne: vi.fn() };
 export const TerminalActivityFake = { findOneAndUpdate: vi.fn() };
+// The submit guard reads the platform settings (and fails closed when it cannot), and the terminal limiter keeps its counter
+// in MongoDB, so the submit routes need these two stores too: no settings document, and a working attempt counter.
+export const AppSettingFake = { findOne: vi.fn() };
+export const AttemptCounterFake = { findOneAndUpdate: vi.fn(), create: vi.fn() };
 
 // Call in beforeEach: empties the stores and (re)installs the behaviour, which also clears any mockRejectedValue.
 export function installFakes() {
+  AppSettingFake.findOne.mockReset().mockImplementation(() => ({ lean: async () => null }));
+  const counters = new Map();
+  AttemptCounterFake.findOneAndUpdate.mockReset().mockImplementation(async (filter, update) => {
+    const row = counters.get(filter.key);
+    if (!row) { return null; }
+    const now = new Date();
+    if (filter.expiresAt.$gt && row.expiresAt > now) { row.count += update.$inc.count; return { ...row }; }
+    if (filter.expiresAt.$lte && row.expiresAt <= now) { Object.assign(row, update.$set); return { ...row }; }
+    return null;
+  });
+  AttemptCounterFake.create.mockReset().mockImplementation(async (row) => { counters.set(row.key, { ...row }); return row; });
   state.signals = [];
   state.tainted = [];
   state.activity = [];

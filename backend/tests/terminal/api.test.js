@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import app from '../../src/app.js';
 import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
+import AttemptCounter from '../../src/models/AttemptCounter.js';
 import Challenge from '../../src/models/Challenge.js';
 import Solve from '../../src/models/Solve.js';
 import Submission from '../../src/models/Submission.js';
@@ -24,6 +25,7 @@ vi.mock('../../src/models/Instance.js', () => ({
   default: { find: vi.fn(), findOne: vi.fn() }, ACTIVE_STATUSES: ['starting', 'running', 'stopping'],
 }));
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), exists: vi.fn() } }));
+vi.mock('../../src/models/AttemptCounter.js', () => ({ default: { findOneAndUpdate: vi.fn(), create: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn(), countDocuments: vi.fn() } }));
 vi.mock('../../src/services/scoringService.js', () => ({ recordSolve: vi.fn() }));
 vi.mock('../../src/services/instanceService.js', () => ({
@@ -56,6 +58,7 @@ const users = {
 let teams;
 let challenges;
 let solves;
+let counters;
 
 const doc = (name, n) => challenges.find((c) => c.terminal.mode === name && c.terminal.code === n);
 const flagOf = (name, n, teamId = TEAM_A) => expectedFlagFor(doc(name, n), { secret, teamId });
@@ -105,6 +108,21 @@ beforeEach(() => {
   }));
   Submission.countDocuments.mockResolvedValue(0);
   Submission.create.mockResolvedValue({});
+  // The same single-document atomic updates the real attempt limiter relies on.
+  counters = new Map();
+  AttemptCounter.findOneAndUpdate.mockImplementation(async (filter, update) => {
+    const row = counters.get(filter.key);
+    if (!row) { return null; }
+    const now = new Date();
+    if (filter.expiresAt.$gt && row.expiresAt > now) { row.count += update.$inc.count; return { ...row }; }
+    if (filter.expiresAt.$lte && row.expiresAt <= now) { Object.assign(row, update.$set); return { ...row }; }
+    return null;
+  });
+  AttemptCounter.create.mockImplementation(async (row) => {
+    if (counters.has(row.key)) { throw Object.assign(new Error('dup'), { code: 11000 }); }
+    counters.set(row.key, { ...row });
+    return row;
+  });
   execute.mockImplementation(async (line, ctx) => ({ output: `ran: ${line}`, cwd: ctx.cwd, exit: 0 }));
   complete.mockReturnValue([]);
   recordSolve.mockImplementation(async ({ challenge }) => ({ points: challenge.points, firstBlood: false, score: challenge.points }));
@@ -209,13 +227,37 @@ describe('POST /terminal/:mode/exec', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     const [line, ctx] = execute.mock.calls[0];
     expect(line).toBe('cat welcome.txt');
-    expect(Object.keys(ctx).sort()).toEqual(['cwd', 'flag', 'mode', 'progress', 'seed']);
+    expect(Object.keys(ctx).sort()).toEqual(['cwd', 'flag', 'mailSeen', 'mode', 'progress', 'seed', 'storySeed']);
     expect(ctx.seed).toMatch(/^[0-9a-f]{64}$/);
     expect(ctx.mode).toBe(MODES.easy);
     expect(ctx.cwd).toBe('/home/guest');
     expect(typeof ctx.flag(1)).toBe('string');
     expect(ctx.flag(1)).not.toBeInstanceOf(Promise);
     expect(ctx.progress()).toBeInstanceOf(Promise);
+  });
+
+  it('hands the engine a story seed that is per team, the same in every mode, and not the puzzle seed', async () => {
+    await api('post', '/terminal/easy/exec', 'player', { command: 'mail' }).expect(200);
+    await api('post', '/terminal/hard/exec', 'player', { command: 'mail' }).expect(200);
+    await api('post', '/terminal/easy/exec', 'player2', { command: 'mail' }).expect(200);
+    const [easyA, hardA, easyB] = execute.mock.calls.map(([, ctx]) => ctx);
+    expect(easyA.storySeed).toMatch(/^[0-9a-f]{64}$/);
+    expect(easyA.storySeed).toBe(hardA.storySeed);
+    expect(easyA.storySeed).not.toBe(easyB.storySeed);
+    expect(easyA.storySeed).not.toBe(easyA.seed);
+    expect(easyA.storySeed).not.toBe(hardA.seed);
+  });
+
+  it('passes the cosmetic mailSeen marker to the engine and rejects anything else', async () => {
+    await api('post', '/terminal/easy/exec', 'player', { command: 'mail' }).expect(200);
+    await api('post', '/terminal/easy/exec', 'player', { command: 'mail', mailSeen: 6 }).expect(200);
+    expect(execute.mock.calls.map(([, ctx]) => ctx.mailSeen)).toEqual([0, 6]);
+    execute.mockClear();
+    for (const mailSeen of [-1, 4096, 1.5, '3', null, true]) {
+      await api('post', '/terminal/easy/exec', 'player', { command: 'mail', mailSeen }).expect(400);
+    }
+    await api('post', '/terminal/easy/exec', 'player', { command: 'mail', extra: 1 }).expect(400);
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it('omits the effect when there is none and drops unknown effects', async () => {
@@ -520,30 +562,59 @@ describe('POST /terminal/:mode/submit', () => {
   });
 
   it('rate limits at 10 attempts per minute per team per mode (the 11th gets 429)', async () => {
-    let attempts = 0;
-    Submission.create.mockImplementation(async () => { attempts += 1; });
-    Submission.countDocuments.mockImplementation(async () => attempts);
     for (let i = 1; i <= 10; i += 1) {
       await submit(`CTF{guess_${i}}`).expect(200);
     }
     const { body } = await submit(flagOf('easy', 1)).expect(429);
     expect(body.error.code).toBe('RATE_LIMITED');
-    expect(attempts).toBe(10);
+    expect(Submission.create).toHaveBeenCalledTimes(10);
     expect(recordSolve).not.toHaveBeenCalled(); // not even a correct flag gets through while limited
+    expect(counters.get(`terminal:${TEAM_A}:easy`).count).toBe(11);
+  });
 
-    const filter = Submission.countDocuments.mock.calls[0][0];
-    expect(filter.teamId).toBe(TEAM_A);
-    expect(filter.challengeId.$in).toEqual(MODES.easy.codes.map((code) => doc('easy', code.n)._id));
-    const age = Date.now() - filter.createdAt.$gte.getTime();
-    expect(age).toBeGreaterThanOrEqual(59_000);
-    expect(age).toBeLessThanOrEqual(61_000);
+  // Replaces 'never answers 429 for a correct flag that lost the recount race': that test encoded the old (insecure)
+  // behaviour, where a parallel burst let a correct flag through as 200 while wrong guesses got 429, so a 429 hid nothing
+  // but its ABSENCE revealed correctness. The budget is now consumed atomically before the answer is evaluated.
+  it('a parallel burst over the limit evaluates exactly the limit and answers 429 to the rest, a correct flag included', async () => {
+    const burst = [...Array.from({ length: 14 }, (_, i) => `CTF{guess_${i}}`), flagOf('easy', 2)];
+    const results = await Promise.all(burst.map((flag) => submit(flag)));
+    const answered = results.filter((res) => res.status === 200);
+    const refused = results.filter((res) => res.status === 429);
+    expect(answered).toHaveLength(10);
+    expect(refused).toHaveLength(5);
+    expect(refused.every((res) => res.body.error.code === 'RATE_LIMITED')).toBe(true);
+    expect(Submission.create).toHaveBeenCalledTimes(10);
+    // Whatever happened to the correct flag, its 429 (if any) carries nothing but the limit.
+    const correct = results[burst.length - 1];
+    if (correct.status === 429) {
+      expect(recordSolve).not.toHaveBeenCalled();
+      expect(JSON.stringify(correct.body)).not.toContain('correct');
+    } else {
+      expect(correct.body.correct).toBe(true);
+    }
+  });
+
+  it('refuses a correct flag with 429 once the budget is spent, and the same flag answers again in a new window', async () => {
+    for (let i = 1; i <= 10; i += 1) { await submit(`CTF{guess_${i}}`).expect(200); }
+    expect((await submit(flagOf('easy', 2)).expect(429)).body.error.code).toBe('RATE_LIMITED');
+    counters.get(`terminal:${TEAM_A}:easy`).expiresAt = new Date(Date.now() - 1);
+    expect((await submit(flagOf('easy', 2)).expect(200)).body).toMatchObject({ correct: true, code: 2 });
+  });
+
+  it('keeps re-submitting an already captured code idempotent, even while the team is limited', async () => {
+    solves = [solveOf('easy', 1)];
+    for (let i = 1; i <= 10; i += 1) { await submit(`CTF{guess_${i}}`).expect(200); }
+    await submit('CTF{guess_11}').expect(429);
+    const { body } = await submit(flagOf('easy', 1)).expect(200);
+    expect(body).toMatchObject({ correct: true, alreadySolved: true, code: 1, pointsAwarded: 0 });
+    expect(recordSolve).not.toHaveBeenCalled();
+    expect(counters.get(`terminal:${TEAM_A}:easy`).count).toBe(11); // the idempotent resubmit spent nothing
   });
 
   it('does not rate limit by anything but team and mode', async () => {
-    Submission.countDocuments.mockImplementation(async (filter) => (String(filter.teamId) === TEAM_A ? 10 : 0));
+    for (let i = 0; i < 10; i += 1) { await submit('x').expect(200); }
     await submit('x').expect(429);
     await submit('x', 'player2').expect(200);
-    Submission.countDocuments.mockImplementation(async (filter) => (filter.challengeId.$in.includes(doc('easy', 1)._id) ? 10 : 0));
     await submit('x', 'player', 'easy').expect(429);
     await submit('x', 'player', 'medium').expect(200);
   });

@@ -8,6 +8,7 @@ import { commands as findCommands } from './find.js';
 import { commands as fsCommands } from './fs.js';
 import { commands as grepCommands } from './grep.js';
 import { commands as sedCommands } from './sed.js';
+import { commands as storyCommands } from './story.js';
 import { commands as sudoCommands } from './sudo.js';
 import { commands as systemCommands } from './system.js';
 import { commands as textCommands } from './text.js';
@@ -19,7 +20,9 @@ const MAX_EXTRA_OUTPUT = 65536;
 function wrapExtra(name, handler) {
   return async (c) => {
     const stdin = c.stdin == null ? null : asText(c.stdin);
-    const ctx = { ...c.rc.ctx, cwd: c.rc.cwd, flag: undefined, seed: undefined };
+    const ctx = {
+      ...c.rc.ctx, cwd: c.rc.cwd, flag: undefined, seed: undefined, storySeed: undefined,
+    };
     let result;
     try {
       result = await handler({ args: [...c.args], stdin, ctx });
@@ -39,7 +42,7 @@ function wrapExtra(name, handler) {
 
 export function buildRegistry() {
   const registry = new Map();
-  for (const group of [fsCommands, findCommands, grepCommands, textCommands, sedCommands, awkCommands, diffCommands, encodingCommands, systemCommands, sudoCommands, builtinCommands]) {
+  for (const group of [fsCommands, findCommands, grepCommands, textCommands, sedCommands, awkCommands, diffCommands, encodingCommands, systemCommands, sudoCommands, storyCommands, builtinCommands]) {
     for (const [name, handler] of Object.entries(group)) registry.set(name, handler);
   }
   const extraNames = new Set();

@@ -152,6 +152,32 @@ describe('difficulty and tricks', () => {
     expect(inputAccepted(cabinet, cabinet.answer)).toBe(true);
   });
 
+  it('i3 always changes its result under a debugger, for many teams', () => {
+    const level = LEVELS.find((item) => item.id === 'i3');
+    for (let t = 0; t < 1500; t += 1) {
+      const cabinet = built(level, `team-${t}`);
+      expect(inputAccepted(cabinet, cabinet.answer), `team-${t}`).toBe(true);
+      expect(runProgram(cabinet.program, cabinet.answer, { debugger: true }).accepted, `team-${t}`).toBe(false);
+    }
+  });
+
+  it('h3 needs all ten digits: the answer passes, any shorter input is refused', () => {
+    const level = LEVELS.find((item) => item.id === 'h3');
+    for (let t = 0; t < 1500; t += 1) {
+      const cabinet = built(level, `team-${t}`);
+      expect(inputAccepted(cabinet, cabinet.answer), `team-${t}`).toBe(true);
+      expect(inputAccepted(cabinet, cabinet.answer.slice(0, -1)), `team-${t}`).toBe(false);
+      expect(inputAccepted(cabinet, cabinet.answer.slice(0, 2)), `team-${t}`).toBe(false);
+    }
+  });
+
+  it('h3 hint names the linked digits with 1-based positions that match the program', () => {
+    const level = LEVELS.find((item) => item.id === 'h3');
+    expect(level.hints.join(' ')).toContain('digit 6 is digit 3 plus 3');
+    const { answer } = built(level, TEAMS[0]);
+    expect(Number(answer[5])).toBe(Number(answer[2]) + 3);
+  });
+
   it('the self-modifying cabinets hide their real constants from a static read', () => {
     const cabinet = built(LEVELS.find((item) => item.id === 'i1'), TEAMS[0]);
     // A static read sees PUSH 0 placeholders as compare constants; the machine rewrites them through STORE to a code cell.

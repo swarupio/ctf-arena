@@ -16,7 +16,7 @@ import { AppError } from '../utils/AppError.js';
 import {
   boolText, dateText, envelope, idOf, idString, iso, listQuery, loadMap, skipOf, sortSpec,
 } from './adminCommon.js';
-import { firstBloodBonus, teamScore } from './scoringService.js';
+import { firstBloodBonus, hasFirstBloodBonus, teamScore } from './scoringService.js';
 
 export const ADJUSTMENT_LIMIT = 10000;
 export const adjustmentBody = z.object({
@@ -140,7 +140,10 @@ export async function deleteSolve(solveId) {
     const challenge = await Challenge.findOneAndUpdate(
       { _id: solve.challengeId, solveCount: { $gt: 0 } }, { $inc: { solveCount: -1 } }, { new: true },
     ).lean();
-    if (solve.firstBlood && challenge) { await promoteFirstBlood(solve.challengeId, challenge.points); }
+    // Only classic challenges award a bonus: promoting on a terminal or game code would raise a score above the cap.
+    if (solve.firstBlood && challenge && hasFirstBloodBonus(challenge)) {
+      await promoteFirstBlood(solve.challengeId, challenge.points);
+    }
   }
   return { solve, teamScore: await teamScore(solve.teamId) };
 }

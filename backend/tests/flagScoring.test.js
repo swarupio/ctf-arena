@@ -59,12 +59,12 @@ describe('scoringService', () => {
     expect(awardFor(100, false)).toBe(100);
   });
 
-  it('awards first blood to the first solver and updates their score', async () => {
+  it('awards first blood to the first solver and reads no team score (one aggregation less per solve)', async () => {
     Solve.create.mockResolvedValue({});
     Challenge.findOneAndUpdate.mockResolvedValue({ solveCount: 1 });
-    Solve.aggregate.mockResolvedValue([{ score: 110 }]);
     const result = await recordSolve({ challenge, teamId: 't1', userId: 'u1' });
-    expect(result).toEqual({ points: 110, firstBlood: true, score: 110 });
+    expect(result).toEqual({ points: 110, firstBlood: true });
+    expect(Solve.aggregate).not.toHaveBeenCalled();
     expect(Solve.updateOne).toHaveBeenCalledWith(
       { teamId: 't1', challengeId: 'c1' }, { $set: { points: 110, firstBlood: true } },
     );
@@ -74,8 +74,7 @@ describe('scoringService', () => {
   it('awards plain points to a later solver', async () => {
     Solve.create.mockResolvedValue({});
     Challenge.findOneAndUpdate.mockResolvedValue({ solveCount: 2 });
-    Solve.aggregate.mockResolvedValue([{ score: 100 }]);
-    expect(await recordSolve({ challenge, teamId: 't2', userId: 'u2' })).toEqual({ points: 100, firstBlood: false, score: 100 });
+    expect(await recordSolve({ challenge, teamId: 't2', userId: 'u2' })).toEqual({ points: 100, firstBlood: false });
     expect(Solve.updateOne).not.toHaveBeenCalled();
   });
 

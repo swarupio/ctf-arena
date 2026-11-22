@@ -26,7 +26,8 @@ const FIRST_BLOOD_TYPES = new Set(['static', 'docker']);
 export const hasFirstBloodBonus = (challenge) => FIRST_BLOOD_TYPES.has(challenge?.type);
 
 // Records one solve. Returns null when the team already solved it (unique index),
-// otherwise { points, firstBlood, score }. Safe against double clicks on any replica.
+// otherwise { points, firstBlood }. Safe against double clicks on any replica. No team score is returned: no caller used
+// it and computing it cost one aggregation per solve (read it with teamScore when it is really needed).
 export async function recordSolve({ challenge, teamId, userId }) {
   try {
     await Solve.create({
@@ -45,5 +46,5 @@ export async function recordSolve({ challenge, teamId, userId }) {
   if (firstBlood) {
     await Solve.updateOne({ teamId, challengeId: challenge._id }, { $set: { points, firstBlood: true } });
   }
-  return { points, firstBlood, score: await teamScore(teamId) };
+  return { points, firstBlood };
 }

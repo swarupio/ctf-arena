@@ -10,9 +10,10 @@ permissions:
 
 jobs:
   backend:
-    name: Backend tests
+    name: Backend lint and tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The suite is CPU heavy (terminal fuzz and generator sweeps); about 3 minutes on 12 cores.
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -47,14 +48,17 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npm run lint
-      - run: npm test
+      # Includes the terminal, event, board, patch bay, interviews and lazy-route suites. The dot reporter keeps the log short.
+      # --maxWorkers=3 matches a 4-vCPU runner (one core stays free for the vitest main process). Oversubscribed workers
+      # starve each other and vitest then reports "Timeout calling onTaskUpdate". Per-test timeouts (60 s) are in vitest.config.js.
+      - run: npm test -- --reporter=dot --maxWorkers=3
 
   frontend:
-    name: Frontend tests and build
+    name: Frontend lint, tests and build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -67,9 +71,36 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npm run lint
+      # node --test runs every tests/*.test.js: event, hints, theme tokens/contrast/parity, board, patch bay, debrief.
+      # CHECK_DEBRIEF_COMPLETE=1 also enforces that every flag has a debrief entry (skipped without it).
       - run: npm test
+        env:
+          CHECK_DEBRIEF_COMPLETE: '1'
       # Proves the production bundle compiles. Vercel builds the deployed bundle with the real
       # VITE_* values from the project's environment variables (see docs/DEPLOY_VERCEL.md).
       - run: npm run build
+      # Prints the largest assets (also in the job summary) and fails above the budgets set in the script.
+      - run: node ../deploy/bundle-size.mjs dist
+
+  audit:
+    name: Dependency audit (report only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Never blocks a merge: advisories appear and disappear without any change in this repo.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: npm audit (production dependencies)
+        working-directory: ${{ matrix.package }}
+        run: npm audit --omit=dev

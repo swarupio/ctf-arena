@@ -54,7 +54,7 @@ export const TRACKS = [
     id: 'insane',
     title: 'Black Chamber',
     difficulty: 'insane',
-    story: 'The Black Chamber does not explain itself. Chained ciphers, no hints, no mercy. Every transmission opens with the word OPERATION.',
+    story: 'The Black Chamber does not explain itself. Chained ciphers, no hints, no mercy. Two of the three transmissions open with the word OPERATION.',
     hints: false,
     speedrun: [45 * MINUTE, 90 * MINUTE, 180 * MINUTE],
   },
@@ -71,7 +71,7 @@ export const TOOLS = [
   { id: 'substitution', name: 'Substitution mapper', description: 'Map cipher letters to plain letters and watch the text change.', unlockedBy: 'm2' },
   { id: 'rsa', name: 'RSA workbench', description: 'Factor n, find d and compute modular powers.', unlockedBy: 'm3' },
   { id: 'hash', name: 'Hash lab', description: 'SHA-256 of salt plus word, for every candidate.', unlockedBy: 'm4' },
-  { id: 'pipeline', name: 'Pipeline', description: 'Chain several decoders and watch the text travel through them.', unlockedBy: 'h4' },
+  { id: 'pipeline', name: 'Pipeline', description: 'Chain several decoders and watch the text travel through them.', unlockedBy: 'h3' },
 ];
 
 function insaneChain(rng, levelKind) {
@@ -249,7 +249,7 @@ export const LEVELS = [
   },
   {
     id: 'i1', track: 'insane', n: 1, title: 'Triple Wrap', points: 200,
-    briefing: 'No hints. Three transmissions, three layers each. Recognise the wrapping on sight.',
+    briefing: 'No hints. One transmission, three or four layers of wrapping. Recognise the wrapping on sight.',
     hints: [],
     build: insane('wrap'),
   },

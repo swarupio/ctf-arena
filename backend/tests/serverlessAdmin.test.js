@@ -29,16 +29,19 @@ beforeAll(async () => {
 });
 
 describe('admin features without a live connection (bufferCommands false)', () => {
-  it('the audit writer rejects immediately instead of hanging for 10 s', async () => {
+  it('the audit writer fails fast and swallows the error instead of hanging for 10 s', async () => {
     const req = { user: { cognitoSub: 'admin', email: 'admin@example.com' }, get: () => undefined, socket: {}, adminActor: null };
     const { elapsed, result } = await timed(() => recordAudit(req, { action: 'team.ban', targetType: 'team', targetId: 'x' }));
-    expect(result.status).toBe('rejected');
+    expect(result.status).toBe('fulfilled');
     expect(elapsed).toBeLessThan(FAST_MS);
   });
 
-  it('the submission freeze guard fails open immediately', async () => {
+  // Was 'fails open immediately': that encoded the old behaviour. A settings read that cannot complete now fails CLOSED
+  // (retryable 503), still immediately, so a settings outage cannot be used to submit during a freeze.
+  it('the submission freeze guard fails closed immediately with a retryable 503', async () => {
     const { elapsed, result } = await timed(() => assertSubmissionsOpen());
-    expect(result.status).toBe('fulfilled');
+    expect(result.status).toBe('rejected');
+    expect(result.reason).toMatchObject({ status: 503, code: 'SETTINGS_UNAVAILABLE' });
     expect(elapsed).toBeLessThan(FAST_MS);
   });
 

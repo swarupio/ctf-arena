@@ -12,7 +12,7 @@ import {
   hintFor, labDetail, loadRows, overview, requireOpen, sendRequest, submitFlag, teamIdOf, teamProgress,
 } from '../services/weblabService.js';
 import { AppError } from '../utils/AppError.js';
-import { validate } from './challenges.js';
+import { both, validate } from './challenges.js';
 
 const router = Router();
 
@@ -93,8 +93,7 @@ router.post('/labs/:slug/submit', playerOnly, async (req, res) => {
   const lab = labFrom(req.params);
   const { flag } = validate(submitBody, req.body);
   await assertSubmissionsOpen();
-  const { user, team } = await getTeamContext(req.user);
-  const rows = await loadRows();
+  const [{ user, team }, rows] = await both(getTeamContext(req.user), loadRows()); // independent reads, one round trip
   const row = requireOpen(lab, rows, await teamProgress(team, rows), { preview: false });
   const result = await submitFlag({ lab, row, team, user, submitted: flag });
   // A wrong flag may be a copied decoy: one indexed lookup, a signal if so, and the same answer either way.

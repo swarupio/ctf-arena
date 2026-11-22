@@ -5,12 +5,14 @@ import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
 import AttemptCounter from '../../src/models/AttemptCounter.js';
 import Challenge from '../../src/models/Challenge.js';
+import OsintBoard from '../../src/models/OsintBoard.js';
 import OsintHint from '../../src/models/OsintHint.js';
 import Solve from '../../src/models/Solve.js';
 import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
 import User from '../../src/models/User.js';
 import { osintDefinitions } from '../../src/scripts/seedOsint.js';
+import { achievementService } from '../../src/services/achievementService.js';
 import { expectedFlagFor } from '../../src/services/flagService.js';
 import { hasFirstBloodBonus } from '../../src/services/scoringService.js';
 import { OSINT_MAX_POINTS, TRACKS, TRACK_IDS, buildCase } from '../../src/osint/cases.js';
@@ -22,7 +24,13 @@ vi.mock('../../src/models/Challenge.js', () => ({ default: { find: vi.fn(), find
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), create: vi.fn(), aggregate: vi.fn(), updateOne: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn() } }));
 vi.mock('../../src/models/AttemptCounter.js', () => ({ default: { findOneAndUpdate: vi.fn(), create: vi.fn() } }));
+vi.mock('../../src/models/OsintBoard.js', () => ({ default: { findOne: vi.fn(), findOneAndUpdate: vi.fn() } }));
 vi.mock('../../src/models/OsintHint.js', () => ({ default: { find: vi.fn(), countDocuments: vi.fn(), updateOne: vi.fn() } }));
+
+vi.mock('../../src/services/achievementService.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, achievementService: { ...actual.achievementService, safeEvaluate: vi.fn() } };
+});
 
 const oid = (n) => String(n).padStart(24, '0');
 const TEAM_A = oid(2);
@@ -32,6 +40,7 @@ let rows;
 let solves;
 let counters;
 let hints;
+let boards;
 let seeded;
 
 const api = (method, path, sub = 'player', body) => {
@@ -44,12 +53,16 @@ const rowOf = (track, n) => rows.find((r) => r.osint.track === track && r.osint.
 const scoreOf = (teamId) => solves.filter((s) => s.teamId === teamId).reduce((t, s) => t + s.points, 0);
 const nonFinal = (track) => TRACKS[track].stages.filter((s) => !s.final).map((s) => s.n);
 const finalOf = (track) => TRACKS[track].stages.find((s) => s.final).n;
-const solveAllButFinal = async (track, sub = 'player', teamId = TEAM_A) => {
+// The board gate (docs/OSINT_TRAIL.md "Case board") is tested in board.api.test.js; here it is opened like a finished chain.
+const openBoard = (track, teamId = TEAM_A) => { boards.push({ teamId, track, unlocked: true, version: 1, pins: [], links: [] }); };
+const solveAllButFinal = async (track, sub = 'player', teamId = TEAM_A, { board = true } = {}) => {
   for (const n of nonFinal(track)) { await answer(track, n, truth(track, n, teamId), sub).expect(200); }
+  if (board) { openBoard(track, teamId); }
 };
 
 beforeEach(() => {
   vi.resetAllMocks();
+  achievementService.safeEvaluate.mockResolvedValue([]);
   getCognitoVerifier.mockReturnValue({
     verify: vi.fn(async (sub) => ({ sub, email: `${sub}@example.com`, 'cognito:groups': [sub === 'admin' ? 'admin' : 'player'] })),
   });
@@ -58,6 +71,10 @@ beforeEach(() => {
   solves = [];
   counters = new Map();
   hints = [];
+  boards = [];
+  OsintBoard.findOne.mockImplementation((filter) => ({
+    lean: async () => boards.find((b) => b.teamId === String(filter.teamId) && b.track === filter.track && (filter.unlocked === undefined || b.unlocked === filter.unlocked)) ?? null,
+  }));
   User.findOne.mockImplementation(async ({ cognitoSub }) => users[cognitoSub] ?? null);
   Team.findById.mockImplementation(async (id) => ({ _id: String(id), name: 'T', banned: false }));
   Challenge.find.mockImplementation((filter) => ({
@@ -240,6 +257,20 @@ describe('scoring', () => {
     expect(Solve.updateOne).not.toHaveBeenCalled();
   });
 
+  it('evaluates badges after a new solve only', async () => {
+    achievementService.safeEvaluate.mockResolvedValue([{ id: 'sleuth' }]);
+    const track = TRACK_IDS[0];
+    const [n] = nonFinal(track);
+    await answer(track, n, 'definitely wrong').expect(200);
+    expect(achievementService.safeEvaluate).not.toHaveBeenCalled();
+    const { body } = await answer(track, n, truth(track, n)).expect(200);
+    expect(achievementService.safeEvaluate).toHaveBeenCalledWith({ userId: users.player._id, teamId: TEAM_A });
+    expect(body.badges).toEqual([{ id: 'sleuth' }]);
+    const again = await answer(track, n, truth(track, n)).expect(200);
+    expect(achievementService.safeEvaluate).toHaveBeenCalledOnce();
+    expect(again.body.badges).toBeUndefined();
+  });
+
   it('ignores a stored points value that is higher than the definition', async () => {
     rowOf('hard', 1).points = 99999;
     expect((await answer('hard', 1, truth('hard', 1)).expect(200)).body.pointsAwarded).toBe(70);
@@ -266,7 +297,11 @@ describe('scoring', () => {
     const locked = await answer(track, last, 'anyone').expect(403);
     expect(locked.body.error.code).toBe('STAGE_LOCKED');
     expect(Submission.create).not.toHaveBeenCalled();
-    await solveAllButFinal(track);
+    await solveAllButFinal(track, 'player', TEAM_A, { board: false });
+    const gated = (await api('get', `/cases/${track}`).expect(200)).body;
+    expect(gated.questions.at(-1)).toMatchObject({ locked: true, lockedBy: 'board' });
+    expect((await answer(track, last, 'anyone').expect(403)).body.error.code).toBe('BOARD_LOCKED');
+    openBoard(track);
     const view = (await api('get', `/cases/${track}`).expect(200)).body;
     expect(view.questions.at(-1).locked).toBe(false);
     expect((await answer(track, last, 'Nobody Atall').expect(200)).body.correct).toBe(false);

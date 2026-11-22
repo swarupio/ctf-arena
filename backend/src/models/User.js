@@ -13,4 +13,7 @@ const userSchema = new mongoose.Schema({
   banned: { type: Boolean, default: false },
 }, { timestamps: true });
 
+// Admin user list (default sort: newest first).
+userSchema.index({ createdAt: -1 });
+
 export default mongoose.model('User', userSchema);

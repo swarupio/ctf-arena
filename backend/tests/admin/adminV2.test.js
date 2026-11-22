@@ -111,16 +111,14 @@ describe('stats overview', () => {
   const arrange = () => {
     models.User.countDocuments.mockImplementation(async (filter) => (filter?.banned ? 1 : 10));
     models.Team.countDocuments.mockImplementation(async (filter) => (filter?.banned ? 0 : 4));
-    models.Solve.countDocuments.mockResolvedValue(6);
-    models.Submission.countDocuments.mockImplementation(async (filter) => (filter?.correct === false ? 5 : 20));
     models.User.aggregate.mockResolvedValue([{ _id: day, count: 3 }]);
     models.Submission.aggregate.mockImplementation(async (pipeline) => (typeof pipeline.find((stage) => stage.$group).$group._id === 'object'
       ? [{ _id: day, count: 8, wrong: 5 }]
-      : [{ _id: oid(11), submissions: 10, wrong: 8 }, { _id: oid(12), submissions: 4, wrong: 1 }]));
+      : [{ _id: oid(11), submissions: 10, wrong: 8 }, { _id: oid(12), submissions: 4, wrong: 1 }, { _id: oid(21), submissions: 6, wrong: 0 }]));
     models.Solve.aggregate.mockImplementation(async (pipeline) => {
       const key = pipeline.find((stage) => stage.$group)?.$group._id;
       if (typeof key === 'object') { return [{ _id: day, count: 2 }]; }
-      if (key === '$challengeId') { return [{ _id: oid(11), solves: 1 }, { _id: oid(12), solves: 3 }]; }
+      if (key === '$challengeId') { return [{ _id: oid(11), solves: 1 }, { _id: oid(12), solves: 3 }, { _id: oid(21), solves: 2 }]; }
       return [{ _id: oid(1), score: 300, solves: 3 }];
     });
     models.Team.find.mockImplementation(() => chain([{ _id: oid(1), name: 'Alpha', banned: false }]));
@@ -145,8 +143,11 @@ describe('stats overview', () => {
     arrange();
     const { body } = await api('get', '/admin/stats/overview?days=3').expect(200);
     expect(body.totals).toEqual({
-      users: 10, teams: 4, solves: 6, submissions: 20, wrongRate: 0.25, bannedUsers: 1, bannedTeams: 0, activeInstances: 2,
+      users: 10, teams: 4, solves: 6, submissions: 20, wrongRate: 0.45, bannedUsers: 1, bannedTeams: 0, activeInstances: 2,
     });
+    // The solve and submission totals are the sums of the per-challenge groupings, not three more collection-wide counts.
+    expect(models.Solve.countDocuments).not.toHaveBeenCalled();
+    expect(models.Submission.countDocuments).not.toHaveBeenCalled();
     expect(body.series).toHaveLength(3);
     expect(body.series.at(-1)).toEqual({ date: day, signups: 3, submissions: 8, wrongSubmissions: 5, solves: 2 });
     expect(body.series[0]).toEqual({ date: expect.any(String), signups: 0, submissions: 0, wrongSubmissions: 0, solves: 0 });
@@ -160,6 +161,15 @@ describe('stats overview', () => {
     ]);
     expect(body.instances).toEqual({ dockerEnabled: true, active: 2 });
     noSecrets(body);
+  });
+
+  it('stays within its query budget (polled every 15 s by the dashboard): 15 queries, no collection-wide counts', async () => {
+    arrange();
+    await api('get', '/admin/stats/overview').expect(200);
+    const used = ['User', 'Team', 'Challenge', 'Instance', 'Solve', 'Submission'].flatMap((name) => Object.values(models[name]))
+      .reduce((total, fn) => total + fn.mock.calls.length, 0);
+    // 4 counts, 3 time series, top teams (2), per-challenge stats (3), terminal stats (2), active instances (1). It was 18.
+    expect(used).toBe(15);
   });
 
   it('reports 0 active instances without querying when Docker is disabled', async () => {
@@ -286,14 +296,59 @@ describe('users', () => {
     models.Challenge.find.mockImplementation(() => chain([{ _id: oid(21) }]));
     models.Solve.find.mockImplementation(() => chain([{ _id: oid(70) }]));
     models.Solve.findOneAndDelete.mockImplementation(() => chain({ _id: oid(70), teamId: oid(50), challengeId: oid(21), points: 11, firstBlood: true }));
-    models.Challenge.findOneAndUpdate.mockImplementation(() => chain({ _id: oid(21), points: 10 }));
+    models.Challenge.findOneAndUpdate.mockImplementation(() => chain({ _id: oid(21), type: 'terminal', points: 10 }));
     models.Solve.findOne.mockImplementation(() => chain({ _id: oid(71), firstBlood: false }));
     models.TerminalActivity.deleteMany.mockResolvedValue({ deletedCount: 4 });
     const { body } = await api('post', `/admin/users/${oid(1)}/reset-terminal`, { body: { confirm: true } }).expect(200);
     expect(body).toEqual({ solvesRemoved: 1, activityRemoved: 4 });
     expect(models.Challenge.findOneAndUpdate).toHaveBeenCalledWith({ _id: oid(21), solveCount: { $gt: 0 } }, { $inc: { solveCount: -1 } }, { new: true });
-    expect(models.Solve.updateOne).toHaveBeenCalledWith({ _id: oid(71), firstBlood: { $ne: true } }, { $set: { firstBlood: true }, $inc: { points: 1 } });
+    // Terminal codes carry no first-blood bonus, so nobody inherits one.
+    expect(models.Solve.updateOne).not.toHaveBeenCalled();
     expect(lastAudit()).toMatchObject({ action: 'user.reset-terminal', after: { solvesRemoved: 1, activityRemoved: 4 } });
+  });
+});
+
+describe('DELETE /admin/solves/:id first-blood promotion', () => {
+  const removeFirstBlood = async (type) => {
+    models.Solve.findOneAndDelete.mockImplementation(() => chain({ _id: oid(70), teamId: oid(50), challengeId: oid(21), points: 11, firstBlood: true }));
+    models.Challenge.findOneAndUpdate.mockImplementation(() => chain({ _id: oid(21), type, points: 10 }));
+    models.Solve.findOne.mockImplementation(() => chain({ _id: oid(71), firstBlood: false }));
+    await api('delete', `/admin/solves/${oid(70)}`).expect(200);
+  };
+
+  it('moves the bonus to the next solver of a classic challenge', async () => {
+    await removeFirstBlood('static');
+    expect(models.Solve.updateOne).toHaveBeenCalledWith({ _id: oid(71), firstBlood: { $ne: true } }, { $set: { firstBlood: true }, $inc: { points: 1 } });
+  });
+
+  it('never promotes on terminal or game challenges', async () => {
+    for (const type of ['terminal', 'game', 'weblab', 'forensics', 'reversing', 'osint']) {
+      models.Solve.updateOne.mockClear();
+      await removeFirstBlood(type);
+      expect(models.Solve.updateOne).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe('admin audit failures and the challenge type filter', () => {
+  it('keeps a completed mutation successful when the audit write fails', async () => {
+    const write = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    models.AuditLog.create.mockRejectedValue(new Error('mongodb://user:secret@host down'));
+    models.Solve.findOneAndDelete.mockImplementation(() => chain({ _id: oid(70), teamId: oid(50), challengeId: oid(21), points: 5, adjustment: true }));
+    await api('delete', `/admin/solves/${oid(70)}`).expect(200);
+    expect(models.AuditLog.create).toHaveBeenCalled();
+    const logged = write.mock.calls.map(([text]) => String(text)).join('');
+    expect(logged).toContain('[audit]');
+    expect(logged).not.toContain('secret');
+    write.mockRestore();
+  });
+
+  it('accepts every model challenge type in the list filter and rejects unknown ones', async () => {
+    for (const type of ['static', 'docker', 'terminal', 'game', 'weblab', 'forensics', 'reversing', 'osint']) {
+      await api('get', `/admin/challenges?type=${type}`).expect(200);
+      expect(models.Challenge.find.mock.calls.at(-1)[0]).toMatchObject({ type });
+    }
+    await api('get', '/admin/challenges?type=bogus').expect(400);
   });
 });
 
@@ -332,6 +387,9 @@ describe('teams', () => {
     models.Challenge.find.mockImplementation(() => chain([{ _id: oid(11), slug: 'web-1', title: 'Web 1' }]));
     const { body } = await api('get', `/admin/teams/${oid(1)}`).expect(200);
     expect(body).toMatchObject({ id: oid(1), score: 90, solves: 1, adjustmentsTotal: -20, activeInstances: 1 });
+    // The score comes from an aggregation over this team's solves only, not over every solve of the platform.
+    expect(models.Solve.aggregate).toHaveBeenCalledTimes(1);
+    expect(models.Solve.aggregate.mock.calls[0][0][0]).toEqual({ $match: { teamId: oid(1) } });
     expect(body.members).toEqual([{ id: oid(10), displayName: 'Cap', email: 'cap@example.com', banned: false, isCaptain: true }]);
     expect(body.timeline[0]).toMatchObject({ firstBlood: true, challenge: { slug: 'web-1' } });
     expect(body.timeline[1]).toMatchObject({ adjustment: true, reason: 'cheated hint', challenge: null });
@@ -813,7 +871,7 @@ describe('instances', () => {
 describe('settings', () => {
   it('reads defaults and applies a partial update with an audit entry', async () => {
     const defaults = await api('get', '/admin/settings').expect(200);
-    expect(defaults.body).toEqual({ registrationOpen: true, submissionsFrozen: false, announcement: { text: '', level: 'info' }, updatedAt: null });
+    expect(defaults.body).toEqual({ registrationOpen: true, submissionsFrozen: false, announcement: { text: '', level: 'info' }, event: null, updatedAt: null });
     models.AppSetting.findOneAndUpdate.mockImplementation(() => chain({ registrationOpen: true, submissionsFrozen: true, announcement: { text: 'Break', level: 'warning' }, updatedAt: new Date('2026-11-04T12:00:00Z') }));
     const { body } = await api('put', '/admin/settings', { body: { submissionsFrozen: true, announcement: { text: ' Break ', level: 'warning' } } }).expect(200);
     expect(body).toMatchObject({ submissionsFrozen: true, announcement: { text: 'Break', level: 'warning' } });

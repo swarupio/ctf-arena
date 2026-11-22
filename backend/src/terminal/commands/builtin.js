@@ -1,6 +1,7 @@
 // Game builtins: help, man, hint, status/codes, motd.
 import { renderTokens } from '../vfs.js';
 import { CATEGORIES, MANUAL } from './manual.js';
+import { unreadCount } from './story.js';
 import { levenshtein } from './util.js';
 
 const GUIDE = `Arena Terminal - beginner guide
@@ -146,6 +147,8 @@ async function status(c) {
 function motd(c) {
   const text = renderTokens(String(c.rc.mode.motd ?? ''), c.rc.flag);
   c.out(text === '' || text.endsWith('\n') ? text : `${text}\n`);
+  const fresh = unreadCount(c);
+  if (fresh > 0) c.out(`You have ${fresh} unread message${fresh === 1 ? '' : 's'}. Type mail to read ${fresh === 1 ? 'it' : 'them'}.\n`);
   return 0;
 }
 

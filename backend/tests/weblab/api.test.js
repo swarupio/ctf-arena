@@ -9,6 +9,7 @@ import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
 import User from '../../src/models/User.js';
 import { LABS, TRACK_MAX, WEBLAB_MAX_POINTS, labSlug } from '../../src/games/weblab/index.js';
+import { achievementService } from '../../src/services/achievementService.js';
 import { consumeAttempt } from '../../src/services/attemptLimiter.js';
 import { expectedFlagFor, hashSubmission } from '../../src/services/flagService.js';
 import { hasFirstBloodBonus, recordSolve } from '../../src/services/scoringService.js';
@@ -241,6 +242,21 @@ describe('submitting flags', () => {
     expect(rows[0].solveCount).toBe(1);
     expect(solves[0]).toMatchObject({ points: 30, firstBlood: false });
     expect(Solve.updateOne).not.toHaveBeenCalled();
+  });
+
+  it('evaluates achievements after a new solve only, and reports new badges', async () => {
+    const spy = vi.spyOn(achievementService, 'safeEvaluate').mockResolvedValue([{ key: 'fake', name: 'Fake' }]);
+    try {
+      const first = await submit('sqli-login', flagOf('sqli-login'));
+      expect(spy).toHaveBeenCalledWith({ userId: users.player._id, teamId: TEAM_A });
+      expect(first.body.badges).toEqual([{ key: 'fake', name: 'Fake' }]);
+      spy.mockClear();
+      const again = await submit('sqli-login', flagOf('sqli-login'));
+      expect(again.body.alreadySolved).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+      await submit('sqli-login', 'CTF{wrong}');
+      expect(spy).not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
   });
 
   it('takes points from the lab definition, never from the stored row', async () => {

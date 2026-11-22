@@ -5,7 +5,7 @@ import { instanceService as defaultInstances } from './instanceService.js';
 const log = (message) => process.stdout.write(`[reaper] ${message}\n`);
 
 export function createReaper({
-  docker = defaultDocker, instances = defaultInstances, intervalMs = 60_000, graceMs = 2 * 60_000,
+  docker = defaultDocker, instances = defaultInstances, intervalMs = 60_000, graceMs = 2 * 60_000, stuckMs = 5 * 60_000,
 } = {}) {
   let timer;
 
@@ -23,6 +23,26 @@ export function createReaper({
       }
     }
     return stopped;
+  }
+
+  // An instance stays in 'stopping' when the replica that claimed it crashed. The normal claim only sees starting or
+  // running, so nothing else would ever finish it (and its port would stay taken). Take over claims older than
+  // stuckMs; the force claim is atomic, so two replicas never both finish the same one. A claim without stoppingAt
+  // (written before the field existed) counts as stuck too.
+  async function reapStuck() {
+    const cutoff = new Date(Date.now() - stuckMs);
+    const stuck = await Instance.find({
+      status: 'stopping', $or: [{ stoppingAt: { $lte: cutoff } }, { stoppingAt: { $exists: false } }],
+    }, '_id');
+    let recovered = 0;
+    for (const { _id } of stuck) {
+      try {
+        if (await instances.stop(_id, { stuckBefore: cutoff })) { recovered += 1; }
+      } catch {
+        log('could not finish a stuck stop; will retry next run');
+      }
+    }
+    return recovered;
   }
 
   // Startup reconciliation between the database and the real containers.
@@ -61,13 +81,14 @@ export function createReaper({
     }
     timer = setInterval(() => {
       reapExpired().catch(() => log('reap run failed'));
+      reapStuck().catch(() => log('stuck-stop run failed'));
     }, intervalMs);
     timer.unref();
   }
 
   function stop() { clearInterval(timer); }
 
-  return { reapExpired, reconcile, start, stop };
+  return { reapExpired, reapStuck, reconcile, start, stop };
 }
 
 export const reaper = createReaper();

@@ -10,10 +10,12 @@ import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
 import User from '../../src/models/User.js';
 import { forensicsDefinitions } from '../../src/scripts/seedForensics.js';
+import { achievementService } from '../../src/services/achievementService.js';
 import { expectedFlagFor } from '../../src/services/flagService.js';
 import { integrityService } from '../../src/services/integrityService.js';
 import { hasFirstBloodBonus } from '../../src/services/scoringService.js';
-import { FORENSICS_MAX_POINTS, TRACKS, TRACK_IDS, answerOf, makeContext } from '../../src/forensics/tracks.js';
+import { FORENSICS_MAX_POINTS, TRACKS, TRACK_IDS, answerOf, makeContext, suspectsFor } from '../../src/forensics/tracks.js';
+import { NO_STATEMENTS, interviewAnswer, interviewQuestions, lieStagesFor } from '../../src/forensics/interviews.js';
 
 vi.mock('../../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 vi.mock('../../src/models/User.js', () => ({ default: { findOne: vi.fn() } }));
@@ -123,6 +125,7 @@ describe('access', () => {
     seeded = false;
     expect((await api('get', '/tracks/easy').expect(503)).body.error.code).toBe('FORENSICS_NOT_SEEDED');
     expect((await answer('easy', 1, 'x').expect(503)).body.error.code).toBe('FORENSICS_NOT_SEEDED');
+    expect((await api('get', '/tracks/easy/artefacts/log').expect(503)).body.error.code).toBe('FORENSICS_NOT_SEEDED');
     const { body } = await api('get', '/tracks').expect(200);
     expect(body.every((t) => t.seeded === false)).toBe(true);
   });
@@ -212,6 +215,19 @@ describe('scoring', () => {
     expect(Solve.updateOne).not.toHaveBeenCalled();
   });
 
+  it('evaluates achievements after a new solve only, and reports new badges', async () => {
+    const spy = vi.spyOn(achievementService, 'safeEvaluate').mockResolvedValue([{ key: 'fake', name: 'Fake' }]);
+    try {
+      const first = await answer('hard', 1, truth('hard', 1)).expect(200);
+      expect(spy).toHaveBeenCalledWith({ userId: expect.anything(), teamId: TEAM_A });
+      expect(first.body.badges).toEqual([{ key: 'fake', name: 'Fake' }]);
+      spy.mockClear();
+      await answer('hard', 1, truth('hard', 1)).expect(200);
+      await answer('hard', 2, 'definitely-wrong').expect(200);
+      expect(spy).not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
+  });
+
   it('ignores a stored points value that is higher than the definition', async () => {
     rowOf('hard', 1).points = 99999;
     expect((await answer('hard', 1, truth('hard', 1)).expect(200)).body.pointsAwarded).toBe(80);
@@ -297,5 +313,151 @@ describe('attempt rate limit', () => {
     await answer('easy', 1, 'a').expect(200);
     expect([...counters.keys()].every((key) => key.startsWith('forensics:'))).toBe(true);
     expect(counters.size).toBe(2);
+  });
+});
+
+describe('suspect interviews', () => {
+  const ask = (track, body, sub = 'player') => api('post', `/tracks/${track}/interviews`, sub, body);
+  const suspectsOf = (track, teamId = TEAM_A) => suspectsFor(makeContext(track, env.FLAG_SECRET, teamId));
+
+  it('offers no question before a stage is solved, and one per solved stage after', async () => {
+    expect((await api('get', '/tracks/easy/interviews').expect(200)).body.questions).toEqual([]);
+    expect((await ask('easy', { suspectId: 's1', questionId: 'q1' }).expect(404)).body.error.code).toBe('NOT_FOUND');
+    await answer('easy', 1, truth('easy', 1)).expect(200);
+    const view = (await api('get', '/tracks/easy/interviews').expect(200)).body;
+    expect(view.questions.map((q) => q.stage)).toEqual([1]);
+    expect(view.suspects).toHaveLength(8);
+    // Stage 2 is still unsolved: its question stays closed.
+    await ask('easy', { suspectId: 's1', questionId: 'q2' }).expect(404);
+  });
+
+  it('answers never contain an unsolved-stage fact, a flag or a hash', async () => {
+    await answer('easy', 1, truth('easy', 1)).expect(200);
+    const hidden = [2, 3, 4].map((n) => truth('easy', n));
+    const { suspects } = suspectsOf('easy');
+    for (const s of suspects) {
+      const body = JSON.stringify((await ask('easy', { suspectId: s.id, questionId: 'q1' }).expect(200)).body);
+      for (const value of [...hidden, ...s.facts.filter((f) => f.stage !== 1).map((f) => f.value)]) { expect(body).not.toContain(value); }
+      expect(body).not.toMatch(/CTF\{|[0-9a-f]{32}/);
+    }
+  });
+
+  // Replaces the old rule test ("the culprit is the only one who contradicts the board"): that rule no longer holds, decoys
+  // now tell one lie each. The new rule: false denials (answer no while the board fact equals the evidence).
+  const falseDenials = (ctx, solved) => {
+    const { suspects } = suspectsFor(ctx);
+    const questions = interviewQuestions(ctx, solved);
+    return suspects.map((s) => ({
+      id: s.id,
+      count: questions.filter((q) => interviewAnswer(ctx, solved, s.id, q.id).answer === 'no'
+        && s.facts.find((f) => f.stage === q.stage).value === answerOf(ctx, q.stage)).length,
+    }));
+  };
+
+  it('the culprit is the unique suspect with two or more false denials once two stages are solved (500 seeds per track)', () => {
+    for (const track of TRACK_IDS) {
+      for (let i = 0; i < 500; i += 1) {
+        const ctx = makeContext(track, env.FLAG_SECRET, `deduce-${i}`);
+        const { culprit } = suspectsFor(ctx);
+        const stages = ctx.track.clues.map((c) => c[1]);
+        const subsets = [[stages[0], stages[1]], [stages[1], stages[3]], [stages[0], stages[2], stages[3]], stages];
+        for (const sub of subsets) {
+          const counts = falseDenials(ctx, new Set(sub));
+          expect(counts.filter((c) => c.count >= 2).map((c) => c.id)).toEqual([culprit.id]);
+          const max = Math.max(...counts.map((c) => c.count));
+          expect(counts.filter((c) => c.count === max).map((c) => c.id)).toEqual([culprit.id]);
+          expect(counts.filter((c) => c.id !== culprit.id).every((c) => c.count <= 1)).toBe(true);
+        }
+      }
+    }
+  }, 120000);
+
+  it('every decoy tells at most one lie, only on a clue it matches; the culprit and non-matching suspects add none', () => {
+    for (const track of TRACK_IDS) {
+      for (let i = 0; i < 200; i += 1) {
+        const ctx = makeContext(track, env.FLAG_SECRET, `lies-${i}`);
+        const { suspects, culprit } = suspectsFor(ctx);
+        const lies = lieStagesFor(ctx);
+        const all = new Set(ctx.track.clues.map((c) => c[1]));
+        for (const s of suspects) {
+          const matching = s.facts.filter((f) => f.value === answerOf(ctx, f.stage)).map((f) => f.stage);
+          if (s.id === culprit.id || matching.length === 0) { expect(lies.has(s.id)).toBe(false); continue; }
+          expect(matching).toContain(lies.get(s.id));
+          const denials = [...all].filter((n) => interviewAnswer(ctx, all, s.id, `q${n}`)?.answer === 'no' && matching.includes(n));
+          expect(denials.length).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  }, 120000);
+
+  it('keeps the puzzle data untouched: answers, culprit and suspect board do not depend on interviews', () => {
+    for (const track of TRACK_IDS) {
+      const ctx = makeContext(track, env.FLAG_SECRET, TEAM_A);
+      const before = JSON.stringify([ctx.track.stages.map((s) => answerOf(ctx, s.n)), suspectsFor(ctx)]);
+      lieStagesFor(ctx);
+      interviewAnswer(ctx, new Set([1, 2, 3]), 's1', 'q1');
+      expect(JSON.stringify([ctx.track.stages.map((s) => answerOf(ctx, s.n)), suspectsFor(ctx)])).toBe(before);
+    }
+  });
+
+  it('uses one statement pool for a "no", whether it is true or false', () => {
+    const seen = new Set();
+    for (const track of TRACK_IDS) {
+      for (let i = 0; i < 40; i += 1) {
+        const ctx = makeContext(track, env.FLAG_SECRET, `pool-${i}`);
+        const solved = new Set([1, 2, 3]);
+        const { suspects } = suspectsFor(ctx);
+        for (const s of suspects) {
+          for (const q of interviewQuestions(ctx, solved)) {
+            const reply = interviewAnswer(ctx, solved, s.id, q.id);
+            if (reply.answer !== 'no') { continue; }
+            expect(NO_STATEMENTS).toContain(reply.statement);
+            const falseNo = s.facts.find((f) => f.stage === q.stage).value === answerOf(ctx, q.stage);
+            seen.add(`${falseNo}:${reply.statement}`);
+          }
+        }
+      }
+    }
+    for (const statement of NO_STATEMENTS) {
+      expect(seen.has(`true:${statement}`)).toBe(true);
+      expect(seen.has(`false:${statement}`)).toBe(true);
+    }
+  }, 60000);
+
+  it('is deterministic per team and differs between teams', () => {
+    const run = (teamId) => {
+      const ctx = makeContext('hard', env.FLAG_SECRET, teamId);
+      return JSON.stringify(suspectsFor(ctx).suspects.map((s) => [1, 2, 3].map((n) => interviewAnswer(ctx, new Set([1, 2, 3]), s.id, `q${n}`))));
+    };
+    expect(run(TEAM_A)).toBe(run(TEAM_A));
+    const ctxA = makeContext('hard', env.FLAG_SECRET, TEAM_A);
+    const ctxB = makeContext('hard', env.FLAG_SECRET, TEAM_B);
+    expect(interviewQuestions(ctxA, new Set([1])).map((q) => q.text)).not.toEqual(interviewQuestions(ctxB, new Set([1])).map((q) => q.text));
+  });
+
+  it('validates the body strictly and rate limits per team in MongoDB', async () => {
+    await answer('easy', 1, truth('easy', 1)).expect(200);
+    for (const bad of [{}, { suspectId: 's1' }, { suspectId: 's1', questionId: 'q1', extra: 1 }, { suspectId: '../x', questionId: 'q1' }, { suspectId: 's1', questionId: 5 }]) {
+      expect((await ask('easy', bad).expect(400)).body.error.code).toBeDefined();
+    }
+    for (let i = 0; i < 20; i += 1) { await ask('easy', { suspectId: 's1', questionId: 'q1' }).expect(200); }
+    expect((await ask('easy', { suspectId: 's1', questionId: 'q1' }).expect(429)).body.error.code).toBe('RATE_LIMITED');
+    expect([...counters.keys()].filter((k) => k.includes(':interview:')).length).toBe(2);
+    // The answer budget of a stage is separate.
+    expect((await answer('easy', 2, 'wrong').expect(200)).body.correct).toBe(false);
+  });
+
+  it('lets admins read the preview world without a team, a score or a rate limit', async () => {
+    const view = (await api('get', '/tracks/medium/interviews', 'admin').expect(200)).body;
+    expect(view.questions.map((q) => q.stage)).toEqual([1, 2, 3, 4].slice(0, 3));
+    for (let i = 0; i < 25; i += 1) { await ask('medium', { suspectId: 's2', questionId: 'q1' }, 'admin').expect(200); }
+    expect(counters.size).toBe(0);
+    expect(solves).toHaveLength(0);
+  });
+
+  it('needs a token and a known case', async () => {
+    await request(app).get('/api/forensics/tracks/easy/interviews').expect(401);
+    await api('get', '/tracks/nightmare/interviews').expect(404);
+    await ask('nightmare', { suspectId: 's1', questionId: 'q1' }).expect(404);
   });
 });

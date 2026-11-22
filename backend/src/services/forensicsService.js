@@ -10,6 +10,8 @@ import {
   CASE_CLOSED, TRACK_IDS, TRACKS, answerFormat, answerOf, makeContext, normalizeAnswer, rightMessage,
   suspectsFor, wrongMessage,
 } from '../forensics/tracks.js';
+import { interviewAnswer, interviewQuestions } from '../forensics/interviews.js';
+import { achievementService } from './achievementService.js';
 import { consumeAttempt } from './attemptLimiter.js';
 import { expectedFlagFor, hashSubmission } from './flagService.js';
 import { integrityService } from './integrityService.js';
@@ -21,6 +23,33 @@ export const LIMITS = {
   normal: [{ limit: 8, windowMs: 60_000 }, { limit: 40, windowMs: 3_600_000 }],
   whodunit: [{ limit: 3, windowMs: 60_000 }, { limit: 8, windowMs: 3_600_000 }],
 };
+
+// Interviews are an optional aid: generous but bounded, per team and case, in two windows.
+export const INTERVIEW_LIMITS = [{ limit: 20, windowMs: 60_000 }, { limit: 120, windowMs: 3_600_000 }];
+
+// Stages whose evidence the viewer may use. Admins preview the whole world (no team, no score, no rate limit).
+const interviewScope = (track, solved, preview) => (preview
+  ? new Set(track.stages.filter((s) => !s.whodunit).map((s) => s.n)) : new Set(solved.keys()));
+
+export function interviewView({ track, ctx, solved, preview }) {
+  const { suspects } = suspectsFor(ctx);
+  return {
+    questions: interviewQuestions(ctx, interviewScope(track, solved, preview)).map(({ id, stage, text }) => ({ id, stage, text })),
+    suspects: suspects.map((s) => ({ id: s.id, name: s.name, role: s.role })),
+  };
+}
+
+export async function askSuspect({ track, ctx, solved, team, suspectId, questionId, preview }) {
+  if (!preview) {
+    const message = 'You are asking a lot of questions. Slow down and think.';
+    for (const [index, budget] of INTERVIEW_LIMITS.entries()) {
+      await consumeAttempt(`forensics:${team._id}:${track.id}:interview:${index}`, { ...budget, message });
+    }
+  }
+  const reply = interviewAnswer(ctx, interviewScope(track, solved, preview), suspectId, questionId);
+  if (!reply) { throw new AppError(404, 'NOT_FOUND', 'No such suspect or question (yet).'); }
+  return reply;
+}
 
 export const notSeeded = () => new AppError(503, 'FORENSICS_NOT_SEEDED', 'Run npm run seed:forensics.');
 
@@ -50,6 +79,21 @@ export async function teamSolves(team, rows) {
   const result = new Map();
   for (const [n, row] of rows) {
     if (byRow.has(String(row._id))) { result.set(n, byRow.get(String(row._id))); }
+  }
+  return result;
+}
+
+// One read for every track (the picker lists them all): Map of track id -> Map(stage -> solve). Replaces one read per track.
+export async function teamSolvesByTrack(team, byTrack) {
+  const result = new Map([...byTrack.keys()].map((id) => [id, new Map()]));
+  const all = [...byTrack.values()].flatMap((rows) => [...rows.values()]);
+  if (!team || all.length === 0) { return result; }
+  const solves = await Solve.find({ teamId: team._id, challengeId: { $in: all.map((row) => row._id) } }, 'challengeId points').lean();
+  const byRow = new Map(solves.map((solve) => [String(solve.challengeId), solve]));
+  for (const [id, rows] of byTrack) {
+    for (const [n, row] of rows) {
+      if (byRow.has(String(row._id))) { result.get(id).set(n, byRow.get(String(row._id))); }
+    }
   }
   return result;
 }
@@ -135,7 +179,9 @@ export async function submitAnswer({ track, rows, team, user, stageNo, answer })
   const solve = await recordSolve({ challenge: { ...row, points: stage.points, type: 'forensics' }, teamId: team._id, userId: user._id });
   if (!solve) { return already(solved.size + 1); }
   const closed = solved.size + 1 === total;
+  const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id, memberCount: team.memberIds?.length }); // cosmetic; never throws
   return {
+    ...(badges.length ? { badges } : {}),
     correct: true, pointsAwarded: solve.points, firstBlood: false, solved: solved.size + 1, total,
     flag: expectedFlagFor(row, { secret: env.FLAG_SECRET, teamId: team._id }),
     message: closed ? CASE_CLOSED : rightMessage(submitted), caseClosed: closed,

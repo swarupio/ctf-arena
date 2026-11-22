@@ -3,6 +3,7 @@
 import { env } from '../../config/env.js';
 import Challenge from '../../models/Challenge.js';
 import CrackmeHint from '../../models/CrackmeHint.js';
+import CrackmePatch from '../../models/CrackmePatch.js';
 import Solve from '../../models/Solve.js';
 import Submission from '../../models/Submission.js';
 import { consumeAttempt } from '../../services/attemptLimiter.js';
@@ -13,11 +14,16 @@ import { AppError } from '../../utils/AppError.js';
 import {
   ADMIN_PREVIEW_TEAM, buildPuzzle, flagFor, hintTexts, inputAccepted, levelsForDocs, publicPuzzle,
 } from './game.js';
-import { TRACKS, sumPoints } from './levels.js';
+import { SERVER_STEP_LIMIT, TRACKS, sumPoints } from './levels.js';
+import {
+  PATCH_MAX_EDITS, PATCH_RULES, isPatchable, patchProblem,
+} from './patch.js';
+import { PATCH_TESTS, evaluatePatch } from './patchBay.js';
 
 export const ATTEMPT_LIMIT = 8;
 export const ATTEMPT_WINDOW_MS = 60_000;
 const STREAK_LOOKBACK = 40;
+export const PATCH_ATTEMPT_LIMIT = 8;
 
 const WRONG = [
   'GAME OVER. The cabinet blinks and asks for another coin.',
@@ -52,6 +58,13 @@ export async function teamSolves(team, entries) {
   ).lean();
 }
 
+// Levels whose Patch Bay badge this team holds (cosmetic).
+export async function teamPatches(team) {
+  if (!team) { return new Set(); }
+  const rows = await CrackmePatch.find({ teamId: team._id }, 'levelId').lean();
+  return new Set(rows.map((row) => row.levelId));
+}
+
 const entriesOf = (entries, trackId) => entries.filter(({ level }) => level.track === trackId);
 
 // Within a track a cabinet opens when the one before it is solved. Admins preview everything.
@@ -82,7 +95,7 @@ export async function streakOf(team, entries) {
   return seen.size;
 }
 
-export function overviewView({ entries, solves, streak, admin }) {
+export function overviewView({ entries, solves, streak, admin, patched = new Set() }) {
   const solveByDoc = new Map(solves.map((solve) => [String(solve.challengeId), solve]));
   const solvedIds = new Set(solveByDoc.keys());
   const status = statusOf(entries, solvedIds, admin);
@@ -109,6 +122,8 @@ export function overviewView({ entries, solves, streak, admin }) {
         status: status.get(level.id),
         solvedAt: solveByDoc.get(String(doc._id))?.solvedAt ?? null,
         hintsTotal: track.hints ? level.hints.length : 0,
+        patchBay: isPatchable(level),
+        patched: patched.has(level.id),
       })),
     };
   }).filter((track) => track.total > 0);
@@ -119,6 +134,7 @@ export function overviewView({ entries, solves, streak, admin }) {
     solved: solvedIds.size,
     total: entries.length,
     streak,
+    patchBadges: entries.filter(({ level }) => patched.has(level.id)).length,
     tracks,
   };
 }
@@ -149,6 +165,13 @@ export async function puzzleView({ entries, entry, team, admin }) {
   const track = TRACKS.find((item) => item.id === level.track);
   const used = track.hints && team ? await CrackmeHint.countDocuments({ teamId: team._id, levelId: level.id }) : 0;
   const texts = track.hints ? hintTexts(level, built) : [];
+  const patchBay = isPatchable(level) ? {
+    maxEdits: PATCH_MAX_EDITS,
+    rules: PATCH_RULES,
+    tests: PATCH_TESTS,
+    steps: SERVER_STEP_LIMIT,
+    done: team ? Boolean(await CrackmePatch.findOne({ teamId: team._id, levelId: level.id }, '_id').lean()) : false,
+  } : undefined;
   return {
     id: level.id,
     track: level.track,
@@ -162,6 +185,7 @@ export async function puzzleView({ entries, entry, team, admin }) {
     hintsAllowed: track.hints,
     hintsTotal: texts.length,
     hints: texts.slice(0, used),
+    ...(patchBay ? { patchBay } : {}),
   };
 }
 
@@ -231,5 +255,52 @@ export async function submitAnswer({ entries, entry, team, user, answer }) {
     streak: await streakOf(team, entries),
     trackComplete: !next,
     nextLevelId: next?.level.id ?? null,
+  };
+}
+
+const PATCH_MESSAGES = {
+  PATCH_EMPTY: 'Change at least one instruction.',
+  PATCH_TOO_MANY: `A patch may change at most ${PATCH_MAX_EDITS} instructions.`,
+  PATCH_SHAPE: 'That patch is malformed.',
+  PATCH_RANGE: 'That patch edits an instruction that does not exist.',
+  PATCH_DUPLICATE: 'Each instruction can be patched only once.',
+  PATCH_NOT_ALLOWED: 'That substitution is not on the Patch Bay whitelist.',
+};
+
+// Patch Bay (bonus mode of the hard and insane cabinets): the server rebuilds the team's program, applies the patch and runs it
+// on hidden inputs derived from the team seed. Only counts are returned. A valid patch earns a cosmetic badge, never points.
+export async function submitPatch({ entries, entry, team, user, edits }) {
+  const { level } = entry;
+  if (!isPatchable(level)) { throw new AppError(404, 'NO_PATCH_BAY', 'This cabinet has no Patch Bay.'); }
+  const { status } = await statusFor(entries, entry, team, false);
+  requireOpen(status);
+  const seed = { secret: env.FLAG_SECRET, teamId: team._id };
+  const built = buildPuzzle(level, seed);
+  // Structural problems cost nothing and reveal nothing (no VM run), so they are rejected before the limiter.
+  const bad = patchProblem(built.program, edits);
+  if (bad) { throw new AppError(400, bad, PATCH_MESSAGES[bad]); }
+  await consumeAttempt(`crackme-patch:${team._id}:${level.id}`, {
+    limit: PATCH_ATTEMPT_LIMIT,
+    windowMs: ATTEMPT_WINDOW_MS,
+    message: 'Too many patch attempts on this cabinet. Wait a minute and try again.',
+  });
+  const verdict = evaluatePatch(level, built, edits, seed);
+  let badge = false;
+  if (verdict.valid) {
+    // Atomic and idempotent per (team, level): only the request that inserts the row reports a new badge.
+    const written = await CrackmePatch.updateOne(
+      { teamId: team._id, levelId: level.id }, { $setOnInsert: { userId: user._id, edits: edits.length } }, { upsert: true },
+    );
+    badge = written?.upsertedCount === 1;
+  }
+  return {
+    valid: verdict.valid,
+    passed: verdict.passed,
+    total: verdict.total,
+    serialOk: verdict.serialOk,
+    badge,
+    message: verdict.valid
+      ? 'PATCH HOLDS. The cabinet accepts every test input and still takes your serial. Patch badge earned.'
+      : `Patch applied: ${verdict.passed} of ${verdict.total} test inputs pass${verdict.serialOk ? '' : ', and your real serial no longer works'}.`,
   };
 }

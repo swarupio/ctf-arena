@@ -156,7 +156,19 @@ function printf(c) {
 
 const userOf = (c) => c.rc.fs.user;
 
-function whoami(c) { c.out(`${userOf(c)}\n`); return 0; }
+const WHO_ROLES = { easy: 'the new intern', medium: 'incident responder', hard: 'guest analyst' };
+
+// `whoami` prints the user name only; `whoami -v` adds the seeded name and role of the story (a joke, same on every replica).
+function whoami(c) {
+  const cast = c.rc.mode.storyState?.cast;
+  if ((c.args.includes('-v') || c.args.includes('--verbose')) && cast) {
+    const role = WHO_ROLES[c.rc.mode.mode] ?? 'guest';
+    c.out(`${userOf(c)} (${cast.intern}, ${role} at NovaCorp, reports to ${cast.boss})\n`);
+    return 0;
+  }
+  c.out(`${userOf(c)}\n`);
+  return 0;
+}
 
 function id(c) {
   const root = userOf(c) === 'root';

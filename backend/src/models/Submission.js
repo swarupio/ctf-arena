@@ -10,6 +10,8 @@ const submissionSchema = new mongoose.Schema({
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
 submissionSchema.index({ teamId: 1, challengeId: 1, createdAt: -1 });
+// Admin submissions list filtered by player, newest first.
+submissionSchema.index({ userId: 1, createdAt: -1 });
 submissionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export default mongoose.model('Submission', submissionSchema);

@@ -128,3 +128,86 @@ export function solveInsane(world, pub) {
 }
 
 export const SOLVERS = { easy: solveEasy, medium: solveMedium, hard: solveHard, insane: solveInsane };
+
+// ---- the case board: the required links, re-derived from public data only ---------------------------------------------
+const castId = (v, name) => castOf(v, handleOfName(v, name)).id;
+const castByHandle = (v, handle) => castOf(v, handle).id;
+const userToName = (v, user) => only(staffPage(v).staff.filter((s) => s.name.toLowerCase().replace(' ', '.') === user), `user ${user}`).name;
+const mapId = (landmark) => `map:${landmark.id}`;
+
+export function chainEasy(world, pub) {
+  const v = load(world);
+  const lead = castByHandle(v, `@${pub.handle}`);
+  const evening = only(v.feed.filter((p) => handleOfAuthor(p) === `@${pub.handle}` && p.time.startsWith(pub.date) && Number(p.time.slice(11, 13)) >= 17), 'evening post');
+  const chat = only(v.pastes.filter((p) => p.body.includes('i have the ledger')), 'ledger chat');
+  const claimer = /\] (\S+): i have the ledger/.exec(chat.body)[1];
+  return [
+    [`cast:${castByHandle(v, claimer)}`, `pastes:${chat.id}`, 'posted'],
+    [`cast:${lead}`, `pastes:${chat.id}`, 'posted'],
+    [`cast:${lead}`, `feed:${evening.id}`, 'posted'],
+    [`feed:${evening.id}`, `map:${evening.place.id}`, 'at'],
+  ];
+}
+
+export function chainMedium(world, pub) {
+  const v = load(world);
+  const map = v.map[0];
+  const entry = only(staffPage(v).staff.filter((s) => s.name === pub.name), 'target entry');
+  const target = castByHandle(v, entry.social);
+  const doc = only(v.docs.filter((d) => d.title === 'Q3 Route Plan'), 'leaked doc');
+  const siteCode = /Site code: (\S+)/.exec(castOf(v, entry.social).bio)[1];
+  const domain = only(v.registry.filter((d) => d.dns.some((r) => r.type === 'TXT' && r.value === `site-verify=${siteCode}`)), 'code domain');
+  const photoPost = only(v.feed.filter((p) => handleOfAuthor(p) === entry.social && p.time.startsWith(pub.photoDate) && p.photo), 'photo post');
+  const spot = nearest(map, xyFromGps(photoOf(v, photoPost).exif));
+  return [
+    [`cast:${castId(v, userToName(v, doc.author))}`, `docs:${doc.id}`, 'posted'],
+    [`cast:${castId(v, userToName(v, doc.lastModifiedBy))}`, `docs:${doc.id}`, 'posted'],
+    [`cast:${target}`, `registry:${domain.name}`, 'linked'],
+    [`cast:${target}`, `feed:${photoPost.id}`, 'posted'],
+    [`feed:${photoPost.id}`, mapId(spot), 'at'],
+  ];
+}
+
+export function chainHard(world, _pub) {
+  const v = load(world);
+  const map = v.map[0];
+  const now = staffPage(v).staff.map((s) => s.name);
+  const exName = only(staffPage(v, 'staff-archive').staff.filter((s) => !now.includes(s.name)), 'vanished person').name;
+  const handle = handleOfName(v, exName);
+  const blog = /Kite notes: (\S+)/.exec(castOf(v, handle).bio)[1];
+  const aOf = (d) => d.dns.filter((r) => r.type === 'A').map((r) => r.value);
+  const ip = aOf(v.registry.find((d) => d.name === blog))[0];
+  const twin = only(v.registry.filter((d) => d.name !== blog && aOf(d).includes(ip)), 'same-address domain');
+  const signPost = only(v.feed.filter((p) => handleOfAuthor(p) === handle && p.photo && photoOf(v, p).signs.length > 0), 'sign photo');
+  const [hName, vName] = photoOf(v, signPost).signs[0].split(' / ');
+  const corner = { x: map.streets.cols.find((c) => c.name === vName).x, y: map.streets.rows.find((r) => r.name === hName).y };
+  const reminder = only(v.pastes.filter((p) => p.title === 'reminder.txt'), 'reminder');
+  return [
+    [`cast:${castByHandle(v, handle)}`, `registry:${blog}`, 'linked'],
+    [`registry:${blog}`, `registry:${twin.name}`, 'linked'],
+    [`cast:${castByHandle(v, handle)}`, `feed:${signPost.id}`, 'posted'],
+    [`feed:${signPost.id}`, mapId(nearest(map, corner)), 'at'],
+    [`pastes:${reminder.id}`, `feed:${signPost.id}`, 'mentions'],
+  ];
+}
+
+export function chainInsane(world, pub) {
+  const v = load(world);
+  const map = v.map[0];
+  const alias = castOf(v, pub.alias);
+  const joined = Date.parse(alias.joined);
+  const owner = only(v.registry.filter((d) => Date.parse(d.whois.created) === joined), 'same-instant domain');
+  const mirror = only(v.pastes.filter((p) => p.title === 'mirror-notes.txt' && p.author === pub.alias), 'mirror note');
+  const aliasPost = only(v.feed.filter((p) => handleOfAuthor(p) === pub.alias && p.photo), 'alias photo');
+  const spot = nearest(map, xyFromGps(photoOf(v, aliasPost).exif));
+  return [
+    [`cast:${alias.id}`, `registry:${owner.name}`, 'linked'],
+    [`cast:${castId(v, owner.whois.registrant.name)}`, `registry:${owner.name}`, 'owns'],
+    [`cast:${alias.id}`, `pastes:${mirror.id}`, 'posted'],
+    [`pastes:${mirror.id}`, `registry:${owner.name}`, 'mentions'],
+    [`cast:${alias.id}`, `feed:${aliasPost.id}`, 'posted'],
+    [`feed:${aliasPost.id}`, mapId(spot), 'at'],
+  ];
+}
+
+export const CHAIN_SOLVERS = { easy: chainEasy, medium: chainMedium, hard: chainHard, insane: chainInsane };

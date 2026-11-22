@@ -12,6 +12,7 @@ import instancesRouter from './routes/instances.js';
 import leaderboardRouter from './routes/leaderboard.js';
 import honeypotRouter from './routes/honeypot.js';
 import announcementRouter from './routes/announcement.js';
+import eventRouter from './routes/event.js';
 
 // Terminal, game and admin routers load on their first request (middleware/lazyRouter.js), so a cold start only
 // pays for what it serves. They stay mounted at the same places, in the same order.
@@ -67,6 +68,7 @@ app.use('/api/admin/teams', adminTeamsRouter);
 app.use('/api/admin/integrity', adminIntegrityRouter);
 app.use('/api/admin', adminV2Router);
 app.use('/api/announcement', announcementRouter);
+app.use('/api/event', eventRouter);
 app.use(notFound);
 app.use(errorHandler);
 

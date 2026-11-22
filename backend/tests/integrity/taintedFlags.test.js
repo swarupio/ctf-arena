@@ -15,7 +15,7 @@ import { instanceService } from '../../src/services/instanceService.js';
 import { integrityService, taintedFlagFor } from '../../src/services/integrityService.js';
 import { recordSolve } from '../../src/services/scoringService.js';
 import { MODES } from '../../src/terminal/modes/index.js';
-import { TaintedFlagFake, goLive, goOffline, installFakes, state } from './fakes.js';
+import { AttemptCounterFake, TaintedFlagFake, goLive, goOffline, installFakes, state } from './fakes.js';
 
 vi.mock('../../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 vi.mock('../../src/models/User.js', () => ({ default: { findOne: vi.fn(), find: vi.fn() } }));
@@ -30,6 +30,8 @@ vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), exists: 
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn(), countDocuments: vi.fn() } }));
 vi.mock('../../src/models/ReplicaStat.js', () => ({ default: { updateOne: vi.fn(), find: vi.fn() } }));
 vi.mock('../../src/models/CheatSignal.js', async () => ({ default: (await import('./fakes.js')).CheatSignalFake, SIGNAL_KINDS: [] }));
+vi.mock('../../src/models/AppSetting.js', async () => ({ default: (await import('./fakes.js')).AppSettingFake, ANNOUNCEMENT_LEVELS: [] }));
+vi.mock('../../src/models/AttemptCounter.js', async () => ({ default: (await import('./fakes.js')).AttemptCounterFake }));
 vi.mock('../../src/models/TaintedFlag.js', async () => ({ default: (await import('./fakes.js')).TaintedFlagFake }));
 vi.mock('../../src/models/TerminalActivity.js', async () => ({ default: (await import('./fakes.js')).TerminalActivityFake }));
 vi.mock('../../src/services/scoringService.js', () => ({ recordSolve: vi.fn() }));
@@ -255,7 +257,8 @@ describe('wrong submissions in the terminal game', () => {
     Solve.find.mockImplementation(() => ({ lean: async () => [{ teamId: TEAM_A, challengeId: easyDocs[1]._id, points: 40, firstBlood: false }] }));
     const again = await submitTerminal(own).expect(200);
     expect(again.body).toMatchObject({ correct: true, alreadySolved: true });
-    Submission.countDocuments.mockResolvedValue(10);
+    // The per-mode budget (atomic counter in MongoDB) is spent: the next wrong guess is refused before any lookup.
+    AttemptCounterFake.findOneAndUpdate.mockResolvedValue({ count: 99 });
     await submitTerminal('CTF{x}').expect(429);
     expect(TaintedFlagFake.findOne).not.toHaveBeenCalled();
     await integrityService.flush();

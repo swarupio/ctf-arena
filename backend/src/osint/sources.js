@@ -19,7 +19,7 @@ export const SEARCH_MAX = 20;
 const handle = (c) => `@${c.handle}`;
 const person = (c) => ({ id: c.id, handle: handle(c), display: c.display });
 
-function mapView(w) {
+export function mapView(w) {
   return {
     size: MAP_SIZE,
     cells: CELLS,
@@ -31,7 +31,7 @@ function mapView(w) {
   };
 }
 
-function views(w) {
+export function views(w) {
   const castById = new Map(w.cast.map((c) => [c.id, c]));
   const lmById = new Map(w.map.landmarks.map((lm) => [lm.id, lm]));
   const postById = new Map(w.posts.map((p) => [p.id, p]));

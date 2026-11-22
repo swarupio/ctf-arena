@@ -77,6 +77,13 @@ async function challengeStats(teamCount) {
   ]);
   const solvesBy = new Map(solves.map((row) => [String(row._id), row.solves]));
   const attemptsBy = new Map(attempts.map((row) => [String(row._id), row]));
+  // The platform totals come from the two collection-wide groupings above instead of three more full counts: every real
+  // solve and every submission has a challengeId, so the sums are exactly what countDocuments would return.
+  const totals = {
+    solves: solves.reduce((sum, row) => sum + row.solves, 0),
+    submissions: attempts.reduce((sum, row) => sum + row.submissions, 0),
+    wrong: attempts.reduce((sum, row) => sum + row.wrong, 0),
+  };
   const rows = challenges.map((challenge) => {
     const id = String(challenge._id);
     const solved = solvesBy.get(id) ?? 0;
@@ -104,7 +111,7 @@ async function challengeStats(teamCount) {
     .filter((row) => row.submissions > 0)
     .sort((a, b) => b.wrongRate - a.wrongRate || b.submissions - a.submissions || a.slug.localeCompare(b.slug))
     .slice(0, 20);
-  return { hardest, easiest, wrongRates };
+  return { hardest, easiest, wrongRates, totals };
 }
 
 // Completions per mode = teams that solved every visible code of the mode. Scores are points per team inside the mode.
@@ -147,18 +154,16 @@ async function instanceStats() {
 }
 
 export async function getOverview({ days = 14, now = new Date() } = {}) {
-  const [users, teams, solves, submissions, wrong, bannedUsers, bannedTeams] = await Promise.all([
+  const [users, teams, bannedUsers, bannedTeams] = await Promise.all([
     User.countDocuments({}),
     Team.countDocuments({}),
-    Solve.countDocuments(realSolves),
-    Submission.countDocuments({}),
-    Submission.countDocuments({ correct: false }),
     User.countDocuments({ banned: true }),
     Team.countDocuments({ banned: true }),
   ]);
-  const [timeseries, top, challenges, terminal, instances] = await Promise.all([
+  const [timeseries, top, { totals: counted, ...challenges }, terminal, instances] = await Promise.all([
     getTimeSeries({ days, now }), topTeams(), challengeStats(teams), terminalStats(), instanceStats(),
   ]);
+  const { solves, submissions, wrong } = counted;
   return {
     generatedAt: now.toISOString(),
     totals: {

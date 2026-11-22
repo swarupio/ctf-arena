@@ -1,5 +1,6 @@
 // Packet artefact: a simplified capture. The capture is a grid of half-second slots; slot i holds exactly one packet,
 // either planned (DNS lookup, C2 beacons, tasking, exfil) or background noise derived from (seed, i).
+import { createHash } from 'node:crypto';
 import { int, pick } from '../terminal/gen.js';
 import {
   WORDS, hostIpFor, pageBounds, place, publicIp, rngFor,
@@ -17,6 +18,13 @@ const LEVELS = {
   insane: { slots: 4000, hosts: 14, decoyBeacons: 1, periodic: 3 },
 };
 export const packetLevel = (level) => LEVELS[level] ?? LEVELS.medium;
+
+// Simulated hardware address of a host: a pure hash of its IP address (no rng), so one host has one MAC in every packet.
+// 0x02 in the first byte marks it locally administered and unicast, so it can never be mistaken for a real vendor address.
+export function macFor(ip) {
+  const digest = createHash('sha256').update(`mac|${ip}`).digest();
+  return [0x02, ...digest.subarray(0, 5)].map((b) => b.toString(16).padStart(2, '0')).join(':');
+}
 
 const toHex = (bytes) => Buffer.from(bytes).toString('hex');
 const ascii = (text) => Buffer.from(text, 'latin1');
@@ -86,8 +94,10 @@ export function packetPlan(seed, level, scn) {
 
   // Lookup of the C2 domain just before the first beacon, plus noise lookups of look-alike names.
   const dnsAt = beacons[0] - 6;
-  place(slots, dnsAt, pkt(host, int(r, 40000, 60000), RESOLVER, 53, 'DNS', `Standard query 0x1a2b A ${scn.c2Domain}`, dnsQuery(0x1a2b, scn.c2Domain)), cfg.slots);
-  place(slots, dnsAt + 1, pkt(RESOLVER, 53, host, 53000, 'DNS', `Standard query response 0x1a2b A ${scn.c2Domain} A ${scn.attackerIp}`, dnsQuery(0x1a2b, scn.c2Domain, true), 0.2), cfg.slots);
+  // The reply goes back to the port the question came from (a real exchange), so both packets are one conversation.
+  const dnsPort = int(r, 40000, 60000);
+  place(slots, dnsAt, pkt(host, dnsPort, RESOLVER, 53, 'DNS', `Standard query 0x1a2b A ${scn.c2Domain}`, dnsQuery(0x1a2b, scn.c2Domain)), cfg.slots);
+  place(slots, dnsAt + 1, pkt(RESOLVER, 53, host, dnsPort, 'DNS', `Standard query response 0x1a2b A ${scn.c2Domain} A ${scn.attackerIp}`, dnsQuery(0x1a2b, scn.c2Domain, true), 0.2), cfg.slots);
   if (cfg.decoyBeacons > 0) {
     const decoyHost = hostIpFor(decoyHostNo);
     place(slots, beacons[0] - 4, pkt(decoyHost, 51000, RESOLVER, 53, 'DNS', `Standard query 0x3c4d A ${scn.decoyDomain}`, dnsQuery(0x3c4d, scn.decoyDomain)), cfg.slots);
@@ -103,7 +113,24 @@ export function packetPlan(seed, level, scn) {
   flow(exfilFrom, '49152 > 9001 [SYN] Seq=0 Len=0');
   chunks.forEach((chunk, k) => flow(exfilFrom + 4 + k * 3, `49152 > 9001 [PSH, ACK] Seq=${1 + k * 56} Len=${chunk.length}`, ascii(chunk)));
   flow(exfilFrom + 6 + chunks.length * 3, '49152 > 9001 [FIN, ACK] Seq=999 Len=0');
-  return { slots, host, interval: scn.interval };
+
+  // Clock-skew clue for the timeline board (drawn last: no earlier draw, beacon or answer moves). Two workstations ask the
+  // gateway for the time. The first reply is stamped after its request; the second reply is stamped 0.2 s BEFORE the request
+  // it answers (a tap with a skewed clock), which cannot be true. Both pairs sit in free adjacent slots.
+  const skew = {};
+  const timePair = (key, hostNo, from, reqOff, replyDelta) => {
+    let s = Math.floor(cfg.slots * from);
+    while (slots.has(s) || slots.has(s + 1)) { s += 1; }
+    const src = hostIpFor(hostNo % cfg.hosts);
+    const port = int(r, 40000, 60000);
+    slots.set(s, pkt(src, port, GATEWAY, 8080, 'HTTP', 'GET /time HTTP/1.1', ascii('GET /time HTTP/1.1\r\nHost: gw.corp.local\r\n\r\n'), reqOff));
+    slots.set(s + 1, pkt(GATEWAY, 8080, src, port, 'HTTP', 'HTTP/1.1 200 OK', ascii('HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n'),
+      reqOff + replyDelta - SLOT));
+    skew[key] = { request: s, reply: s + 1 };
+  };
+  timePair('consistent', decoyHostNo + 4, 0.3, 0.1, 0.2);
+  timePair('skewed', decoyHostNo + 6, 0.62, 0.3, -0.2);
+  return { slots, host, interval: scn.interval, skew };
 }
 
 function noisePacket(seed, scn, cfg, index) {
@@ -149,7 +176,7 @@ export function packetPage(seed, level, scn, offset, limit, plan = packetPlan(se
     packets.push({
       n: i + 1,
       t: (i * SLOT + p.off).toFixed(3),
-      src: p.src, sp: p.sp, dst: p.dst, dp: p.dp, proto: p.proto,
+      src: p.src, sp: p.sp, dst: p.dst, dp: p.dp, sm: macFor(p.src), dm: macFor(p.dst), proto: p.proto,
       len: 42 + p.payload.length,
       info: p.info,
       hex: toHex(payload),

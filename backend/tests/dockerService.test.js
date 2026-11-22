@@ -41,6 +41,27 @@ describe('dockerService', () => {
     expect(docker.container.start).toHaveBeenCalled();
   });
 
+  it('creates the network lazily before the first container, memoised once it worked', async () => {
+    const docker = fakeDocker();
+    const service = createDockerService({ docker, limits });
+    expect(docker.listNetworks).not.toHaveBeenCalled();
+    await Promise.all([service.createInstance(args), service.createInstance(args)]);
+    await service.createInstance(args);
+    expect(docker.listNetworks).toHaveBeenCalledTimes(1);
+    expect(docker.createNetwork).toHaveBeenCalledTimes(1);
+    expect(docker.createContainer).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries the network setup when the daemon was down at the first attempt', async () => {
+    const docker = fakeDocker();
+    docker.listNetworks.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    const service = createDockerService({ docker, limits });
+    await expect(service.createInstance(args)).rejects.toThrow('ECONNREFUSED');
+    expect(docker.createContainer).not.toHaveBeenCalled();
+    await expect(service.createInstance(args)).resolves.toBe('abc123');
+    expect(docker.createContainer).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses images outside the ctf/ namespace and ports outside the range', async () => {
     const service = createDockerService({ docker: fakeDocker(), limits });
     await expect(service.createInstance({ ...args, image: 'alpine' })).rejects.toMatchObject({ status: 400 });

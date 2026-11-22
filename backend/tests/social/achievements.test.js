@@ -4,10 +4,10 @@ import Challenge from '../../src/models/Challenge.js';
 import Solve from '../../src/models/Solve.js';
 import Team from '../../src/models/Team.js';
 import {
-  BADGES, BADGE_KEYS, computeEarned, evaluate, safeEvaluate, streakInfo,
+  BADGES, BADGE_KEYS, computeEarned, evaluate, loadFacts, safeEvaluate, streakInfo,
 } from '../../src/services/achievementService.js';
 
-vi.mock('../../src/models/Achievement.js', () => ({ default: { updateOne: vi.fn() } }));
+vi.mock('../../src/models/Achievement.js', () => ({ default: { updateOne: vi.fn(), find: vi.fn() } }));
 vi.mock('../../src/models/Challenge.js', () => ({ default: { find: vi.fn(), aggregate: vi.fn() } }));
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../src/models/Team.js', () => ({ default: { findById: vi.fn() } }));
@@ -145,7 +145,8 @@ describe('evaluate (idempotent awarding)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     store.clear();
-    Solve.find.mockImplementation(() => query([solve('w', at(3, 2), { firstBlood: true })]));
+    Solve.find.mockImplementation(() => query([{ ...solve('w', at(3, 2), { firstBlood: true }), userId: 'u1', teamId: 't1' }]));
+    Achievement.find.mockImplementation(() => query([...store].map((id) => ({ key: id.split(':')[1] }))));
     Challenge.find.mockImplementation(() => query([{ _id: 'w', ...meta.w }]));
     Challenge.aggregate.mockResolvedValue([]);
     Team.findById.mockImplementation(() => query({ memberIds: ['a', 'b', 'c'] }));
@@ -172,13 +173,42 @@ describe('evaluate (idempotent awarding)', () => {
     expect(options).toEqual({ upsert: true });
   });
 
-  it('never counts manual score adjustments as solves (user and team reads exclude them)', async () => {
+  it('never counts manual score adjustments as solves, and reads user and team solves in one query', async () => {
     await evaluate({ userId: 'u1', teamId: 't1' });
-    const filters = Solve.find.mock.calls.map(([filter]) => filter);
-    expect(filters).toEqual([
-      { userId: 'u1', adjustment: { $ne: true } },
-      { teamId: 't1', adjustment: { $ne: true } },
+    expect(Solve.find.mock.calls.map(([filter]) => filter)).toEqual([
+      { $or: [{ userId: 'u1' }, { teamId: 't1' }], adjustment: { $ne: true } },
     ]);
+    await evaluate({ userId: 'u1' });
+    expect(Solve.find.mock.calls[1][0]).toEqual({ userId: 'u1', adjustment: { $ne: true } });
+  });
+
+  it('splits one solve read into the solves of the user and the solves of the team', async () => {
+    Solve.find.mockImplementation(() => query([
+      { ...solve('w', at(3, 12)), userId: 'u1', teamId: 't1' },
+      { ...solve('t1', at(3, 13)), userId: 'u2', teamId: 't1' },
+      { ...solve('c', at(3, 14)), userId: 'u1', teamId: 'old-team' },
+    ]));
+    const facts = await loadFacts({ userId: 'u1', teamId: 't1' });
+    expect(facts.userSolves.map((row) => row.challengeId)).toEqual(['w', 'c']);
+    expect(facts.teamSolves.map((row) => row.challengeId)).toEqual(['w', 't1']);
+  });
+
+  it('writes only the badges the user does not hold yet (one read instead of one upsert per earned badge)', async () => {
+    const first = await evaluate({ userId: 'u1', teamId: 't1' });
+    Achievement.updateOne.mockClear();
+    store.add('u1:solves-3');
+    expect(await evaluate({ userId: 'u1', teamId: 't1' })).toEqual([]);
+    expect(Achievement.updateOne).not.toHaveBeenCalled();
+    expect(Achievement.find).toHaveBeenCalledWith({ userId: 'u1' });
+    expect(first.length).toBeGreaterThan(0);
+  });
+
+  it('skips the team read when the caller passes the member count', async () => {
+    const withCount = await evaluate({ userId: 'u1', teamId: 't1', memberCount: 1 });
+    expect(Team.findById).not.toHaveBeenCalled();
+    expect(withCount.map((badge) => badge.key)).not.toContain('team-of-three');
+    store.clear();
+    expect((await evaluate({ userId: 'u1', teamId: 't1', memberCount: 3 })).map((badge) => badge.key)).toContain('team-of-three');
   });
 
   it('treats a duplicate key race as already awarded', async () => {
