@@ -711,6 +711,12 @@ function rm(c) {
   }
   let exit = 0;
   for (const operand of parsed.operands) {
+    if (absPath(c, operand) === '/' && (opts.r || opts.R) && opts.N) {
+      // The classic joke. Nothing is touched: the filesystem is read-only and this prints text only.
+      c.out('removing /bin ... /etc ... /home ... /var ...\nNOVI: nice try. I restored everything from last night\'s backup.\nNOVI: (it was read-only anyway. nothing was harmed, including your dignity.)\n');
+      exit = 1;
+      continue;
+    }
     if (absPath(c, operand) === '/' && (opts.r || opts.R)) {
       c.err("rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n");
       exit = 1;

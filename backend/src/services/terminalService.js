@@ -7,6 +7,7 @@ import Challenge from '../models/Challenge.js';
 import Solve from '../models/Solve.js';
 import Submission from '../models/Submission.js';
 import { AppError } from '../utils/AppError.js';
+import { consumeAttempt } from './attemptLimiter.js';
 import { expectedFlagFor, hashSubmission, matchDynamicFlag } from './flagService.js';
 import { recordSolve } from './scoringService.js';
 
@@ -90,9 +91,19 @@ export function terminalSeed(teamId, mode) {
   return createHmac('sha256', env.FLAG_SECRET).update(`terminal-seed:${teamId}:${mode}`).digest('hex');
 }
 
+// Per-team seed of the story cast (names in the mailbox). It does not depend on the mode, so the same people appear in all
+// three modes, and it is a different derivation from the puzzle seed: a name can never reveal a puzzle value. Never sent out.
+export function storySeed(teamId) {
+  return createHmac('sha256', env.FLAG_SECRET).update(`terminal-story:${teamId}`).digest('hex');
+}
+
+// Cosmetic read marker from the browser (bit n = message n was read). Anything else counts as nothing read.
+export const MAIL_SEEN_MAX = 0xfff;
+export const cleanMailSeen = (value) => (Number.isInteger(value) && value >= 0 && value <= MAIL_SEEN_MAX ? value : 0);
+
 // The ctx the shell engine receives (docs/TERMINAL_GAME.md section 5). flag() is synchronous and per team;
 // progress() reads the team's solves lazily, once per request, only when a command (hint, status) asks.
-export function buildContext({ definition, cwd, challenges, team }) {
+export function buildContext({ definition, cwd, challenges, team, mailSeen }) {
   const teamId = team ? String(team._id) : ADMIN_PREVIEW_TEAM;
   const byCode = new Map(challenges.map((challenge) => [challenge.terminal.code, challenge]));
   let progressed;
@@ -100,6 +111,8 @@ export function buildContext({ definition, cwd, challenges, team }) {
     mode: definition,
     cwd: normalizeCwd(cwd, definition.home),
     seed: terminalSeed(teamId, definition.mode),
+    storySeed: storySeed(teamId),
+    mailSeen: cleanMailSeen(mailSeen),
     flag(n) {
       const challenge = byCode.get(Number(n));
       return challenge ? expectedFlagFor(challenge, { secret: env.FLAG_SECRET, teamId }) : UNAVAILABLE_FLAG;
@@ -162,31 +175,28 @@ export function progressView(definition, challenges, solves) {
 
 // Checks one submission against every code of the mode. Never echoes the submitted or an expected flag.
 export async function submitFlag({ definition, challenges, team, user, submitted }) {
-  // Rate limit is counted in MongoDB (all attempts on any code of this mode) so it holds across every replica.
-  const attempts = () => Submission.countDocuments({
-    teamId: team._id,
-    challengeId: { $in: challenges.map((challenge) => challenge._id) },
-    createdAt: { $gte: new Date(Date.now() - SUBMIT_WINDOW_MS) },
-  });
-  const limited = () => new AppError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.');
-  const [solves, recent] = await Promise.all([teamSolves(team, challenges), attempts()]);
-  if (recent >= SUBMIT_LIMIT) { throw limited(); }
-
+  const solves = await teamSolves(team, challenges);
   const ids = solvedIds(solves);
   const options = { secret: env.FLAG_SECRET, teamId: team._id, submitted };
   const fresh = matchDynamicFlag(challenges.filter((challenge) => !ids.has(String(challenge._id))), options);
   const earlier = matchDynamicFlag(challenges.filter((challenge) => ids.has(String(challenge._id))), options);
   const matched = fresh ?? earlier;
 
-  // Wrong attempts are stored against the mode's first code so the per-mode rate limit can count them.
+  // Rate limit (per team and mode, all replicas): the attempt is consumed atomically in MongoDB BEFORE the answer is
+  // revealed, so over the limit every outcome is 429, a correct flag included (a 429 never tells whether a guess was
+  // right, and a parallel burst can test at most SUBMIT_LIMIT guesses). Re-submitting a code the team already found
+  // is not a guess (the team already has that flag), so it stays idempotent and is never limited.
+  if (fresh || !matched) {
+    await consumeAttempt(`terminal:${team._id}:${definition.mode}`, {
+      limit: SUBMIT_LIMIT, windowMs: SUBMIT_WINDOW_MS, message: 'Too many attempts. Wait a minute and try again.',
+    });
+  }
+
+  // Wrong attempts are stored against the mode's first code (an audit trail of what was submitted).
   await Submission.create({
     teamId: team._id, userId: user._id, challengeId: (matched ?? challenges[0])._id,
     correct: Boolean(matched), submittedHash: hashSubmission(submitted),
   });
-  // Count-then-insert alone lets a parallel burst pass the limit together. Recounting after the insert closes that
-  // window: the k-th stored attempt sees at least k rows, so at most SUBMIT_LIMIT attempts get an answer. The 429 says
-  // nothing about correctness, so a burst cannot be used to test more than SUBMIT_LIMIT guesses.
-  if (await attempts() > SUBMIT_LIMIT) { throw limited(); }
 
   const total = challenges.length;
   if (!matched) {

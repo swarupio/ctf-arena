@@ -4,7 +4,7 @@ import app from '../../src/app.js';
 import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
 import { buildPuzzle, slugOf } from '../../src/games/cipherlab/game.js';
-import { LEVELS, MAX_POINTS, TRACKS, levelById, trackMaxPoints } from '../../src/games/cipherlab/levels.js';
+import { LEVELS, MAX_POINTS, TOOLS, TRACKS, levelById, trackMaxPoints } from '../../src/games/cipherlab/levels.js';
 import { ATTEMPT_LIMIT } from '../../src/games/cipherlab/service.js';
 import Challenge from '../../src/models/Challenge.js';
 import CipherHint from '../../src/models/CipherHint.js';
@@ -13,6 +13,7 @@ import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
 import User from '../../src/models/User.js';
 import { consumeAttempt } from '../../src/services/attemptLimiter.js';
+import { achievementService } from '../../src/services/achievementService.js';
 import { expectedFlagFor } from '../../src/services/flagService.js';
 import { integrityService } from '../../src/services/integrityService.js';
 import { AppError } from '../../src/utils/AppError.js';
@@ -141,7 +142,6 @@ describe('access', () => {
     teams[TEAM_A].banned = false;
     await api('get', '/levels/e1', 'admin').expect(200);
     await api('post', '/levels/e1/answer', 'admin', { answer: 'x' }).expect(403);
-    await api('post', '/levels/e1/hints', 'admin', {}).expect(403);
   });
 
   it('returns 503 until seeded', async () => {
@@ -249,6 +249,31 @@ describe('answers', () => {
     expect((await solveAnswer('e3')).body.streak).toBe(1);
   });
 
+  it('ignores resubmissions of an already solved level when counting the streak', async () => {
+    await solveAnswer('e1');
+    await solveAnswer('e2');
+    solves.find((row) => String(row.challengeId) === docOf('e1')._id).solvedAt = new Date(0); // solved before the resubmission
+    expect((await api('post', '/levels/e3/answer', 'player', { answer: 'nope' })).body.streak).toBe(0);
+    // A correct resubmission of e1 must not restart a streak after the miss.
+    const again = (await solveAnswer('e1')).body;
+    expect(again).toMatchObject({ alreadySolved: true, streak: 0 });
+  });
+
+  it('evaluates achievements after a new solve only, and adds badges when there are some', async () => {
+    const badge = { id: 'first-solve', name: 'First solve' };
+    const evaluate = vi.spyOn(achievementService, 'safeEvaluate').mockResolvedValue([badge]);
+    const first = (await solveAnswer('e1')).body;
+    expect(evaluate).toHaveBeenCalledWith({ userId: users.player._id, teamId: TEAM_A });
+    expect(first.badges).toEqual([badge]);
+    evaluate.mockClear();
+    expect((await solveAnswer('e1')).body.badges).toBeUndefined();
+    await api('post', '/levels/e2/answer', 'player', { answer: 'nope' });
+    expect(evaluate).not.toHaveBeenCalled();
+    evaluate.mockResolvedValue([]);
+    expect((await solveAnswer('e2')).body.badges).toBeUndefined();
+    evaluate.mockRestore();
+  });
+
   it('finishes a track and reports it, with a speed-run badge from the solve times', async () => {
     for (const id of ['e1', 'e2', 'e3']) { await solveAnswer(id); }
     const last = (await solveAnswer('e4')).body;
@@ -309,6 +334,28 @@ describe('hints', () => {
 
   it('cannot open hints of a locked level', async () => {
     await api('post', '/levels/e2/hints', 'player', {}).expect(403);
+  });
+});
+
+describe('admin preview', () => {
+  it('opens every tool, shows every hint and logs no CipherHint row', async () => {
+    const overview = (await api('get', '/overview', 'admin').expect(200)).body;
+    expect(overview.toolbox.every((tool) => tool.unlocked)).toBe(true);
+    const puzzle = (await api('get', '/levels/h4', 'admin').expect(200)).body;
+    expect(puzzle.hints).toHaveLength(puzzle.hintsTotal);
+    expect(puzzle.hintsTotal).toBeGreaterThan(0);
+    const opened = (await api('post', '/levels/m4/hints', 'admin', {}).expect(200)).body;
+    expect(opened.hints).toHaveLength(opened.total);
+    expect(CipherHint.updateOne).not.toHaveBeenCalled();
+    expect(hints).toHaveLength(0);
+    await api('post', '/levels/i1/hints', 'admin', {}).expect(403); // the Black Chamber still has none
+    await api('post', '/levels/e1/answer', 'admin', { answer: 'x' }).expect(403);
+  });
+
+  it('unlocks the pipeline with h3, before the boss hint that recommends it', async () => {
+    const pipeline = TOOLS.find((tool) => tool.id === 'pipeline');
+    expect(pipeline.unlockedBy).toBe('h3');
+    expect(levelById('h4').hints.join(' ')).toContain('pipeline');
   });
 });
 

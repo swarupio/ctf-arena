@@ -48,6 +48,10 @@ async function sudo(c) {
   if (opts.u && opts.u !== 'root') { c.err(`sudo: unknown user ${opts.u}\n`); return 1; }
   if (operands.length === 0) { c.err('usage: sudo [-lnE] [-u user] command\n'); return 1; }
   const [cmd, ...args] = operands;
+  if (cmd === 'make' && args.join(' ').toLowerCase() === 'me a sandwich') {
+    c.out('Okay.\n  _.-""""-._\n (__________)\n  ~~~~~~~~~~   one virtual sandwich, no crumbs on the read-only filesystem\n');
+    return 0;
+  }
   if (c.rc.fs.user !== 'root' && !entries.some((entry) => allowed(c, entry, cmd, args))) {
     c.err(DENIED);
     return 1;

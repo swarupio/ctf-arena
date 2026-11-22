@@ -5,6 +5,7 @@ import Challenge from '../../models/Challenge.js';
 import CipherHint from '../../models/CipherHint.js';
 import Solve from '../../models/Solve.js';
 import Submission from '../../models/Submission.js';
+import { achievementService } from '../../services/achievementService.js';
 import { consumeAttempt } from '../../services/attemptLimiter.js';
 import { hashSubmission } from '../../services/flagService.js';
 import { integrityService } from '../../services/integrityService.js';
@@ -79,23 +80,34 @@ export function speedrunOf(track, trackEntries, solveByDoc) {
   return { ms, badge };
 }
 
-// Consecutive correct answers, newest first, counting each level once.
-export async function streakOf(team, entries) {
+// Consecutive correct answers, newest first, counting each level once. Attempts made after a level was already solved
+// (resubmissions to read the flag again) are ignored: they neither extend nor break the streak.
+// `knownSolves` (rows or a promise of them) spares the second read of the team's solves when the caller already has them.
+export async function streakOf(team, entries, knownSolves) {
   if (!team || entries.length === 0) { return 0; }
   const levelOf = new Map(entries.map(({ level, doc }) => [String(doc._id), level.id]));
-  const rows = await Submission.find({ teamId: team._id, challengeId: { $in: [...levelOf.keys()] } })
-    .sort({ createdAt: -1 }).limit(STREAK_LOOKBACK).lean();
+  const [rows, solves] = await Promise.all([
+    Submission.find({ teamId: team._id, challengeId: { $in: [...levelOf.keys()] } })
+      .sort({ createdAt: -1 }).limit(STREAK_LOOKBACK).lean(),
+    knownSolves ?? teamSolves(team, entries),
+  ]);
+  const solvedAt = new Map(solves.map((solve) => [String(solve.challengeId), new Date(solve.solvedAt).getTime()]));
   const seen = new Set();
   for (const row of rows) {
+    const key = String(row.challengeId);
+    const solvedTime = solvedAt.get(key);
+    // The first correct answer is stored just before its Solve row, so a later row belongs to a resubmission.
+    if (solvedTime !== undefined && row.createdAt && new Date(row.createdAt).getTime() > solvedTime) { continue; }
     if (!row.correct) { break; }
-    seen.add(levelOf.get(String(row.challengeId)));
+    seen.add(levelOf.get(key));
   }
   return seen.size;
 }
 
-const unlockedTools = (entries, solvedIds) => {
+const unlockedTools = (entries, solvedIds, admin) => {
   const solvedLevels = new Set(entries.filter(({ doc }) => solvedIds.has(String(doc._id))).map(({ level }) => level.id));
-  return TOOLS.map((tool) => ({ ...tool, unlocked: tool.unlockedBy === null || solvedLevels.has(tool.unlockedBy) }));
+  // Admins preview everything, so every tool is open for them.
+  return TOOLS.map((tool) => ({ ...tool, unlocked: admin || tool.unlockedBy === null || solvedLevels.has(tool.unlockedBy) }));
 };
 
 export function overviewView({ entries, solves, streak, admin }) {
@@ -137,7 +149,7 @@ export function overviewView({ entries, solves, streak, admin }) {
     total: entries.length,
     streak,
     tracks,
-    toolbox: unlockedTools(entries, solvedIds),
+    toolbox: unlockedTools(entries, solvedIds, admin),
   };
 }
 
@@ -179,14 +191,20 @@ export async function puzzleView({ entries, entry, team, admin }) {
     ...publicPuzzle(built),
     hintsAllowed: track.hints,
     hintsTotal: texts.length,
-    hints: texts.slice(0, used),
+    // Admin preview reads every hint; nothing is logged for them (they have no team).
+    hints: admin ? texts : texts.slice(0, used),
   };
 }
 
-export async function openHint({ entries, entry, team, user }) {
+export async function openHint({ entries, entry, team, user, admin = false }) {
   const { level } = entry;
   const track = TRACKS.find((item) => item.id === level.track);
   if (!track.hints) { throw new AppError(403, 'NO_HINTS', 'The Black Chamber gives no hints.'); }
+  if (admin) {
+    // Preview only: reveal every hint of the admin-preview puzzle and write no CipherHint row.
+    const texts = hintTexts(level, buildPuzzle(level, { secret: env.FLAG_SECRET, teamId: ADMIN_PREVIEW_TEAM }));
+    return { index: texts.length - 1, hint: texts[texts.length - 1], used: texts.length, total: texts.length, hints: texts };
+  }
   const { status } = await statusFor(entries, entry, team, false);
   requireOpen(status);
   const texts = hintTexts(level, buildPuzzle(level, { secret: env.FLAG_SECRET, teamId: teamKey(team) }));
@@ -236,17 +254,21 @@ export async function submitAnswer({ entries, entry, team, user, answer }) {
   const alreadySolved = status === 'solved';
   const solve = alreadySolved ? null : await recordSolve({ challenge, teamId: team._id, userId: user._id });
   const duplicate = alreadySolved || !solve;
+  const badges = solve ? await achievementService.safeEvaluate({ userId: user._id, teamId: team._id, memberCount: team.memberIds?.length }) : []; // cosmetic; never throws
   const solvedNow = new Set([...solves.map((row) => String(row.challengeId)), String(doc._id)]);
   const trackEntries = entriesOf(entries, level.track);
   const next = trackEntries.find((item) => !solvedNow.has(String(item.doc._id)));
   return {
+    ...(badges.length ? { badges } : {}),
     correct: true,
     alreadySolved: duplicate,
     pointsAwarded: duplicate ? 0 : solve.points,
     firstBlood: false,
     flag,
     message: duplicate ? 'Your team already cracked this one.' : pickMessage(RIGHT, submittedHash),
-    streak: await streakOf(team, entries),
+    // The solves read for the status check plus the one just recorded: no second read of Solve (the new row's time is now,
+    // always later than this attempt's own Submission, exactly like the stored one). A duplicate re-reads, as before.
+    streak: await streakOf(team, entries, solve && !alreadySolved ? [...solves, { challengeId: doc._id, solvedAt: new Date() }] : undefined),
     trackComplete: !next,
     nextLevelId: next?.level.id ?? null,
   };

@@ -30,6 +30,8 @@ vi.mock('../../src/models/Instance.js', () => ({
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), exists: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn(), countDocuments: vi.fn() } }));
 vi.mock('../../src/services/scoringService.js', () => ({ recordSolve: vi.fn() }));
+// The submit limiter is stored in MongoDB; this file is about the seed, so the limiter is a no-op here.
+vi.mock('../../src/services/attemptLimiter.js', () => ({ consumeAttempt: vi.fn() }));
 vi.mock('../../src/services/instanceService.js', () => ({
   instanceService: {
     start: vi.fn(), stop: vi.fn(), extend: vi.fn(), stopTeamChallenge: vi.fn(), stopChallengeInstances: vi.fn(),

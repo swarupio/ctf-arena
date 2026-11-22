@@ -71,6 +71,8 @@ export const MANUAL = {
   clear: ['clear', 'clear the screen (or press Ctrl+L)', [], [['clear', 'tidy up']]],
   history: ['history', 'your command history lives in the browser (up arrow)', [], [['history', 'where is it?']]],
   motd: ['motd', 'show the message of the day', [], [['motd', 'welcome text']]],
+  mail: ['mail [N ...]', 'read the mailbox that grows as your team recovers codes', [['N', 'read message number N']], [['mail', 'list your messages'], ['mail 2', 'read message 2']]],
+  novi: ['novi', 'say hello to the onboarding bot', [], [['novi', 'NOVI answers']]],
   test: ['test EXPRESSION  or  [ EXPRESSION ]', 'check file types and compare values', [['-f FILE', 'is a regular file'], ['-d FILE', 'is a directory'], ['-e FILE', 'exists'], ['-r/-w/-x FILE', 'readable/writable/executable']], [['[ -f notes.txt ] && echo yes', 'conditional']]],
   expr: ['expr A OP B', 'simple arithmetic', [], [['expr 6 \\* 7', '42']]],
   tee: ['tee [-a] FILE...', 'copy input to a file under /tmp and to the screen', [], [['echo hi | tee /tmp/x', 'save and show']]],
@@ -89,5 +91,5 @@ export const CATEGORIES = [
   ['search', 'grep find'],
   ['transform text', 'sort uniq cut tr rev sed awk diff comm paste column xargs seq base64 gunzip zcat md5sum sha256sum'],
   ['the machine', 'whoami id hostname uname date env ps crontab last who uptime df sudo vault'],
-  ['game', 'hint status help man motd clear history'],
+  ['game', 'hint status mail help man motd clear history'],
 ];

@@ -9,7 +9,7 @@ import { requireRole } from '../middleware/requireRole.js';
 import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { getTeamContext } from '../services/teamContext.js';
 import { AppError } from '../utils/AppError.js';
-import { validate } from './challenges.js';
+import { both, validate } from './challenges.js';
 
 const router = Router();
 
@@ -33,7 +33,8 @@ router.get('/overview', anyRole, async (req, res) => {
   const admin = req.user.role === 'admin';
   const { team } = admin ? { team: null } : await getTeamContext(req.user, { requireTeam: false, blockBanned: false });
   const entries = await loadGame();
-  const [solves, streak] = await Promise.all([teamSolves(team, entries), streakOf(team, entries)]);
+  const pending = teamSolves(team, entries); // shared with the streak, so the team's solves are read once
+  const [solves, streak] = await Promise.all([pending, streakOf(team, entries, pending)]);
   res.json(overviewView({ entries, solves, streak, admin }));
 });
 
@@ -45,20 +46,20 @@ router.get('/levels/:id', anyRole, async (req, res) => {
   res.json(await puzzleView({ entries, entry: findEntry(entries, id), team, admin }));
 });
 
-router.post('/levels/:id/hints', playerOnly, async (req, res) => {
+router.post('/levels/:id/hints', anyRole, async (req, res) => {
   const id = levelId(req.params);
   validate(emptyBody, req.body ?? {});
-  const { user, team } = await getTeamContext(req.user);
+  const admin = req.user.role === 'admin';
+  const { user, team } = admin ? { user: null, team: null } : await getTeamContext(req.user);
   const entries = await loadGame();
-  res.json(await openHint({ entries, entry: findEntry(entries, id), team, user }));
+  res.json(await openHint({ entries, entry: findEntry(entries, id), team, user, admin }));
 });
 
 router.post('/levels/:id/answer', playerOnly, async (req, res) => {
   const id = levelId(req.params);
   const { answer } = validate(answerBody, req.body);
   await assertSubmissionsOpen();
-  const { user, team } = await getTeamContext(req.user);
-  const entries = await loadGame();
+  const [{ user, team }, entries] = await both(getTeamContext(req.user), loadGame()); // independent reads, one round trip
   res.json(await submitAnswer({ entries, entry: findEntry(entries, id), team, user, answer }));
 });
 

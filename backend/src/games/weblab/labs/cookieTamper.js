@@ -19,7 +19,7 @@ export default {
   hints: [
     'Look at the prefs cookie in the inspector. It looks like random letters, but is it encrypted?',
     'It is base64 text. Decode it (the Decoder tool unlocks after your first solve, or use any base64 tool).',
-    'The decoded JSON has a flag-like boolean and a tier. Change what the server trusts, encode it again and send it back.',
+    'The decoded JSON has a tier and a true/false field that says whether you are an admin. Change what the server trusts, encode it again and send it back.',
   ],
   points: 30,
   severity: 'medium',

@@ -11,6 +11,7 @@ import {
   FsView, cmpBytes, dir, joinPath, readFileBytes, renderTokens, resolvePath, tokenSource,
 } from './vfs.js';
 import { buildRegistry } from './commands/index.js';
+import { storyContext, storyContextSync } from './story.js';
 import {
   asBuf, asText, errnoText, levenshtein,
 } from './commands/util.js';
@@ -389,9 +390,11 @@ function sanitize(text) {
 }
 
 export async function execute(line, ctx = {}) {
-  const safeCtx = ctx && typeof ctx === 'object' ? ctx : {};
   let rc;
+  let safeCtx = ctx && typeof ctx === 'object' ? ctx : {};
   try {
+    // The living story (docs/TERMINAL_GAME.md section 18): mail and log files derived from this team's progress.
+    safeCtx = await storyContext(safeCtx);
     rc = makeRc(safeCtx);
   } catch {
     return { output: 'bash: internal error', cwd: '/', exit: 1 };
@@ -436,7 +439,7 @@ const escapeWord = (text) => text.replace(/[ !"#$&'()*;<>?[\\\]`{|}~]/g, '\\$&')
 export function complete(partial, ctx = {}) {
   try {
     const text = String(partial ?? '').slice(0, 300);
-    const rc = makeRc(ctx && typeof ctx === 'object' ? ctx : {});
+    const rc = makeRc(storyContextSync(ctx && typeof ctx === 'object' ? ctx : {}));
     let wordStart = 0;
     let commandPosition = true;
     let commandWord = '';

@@ -10,17 +10,21 @@ import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { integrityService } from '../services/integrityService.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
-  buildContext, completeResponse, execResponse, loadChallengesByMode, loadModeChallenges,
+  MAIL_SEEN_MAX, buildContext, completeResponse, execResponse, loadChallengesByMode, loadModeChallenges,
   normalizeCwd, progressView, submitFlag, summarizeMode, teamSolves,
 } from '../services/terminalService.js';
 import { MODE_NAMES, MODES, getMode } from '../terminal/modes/index.js';
 import { complete, execute } from '../terminal/shell.js';
-import { validate } from './challenges.js';
+import { both, validate } from './challenges.js';
 
 const router = Router();
 
 const modeParams = z.object({ mode: z.enum(MODE_NAMES) }).strict();
-const execBody = z.object({ command: z.string().max(300), cwd: z.string().max(200).optional() }).strict();
+const execBody = z.object({
+  command: z.string().max(300),
+  cwd: z.string().max(200).optional(),
+  mailSeen: z.number().int().min(0).max(MAIL_SEEN_MAX).optional(),
+}).strict();
 const completeBody = z.object({ partial: z.string().max(200), cwd: z.string().max(200).optional() }).strict();
 const submitBody = z.object({ flag: z.string().trim().min(1).max(200) }).strict();
 
@@ -66,7 +70,7 @@ router.get('/:mode/progress', anyRole, async (req, res) => {
 
 router.post('/:mode/exec', anyRole, async (req, res) => {
   const definition = modeFrom(req.params);
-  const { command, cwd } = validate(execBody, req.body);
+  const { command, cwd, mailSeen } = validate(execBody, req.body);
   const { user, team } = await playingTeam(req);
   // Fair play (docs/FAIR_PLAY.md), players only and before any work: pacing rules answer 429 SLOW_DOWN, and a canary
   // command (something only an automated assistant would type) gets a believable reply carrying a tainted flag.
@@ -79,7 +83,7 @@ router.post('/:mode/exec', anyRole, async (req, res) => {
   }
   // One lean read gives the ids and slugs the synchronous flag(n) needs; progress() reads Solve only on demand.
   const challenges = await loadModeChallenges(definition);
-  const result = await execute(command, buildContext({ definition, cwd, challenges, team }));
+  const result = await execute(command, buildContext({ definition, cwd, challenges, team, mailSeen }));
   res.json(execResponse(result, definition));
 });
 
@@ -96,12 +100,11 @@ router.post('/:mode/submit', playerOnly, async (req, res) => {
   const definition = modeFrom(req.params);
   const { flag } = validate(submitBody, req.body);
   await assertSubmissionsOpen();
-  const { user, team } = await getTeamContext(req.user);
-  const challenges = await loadModeChallenges(definition);
+  const [{ user, team }, challenges] = await both(getTeamContext(req.user), loadModeChallenges(definition)); // independent reads
   const result = await submitFlag({ definition, challenges, team, user, submitted: flag });
   // A wrong flag may be a copied decoy: one indexed lookup, a signal if so, and the same answer either way.
   if (result.correct === false) { await integrityService.checkSubmittedFlag({ flag, user }); }
-  const badges = result.pointsAwarded > 0 ? await achievementService.safeEvaluate({ userId: user._id, teamId: team._id }) : [];
+  const badges = result.pointsAwarded > 0 ? await achievementService.safeEvaluate({ userId: user._id, teamId: team._id, memberCount: team.memberIds?.length }) : [];
   res.json(badges.length ? { ...result, badges } : result);
 });
 

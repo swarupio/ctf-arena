@@ -6,10 +6,13 @@
 // screen (a step can be a function of the earlier outputs) and runs under two different seeds.
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { execute } from '../../src/terminal/shell.js';
 import hard, { buildHardFs } from '../../src/terminal/modes/hard.js';
 import { BAIT_FILE_COMMENT, BAIT_NOTICE_LINES } from '../../src/services/integrityBait.js';
+
+// The scripted solutions run the whole engine under several seeds; under load 20s is not enough.
+vi.setConfig({ testTimeout: 60_000 });
 
 const flag = (n) => 'CTF{test_flag_' + n + '}';
 const real33 = (n) => `CTF{terminal_hard_${n}_0123456789ab}`; // the real shape: CTF{<slug>_<12 hex>}
