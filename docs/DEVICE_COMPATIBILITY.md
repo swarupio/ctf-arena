@@ -164,3 +164,7 @@ node terminal.cjs
 PLAYWRIGHT=/tmp/pw/node_modules/playwright PLAYWRIGHT_BROWSERS_PATH=/tmp/pw/browsers ENGINES=webkit,firefox node engines.cjs
 NARROW=160,200 PLAYWRIGHT=/tmp/pw/node_modules/playwright PLAYWRIGHT_BROWSERS_PATH=/tmp/pw/browsers node engines.cjs   # same pages at narrow widths
 ```
+
+### Home hero first screen
+
+`docs/harness/hero.cjs` (same dev server as above; `PORT=... OUT=<dir> TAG=<name> node hero.cjs`, add `TOP=1` for the first-content gap of ten other pages at 1273 x 627). For 10 viewports (1273x627, 1366x768, 1536x730, 1920x940, 2560x1300, 1024x700, 1273x560, 1273x1100, 390x844, 844x390), light and dark, logged out, player and admin, it measures header bottom, gap above the hero, hero bottom including its offset shadow, gap to the next section and sideways overflow, and saves a screenshot per state. Pass means: on screens at least 560 px high and 700 px wide the whole panel with its shadow is inside the first viewport and the gaps above and below differ by at most 8 px (they are equal); no screen scrolls sideways. A landscape phone (844x390) is shorter than the header plus the panel and simply scrolls.

@@ -47,6 +47,8 @@ Update this file whenever a task finishes or starts. Vocabulary rules: `docs/VOC
 | Merged to `main` (local, not pushed) | `5c4b35e` backend polish (6 themed commits), `cdbbd77` category tools and play screens, `2ba2d0e` The Range, dark theme and shared layout, plus the docs commit; all under the owner's git identity, no attribution lines | each area verified before its commit |
 
 ## In progress
+- Recording fixes DONE so far: theme toggle (two-state header switch, System selector in footer and mobile menu), dead controls (Start instance and Submit replaced by explanation panels for admins, missing team, ban, Docker unavailable and closed events; same for the game answer forms). Open: hover contrast, hero spacing, visual review. Known gap: a banned TEAM (not account) is only detected after the server refuses, since `/me` has no team-ban field.
+- Owner-recording fixes (2026-11-22, recording 0848-50): five agents running at the owner's real window size (about 1273x627 CSS px at 150% scaling): dark-mode hover contrast (root cause: global `a:hover` colour not reset by components that only override the hover background, hits nav links and challenge cards), theme toggle redesign (two-state light/dark in the header; System moves to the footer and mobile menu), Home hero and top-of-page spacing, dead controls (Start instance for admins and when Docker is unavailable, plus the same anti-pattern elsewhere), and a read-only visual review of the whole recording and every page in both themes. Checks use the stubbed-auth harness (`docs/harness`) because the owner's real login (Cognito) and Claude in Chrome (needs a claude.ai plan, owner uses an API key) are not available to agents.
 - Standing fixer round 2 (not started): dead-export sweep with a correct script, vocabulary check of `.js` copy in `frontend/src/demo` and `frontend/src/debrief`, dead `pointerToBoard` / `isDrag` in `osint/board.js`, minor `useTimeline` stale render; log in `docs/FIXLOG.md`.
 - Final clean-up: stop leftover Vite and headless Chrome processes from agent harnesses (keep the owner's dev server on 5173).
 
@@ -55,7 +57,7 @@ Update this file whenever a task finishes or starts. Vocabulary rules: `docs/VOC
 - Push `main` to GitHub when the owner says so (merges are local only).
 
 ## Owner actions (only the owner can do these)
-- Run `cd backend && npm run db:indexes` against Atlas (new indexes and the `osintboards` and `crackmepatches` collections), then drop the redundant `solvedAt_1` index of `solves` by hand (`db.solves.getIndexes()` first; details in `docs/QUERY_PERFORMANCE.md`).
+- DONE by the owner (2026-11-22): `npm run db:indexes` run against Atlas and the redundant `solvedAt_1` index of `solves` dropped (reported by the owner; not independently checked: open `/api/health` and confirm `"indexes": "ok"`).
 - Log in as admin once and click through Team, Challenges, The Range, Leaderboard, Home, Skills and the Cipher Lab hints (agents could not pass Cognito login); try the new "Forgot password?" flow with a real account.
 - Open the site on a real phone through the dev server's LAN address (`--host`) and report anything that feels off; try the dark theme toggle there too.
 - Decide: should an event close submissions on the practice categories too? Today the shared guard does (before start and after end); the alternative is to gate only the Challenges board (the tagline says the Range is for practice).

@@ -20,6 +20,7 @@
 .cm-rung-link { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--space-3); padding: var(--space-2) var(--space-3); min-height: 44px; color: inherit; text-decoration: none; border: 1px solid var(--color-line-soft); background: var(--color-surface); }
 a.cm-rung-link:focus-visible { border-color: var(--color-line); background: var(--color-accent); color: var(--color-on-accent); }
 @media (hover: hover) { a.cm-rung-link:hover { border-color: var(--color-line); background: var(--color-accent); color: var(--color-on-accent); } }
+@media (hover: hover) { a.cm-rung-link:hover .cm-status-solved { color: var(--color-on-accent); } a.cm-rung-link:hover .cm-rung-meta { color: var(--color-on-accent-muted); } }
 .is-locked .cm-rung-link { color: var(--color-muted); background: var(--color-surface-2); cursor: not-allowed; }
 .is-solved .cm-rung-link { background: var(--color-accent-tint); border-color: var(--color-line); }
 .is-boss .cm-rung-title { font-weight: 700; }
@@ -48,7 +49,7 @@ a.cm-rung-link:focus-visible { border-color: var(--color-line); background: var(
 .cm-listing li.is-current { background: var(--term-accent-tint); }
 .cm-listing li.is-patched .cm-arg { color: var(--term-warn-alt); }
 .cm-row { display: grid; grid-template-columns: 1.4ch 1.6ch 4ch 7ch 11ch minmax(0, 1fr); gap: var(--space-2); align-items: center; width: 100%; min-height: 28px; padding: 2px var(--space-3); border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none; }
-@media (hover: hover) { .cm-row:hover { background: var(--term-bg-row); } }
+@media (hover: hover) { .cm-row:hover:not(:disabled) { color: inherit; background: var(--term-bg-row); } }
 .cm-row:focus-visible { outline: 3px solid var(--color-accent); outline-offset: -3px; }
 .cm-bp { color: var(--term-danger-hot); }
 .cm-arrow { color: var(--color-accent); }
