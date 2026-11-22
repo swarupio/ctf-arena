@@ -71,7 +71,7 @@ The site is then on http://localhost (set `NGINX_HOST_PORT` in `.env` if port 80
 First-time data and challenge images (once per database / per machine):
 ```bash
 cd backend && npm run seed:challenges      # registers challenges/*/challenge.json in MongoDB (repeatable)
-cd backend && npm run seed:terminal && npm run seed:cipherlab && npm run seed:weblab && npm run seed:forensics   # the games (all repeatable)
+cd backend && npm run seed:terminal && npm run seed:cipherlab && npm run seed:weblab && npm run seed:forensics   # the range categories (all repeatable)
 cd backend && npm run seed && npm run seed:demo   # optional demo teams, then a few solves so the leaderboard is not empty (`-- --reset` removes the solves); `seed` refuses to run with NODE_ENV=production
 cd ..
 for d in challenges/*/; do s=$(basename "$d"); [ -f "$d/Dockerfile" ] && [ "${s#_}" = "$s" ] && docker build -t "ctf/$s" "$d"; done
@@ -99,8 +99,10 @@ docker compose -f docker-compose.yml -f docker-compose.localdb.yml up -d --build
 
 - The first start has an empty database. Fill it from the `backend` folder:
   `MONGODB_URI='mongodb://127.0.0.1:27017/ctf-arena?directConnection=true'` then `npm run seed:challenges`, `seed:terminal`,
-  `seed:cipherlab`, `seed:weblab`, `seed:forensics` and optionally `npm run seed` followed by `npm run seed:demo`
+  `seed:cipherlab`, `seed:weblab`, `seed:forensics`, `seed:crackme`, `seed:osint` and optionally `npm run seed` followed by `npm run seed:demo`
   (on Windows PowerShell set `$env:MONGODB_URI` first). All seeds can be run again safely.
+- After pulling new releases run `npm run db:indexes` once against the real database: it creates missing indexes only (for
+  example the unique indexes of the OSINT board and Crackme Patch Bay collections and the extra `solves` and `submissions` indexes).
 - The `.env` used by Compose still needs the other variables of `.env.example` (Cognito ids, `FLAG_SECRET`); its `MONGODB_URI` is
   overridden inside the containers by the local database file.
 - Ports taken? The files publish host port 80 (`NGINX_HOST_PORT` in `.env` changes it) and `127.0.0.1:27017` (MongoDB). For MongoDB add a

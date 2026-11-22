@@ -4,7 +4,7 @@ This file is read by AI coding tools (Codex CLI reads `AGENTS.md` automatically;
 copy it to `CLAUDE.md`). Humans should read it too: it is the shortest summary of how this repo works.
 
 ## 1. Project in one paragraph
-**Mini CTF Arena** is a cloud-hosted Capture-The-Flag platform. Players sign in with Cognito (password + TOTP MFA),
+**CTF Arena** is a cloud-hosted Capture-The-Flag platform. Players sign in with Cognito (password + TOTP MFA),
 join a team, start a private Docker container per challenge, submit flags, and appear on a live leaderboard.
 Backend replicas run behind Nginx; data lives in MongoDB Atlas. Three people build it in order:
 **Swarup (Phase 1) -> Gururaj (Phase 2) -> Shubham (Phase 3)**.
@@ -20,14 +20,14 @@ Node.js 20, Express, Mongoose (MongoDB Atlas), `dockerode`, `aws-jwt-verify`, `z
 Vitest or Jest + Supertest. Frontend: React + Vite + React Router + `aws-amplify` (Auth only).
 Infra: Vercel (hosting), Docker Compose + Nginx (local full-stack mode with Docker challenges), GitHub Actions (CI). IAM/MFA: AWS Cognito (the only AWS service).
 
-## 4. Repository layout (target)
+## 4. Repository layout
 ```
 ctf-arena/
 ├── AGENTS.md
 ├── README.md
-├── docker-compose.yml
-├── .env.example
-├── docs/                      # all documentation, handoffs in docs/handoffs/
+├── docker-compose.yml  docker-compose.localdb.yml   # local full stack (the second adds a local MongoDB)
+├── vercel.json  .env.example
+├── docs/                      # all documentation (index in README.md), handoffs in docs/handoffs/, screenshot harness in docs/harness/
 ├── nginx/nginx.conf
 ├── backend/
 │   ├── Dockerfile
@@ -35,14 +35,20 @@ ctf-arena/
 │   ├── src/
 │   │   ├── app.js  server.js
 │   │   ├── config/            # env.js, db.js, cognito.js
-│   │   ├── middleware/        # auth.js, requireRole.js, errorHandler.js, servedBy.js
-│   │   ├── models/            # User Team Challenge Instance Submission Solve
-│   │   ├── routes/            # auth teams challenges instances leaderboard health admin/*
-│   │   ├── services/          # dockerService flagService scoringService reaper
-│   │   └── scripts/seed.js
-│   └── tests/
+│   │   ├── middleware/        # auth.js, requireRole.js, errorHandler.js, servedBy.js, requestCounter.js, lazyRouter.js
+│   │   ├── models/            # 19 models: User Team Challenge Instance Submission Solve + admin, fair-play, hint and counter models
+│   │   ├── routes/            # auth teams challenges instances leaderboard health announcement event social honeypot admin/* + one per range category
+│   │   ├── services/          # dockerService flagService scoringService reaper admin* leaderboardService *Service per range category
+│   │   ├── games/             # range categories: cipherlab crackme weblab (level data + services)
+│   │   ├── terminal/          # Arena Terminal shell, modes and regex engine
+│   │   ├── forensics/ osint/  # generators and case definitions
+│   │   ├── utils/             # AppError and small helpers
+│   │   └── scripts/           # seed*.js, syncIndexes.js (npm run db:indexes), repair scripts
+│   └── tests/                 # Vitest, one folder per area (admin, cipherlab, crackme, event, forensics, osint, security, terminal, weblab, ...)
 ├── frontend/
-│   └── src/ { auth/ api/ layout/ pages/ components/ }
+│   ├── tests/                 # node --test
+│   └── src/ { auth/ api/ layout/ pages/ pages/admin/ components/ admin/ games/ (Range registry) terminal/ cipherlab/ forensics/ osint/
+│            hints/ onboarding/ skills/ debrief/ event/ theme/ demo/ fairplay/ }
 ├── challenges/
 │   ├── _template/
 │   └── <challenge-slug>/      # Dockerfile + app + README (solution notes)

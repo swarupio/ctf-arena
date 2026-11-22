@@ -177,7 +177,7 @@ admin dashboard must be complete. Items marked `(agent)` were built by parallel 
 
 ### Bugs
 - [x] **P4-06 Terminal score discrepancy.** Max is 160 but a player reached 176 (suspected double-count or first-blood bonus 160 x 1.1). Root cause fixed, scores can never exceed the documented maximum, regression + concurrency tests.
-  *Done (2026-11-22):* root cause was the 10% first-blood bonus applied to terminal codes (4 x 44 = 176). First blood is now an allowlist (`static`, `docker` only) in `scoringService`, so no game can exceed its maximum. Regression tests added. **Stored inflated scores are repaired only by running `node src/scripts/repairTerminalScores.js` against the real database; it has NOT been run.**
+  *Done (2026-11-22):* root cause was the 10% first-blood bonus applied to terminal codes (4 x 44 = 176). First blood is now an allowlist (`static`, `docker` only) in `scoringService`, so no range category can exceed its maximum. Regression tests added. **Stored inflated scores are repaired only by running `node src/scripts/repairTerminalScores.js` against the real database; it has NOT been run.**
 - [x] **P4-07 Terminal output errors.** Runtime errors in terminal command output investigated and fixed.
   *Done (2026-11-22):* the terminal fuzzed across all commands and modes; two real bugs fixed (`hexdump`/`od` printed `NaN`; the output cap could split an emoji). The exact error the owner saw was not reproduced; it may be the 300 ms fair-play "easy there" message or the 300-character input limit.
 
@@ -193,24 +193,37 @@ admin dashboard must be complete. Items marked `(agent)` were built by parallel 
 
 ### Admin dashboard v2
 - [x] **P4-12 Admin API v2.** Stats and time series, users, teams (incl. score adjustment with audit), challenges (publish, duplicate, import/export without flags), submissions and solves, integrity review, instances, audit log, platform settings and announcement, CSV export. Contract in `docs/API_SPEC.md` "Admin API v2".
-  *Done (2026-11-22):* Admin API v2 (users, teams, challenges, solves, integrity, instances, audit log, settings, CSV) plus follow-ups (adjustment rows excluded from solve counts, banned users blocked, game challenges editable only for title/description/visibility). Contract in `docs/API_SPEC.md`.
+  *Done (2026-11-22):* Admin API v2 (users, teams, challenges, solves, integrity, instances, audit log, settings, CSV) plus follow-ups (adjustment rows excluded from solve counts, banned users blocked, range challenges editable only for title/description/visibility). Contract in `docs/API_SPEC.md`.
 - [x] **P4-13 Admin dashboard UI.** Sidebar layout, overview charts, and a page per area from P4-12, all admin-guarded.
   *Done (2026-11-22):* ten lazy admin sections with a shared kit and a site-wide announcement banner. Verified by tests and build only; not exercised in a browser or against a real `admin` login.
 - [ ] **P4-14 Admin QA.** Real `admin` Cognito user walkthrough of every admin page and action.
 
 ### Close-out
-- [ ] **P4-15 Docs sync and final tag.** API_SPEC, DATABASE_SCHEMA, README, SETUP match the code; tag `v1.1-vercel`. (The older `v1.0-release` tag sits on `580482e`, before the terminal game; leave it as the presentation snapshot.)
+- [ ] **P4-15 Docs sync and final tag.** API_SPEC, DATABASE_SCHEMA, README, SETUP match the code; tag `v1.1-vercel`. (The older `v1.0-release` tag sits on `580482e`, before the Arena Terminal; leave it as the presentation snapshot.)
+  *Status (2026-11-22):* the docs half is done and checked by script: `docs/API_SPEC.md` matches every route in `backend/src/routes` (103 routes, method, path and role), `docs/DATABASE_SCHEMA.md` matches all 19 models, README has a docs index and every relative link resolves. The tag `v1.1-vercel` is an owner action and stays open.
 
-### New games and fun features (added 2026-11-22)
-All games are serverless-safe (no Docker), per-team, stateless, with fixed points and **no first-blood bonus**; each has Easy, Medium, Hard and Insane tracks and a boss.
+### New range categories and fun features (added 2026-11-22)
+All range categories are serverless-safe (no Docker), per-team, stateless, with fixed points and **no first-blood bonus**; each has Easy, Medium, Hard and Insane tracks and a boss.
 - [x] **P4-16 Achievements and profile.** 21 badges, profile page, activity feed, daily spotlight, celebrations (cosmetic only, scoring untouched).
 - [x] **P4-17 Cipher Lab.** 15 levels, max 2060. `docs/CIPHER_LAB.md`.
 - [x] **P4-18 Web Exploit Lab.** 10 simulated labs, max 1470. `docs/WEB_EXPLOIT_LAB.md`.
 - [x] **P4-19 Forensics Desk.** 20 stages, max 2310. `docs/FORENSICS_DESK.md`.
 - [x] **P4-20 Crackme Arcade.** 16 cabinets with a sandboxed VM and debugger, max 1905. `docs/CRACKME_ARCADE.md`.
-- [x] **P4-21 Games hub.** `/games` page driven by `frontend/src/games/registry.js`; single Games nav link; terminal badge toast.
+- [x] **P4-21 The Range hub.** `/range` page (renamed from `/games`, which redirects) driven by `frontend/src/games/registry.js`; single Range nav link; terminal badge toast.
 - [x] **P4-22 Docker local-mode QA.** Stack, seeds, limits and reaper verified locally; route-matrix test flake fixed.
 - [x] **P4-23 OSINT Trail.** 4 cases, 22 questions, max 2300, fully fictional generated world. `docs/OSINT_TRAIL.md`.
-- [ ] **P4-24 Seed the new games.** Run `seed:cipherlab`, `seed:weblab`, `seed:forensics`, `seed:crackme` (and `seed:osint`) against the real database before the games appear.
-- [x] **P4-25 Security review and fixes.** Independent read-only review of the merged code. Fixed: terminal ReDoS (player regex now runs on a linear-time Pike VM, pathological patterns return in ~1 ms instead of 20+ s), submissions-frozen now enforced on all five game answer routes, index guard (`indexes: ok|missing` on `/api/health` plus a startup warning), fair-play signal writes awaited on serverless, challenge network `enable_icc=false`, Web Lab points taken from code, admin edit protection for all code-defined game types, Forensics decoy-flag check. **Left for the owner:** the default `displayName` is the email local part and is readable by user id through `GET /api/players/:id/profile`; `/api/health` exposes the container hostname (by design).
-- [ ] **P4-26 Owner actions still open.** (1) Push `main` (not pushed; `origin/main` is branch-protected). (2) Run `node src/scripts/repairTerminalScores.js` on the real database to remove the inflated terminal first-blood bonus (NOT run). (3) Run the new seed scripts (P4-24). (4) On a fresh Atlas database run `npm run db:indexes` once. (5) Real Vercel deploy (P4-05) and Cognito callback URLs. (6) Admin QA with a real admin login (P4-14). (7) Decide whether admins may keep editing terminal challenge points (it can break the documented 160/450/1080 maximums).
+- [ ] **P4-24 Seed the new range categories.** Run `seed:cipherlab`, `seed:weblab`, `seed:forensics`, `seed:crackme` (and `seed:osint`) against the real database before the categories appear.
+- [x] **P4-25 Security review and fixes.** Independent read-only review of the merged code. Fixed: terminal ReDoS (player regex now runs on a linear-time Pike VM, pathological patterns return in ~1 ms instead of 20+ s), submissions-frozen now enforced on all five range answer routes, index guard (`indexes: ok|missing` on `/api/health` plus a startup warning), fair-play signal writes awaited on serverless, challenge network `enable_icc=false`, Web Lab points taken from code, admin edit protection for all code-defined range types, Forensics decoy-flag check. **Left for the owner:** the default `displayName` is the email local part and is readable by user id through `GET /api/players/:id/profile`; `/api/health` exposes the container hostname (by design).
+- [ ] **P4-26 Owner actions still open.** (1) Push `main` (not pushed; `origin/main` is branch-protected). (2) Run `node src/scripts/repairTerminalScores.js` on the real database to remove the inflated terminal first-blood bonus (NOT run). (3) Run the new seed scripts (P4-24). (4) Run `cd backend && npm run db:indexes` against the real database (new indexes: solves `{userId,solvedAt}` and `{challengeId,solvedAt}`, submissions `{userId,createdAt}`, users `{createdAt}`; also needed once on a fresh database). (5) Real Vercel deploy (P4-05) and Cognito callback URLs. (6) Admin QA with a real admin login (P4-14). (7) Decide whether admins may keep editing terminal challenge points (it can break the documented 160/450/1080 maximums). (8) Decide whether the `registrationOpen` setting should be enforced (today only the banner and `GET /api/announcement` expose it; sign-up goes straight to Cognito) and whether the rate limits need changes.
+
+### Phase 4 polish wave (2026-11-22 onwards)
+A wave of parallel agent work after the categories above. The running record (what is done, what is in progress, decisions,
+owner actions and known limits) is [`docs/PROGRESS.md`](PROGRESS.md); the task board is [`docs/WORKQUEUE.md`](WORKQUEUE.md). None of it is
+committed yet. Nothing here is ticked for the owner: owner-only actions stay in P4-05, P4-14, P4-24 and P4-26.
+- [x] **P4-27 Range feature depth.** Crackme time-travel debugger, reading tools and Patch Bay; OSINT shared evidence board; Terminal reactive story and mail; Forensics timeline board, interviews and packet tools; Cipher Lab recipe workbench. Contracts in the category docs and `docs/API_SPEC.md`.
+- [x] **P4-28 Event mode.** Optional scheduled event (upcoming, live, frozen, ended), frozen public scoreboard, `GET /api/event`, `GET /api/leaderboard/me`, 423 `EVENT_NOT_STARTED` / `EVENT_ENDED`. `docs/EVENT_MODE.md`.
+- [x] **P4-29 Learning layer.** Shared hint ladder, first-run onboarding checklist, Skills map and the after-capture Debrief. `docs/HINTS.md`, `docs/ONBOARDING.md`, `docs/SKILLS_MAP.md`, `docs/DEBRIEF.md`.
+- [x] **P4-30 The Range rename and vocabulary.** Hub is The Range (`/range`); one word list in `docs/VOCABULARY.md`.
+- [x] **P4-31 Device pass.** Phones, tablets, laptops, large monitors, touch and zoom. `docs/DEVICE_COMPATIBILITY.md`. Verified with emulation only, never a real device.
+- [ ] **P4-32 Dark theme.** In progress: the token foundation exists behind `DARK_THEME_ENABLED = false` in `frontend/src/theme/config.js`; the colour migration and the flip come after. Status in `docs/PROGRESS.md`.
+- [ ] **P4-33 Final verification.** Full backend suite, frontend tests, lint, build and the debrief completeness check; then update `docs/PROGRESS.md`.

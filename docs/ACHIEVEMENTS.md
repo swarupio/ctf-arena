@@ -29,6 +29,7 @@ One guarded line in each submit route, after the solve is recorded:
 - `backend/src/routes/challenges.js`, `POST /:id/submit`: `const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id });`
   and the optional `badges` field on the response.
 - `backend/src/routes/terminal.js`, `POST /:mode/submit`: the same call when `pointsAwarded > 0`.
+- `backend/src/games/cipherlab/service.js`, `submitAnswer`: the same call after a new (non-duplicate) solve, with `badges` on the response when any.
 
 `safeEvaluate` never throws, gives up after 1.5 s and does nothing when MongoDB is not connected, so a badge problem
 cannot break or noticeably slow a solve. Awarding is an upsert on the unique `{ userId, key }` index with `$setOnInsert`,

@@ -3,12 +3,12 @@
 Base path: `/api`. JSON in, JSON out.
 Implementation status: every endpoint in this file is implemented and mounted: Health, identity and Teams
 (Phase 1), Challenges, Instances and `/admin/challenges` (Phase 2), Leaderboard and `/admin/stats`,
-`/admin/instances`, `/admin/teams` (Phase 3), and the Arena Terminal game under `/terminal` (see
+`/admin/instances`, `/admin/teams` (Phase 3), and the Arena Terminal under `/terminal` (see
 `docs/TERMINAL_GAME.md`) and the fair-play review endpoints under `/admin/integrity` (see `docs/FAIR_PLAY.md`).
 Paths that are not listed here return 404 `NOT_FOUND`, with one deliberate exception: a few public decoy paths answer
 200 with invented data (and a tainted flag) so that scrapers and automated agents give themselves away. They are not
 part of the contract, no client may call them, and they are not listed here on purpose (see `docs/FAIR_PLAY.md`).
-Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`.
+Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`, `/api/announcement` and `/api/event` (all public).
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
 `req.user = { cognitoSub, email, role }` from verified ID-token claims;
@@ -30,6 +30,7 @@ Common codes: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `VALIDATI
 `CONFLICT` 409, `RATE_LIMITED` 429, `SERVER_ERROR` 500. Also used: `NO_TEAM` 404, `TEAM_BANNED` 403, `USER_BANNED` 403,
 `TERMINAL_NOT_SEEDED` 503, `SLOW_DOWN` 429 (terminal `exec` pacing, see below), `FORENSICS_NOT_SEEDED` 503 and
 `STAGE_LOCKED` 403 (Forensics Desk and OSINT Trail, see below), `OSINT_NOT_SEEDED` 503 and `NO_HINTS` 403 / `NO_MORE_HINTS` 409 (OSINT Trail).
+Also used on answer and board routes: `SUBMISSIONS_FROZEN` 423, `EVENT_NOT_STARTED` 423 and `EVENT_ENDED` 423 (scheduled event, see Platform settings), `LEVEL_LOCKED` 403 (Cipher Lab and Crackme Arcade).
 
 Legend for the owner column: **S** = Swarup (Phase 1), **G** = Gururaj (Phase 2), **H** = Shubham (Phase 3).
 
@@ -70,7 +71,7 @@ are no CORS headers (the API is same-origin behind Nginx). The security review a
 |--------|------|------|-------|-------------|
 | POST | `/teams` | player | S | Body `{ name }` (3-24 chars, unique). Creates team, user becomes captain. Returns team with `inviteCode`. 409 if user already has a team. 403 `USER_BANNED` for a banned account. |
 | POST | `/teams/join` | player | S | Body `{ inviteCode }`. 404 bad code, 409 already in a team, `TEAM_FULL` 409 if 3 members, 429 `RATE_LIMITED` after 10 attempts per 15 minutes per account. 403 `USER_BANNED` for a banned account. |
-| GET | `/teams/me` | player | S | `{ id, name, inviteCode, members:[{id,displayName}], score }` |
+| GET | `/teams/me` | player | S | `{ id, name, inviteCode, members:[{id,displayName}], score, banned? }` (`banned: true` only for a banned team) |
 | POST | `/teams/me/leave` | player | S | Leaves team (204). If last member, team is deleted and its instances are stopped; otherwise the next member becomes captain if the captain leaves. 403 `TEAM_BANNED` for a banned team (a ban cannot be escaped by leaving). 403 `USER_BANNED` for a banned account. |
 
 Create returns 201; join and GET return 200, all with the GET `/teams/me` shape
@@ -95,7 +96,7 @@ available seat and an unassigned user; failed claims roll back both documents.
 
 | Method | Path | Auth | Owner | Description |
 |--------|------|------|-------|-------------|
-| GET | `/challenges` | player, admin | G | List visible challenges. Item: `{ id, slug, title, category, difficulty, points, type, solveCount, solvedByMyTeam }`. Docker challenges (`type: 'docker'`) also carry `dockerAvailable` (boolean, additive): `false` when the server runs with `DOCKER_ENABLED=false` (Vercel), so clients can disable the Start button |
+| GET | `/challenges` | player, admin | G | List visible challenges. Item: `{ id, slug, title, category, difficulty, points, type, solveCount, solvedByMyTeam }`. `solveCount` is `null` for **players** (admins keep the live number) while a scheduled event's scoreboard is `frozen`, in this list and in `GET /challenges/:id`, so the live counter cannot be used to watch other teams; clients show a neutral dash. The response is `Cache-Control: private, no-store`, `Vary: Authorization`. Docker challenges (`type: 'docker'`) also carry `dockerAvailable` (boolean, additive): `false` when the server runs with `DOCKER_ENABLED=false` (Vercel), so clients can disable the Start button |
 | GET | `/challenges/:id` | player, admin | G | Adds `description`, `attachments:[{name,url}]`, `hasInstance`, `myInstance` (see below) |
 | POST | `/challenges/:id/submit` | player | G | Body `{ flag }`. Response `{ correct:boolean, pointsAwarded:number, firstBlood:boolean, message }`. 429 after 5 tries per minute per team per challenge. 409 if already solved. |
 
@@ -126,6 +127,9 @@ Leaving a team as its last member stops that team's instances.
 |--------|------|------|-------|-------------|
 | GET | `/leaderboard` | player, admin | H | `[{ rank, teamId, teamName, points, solves, lastSolveAt }]`, banned teams hidden. `points` includes admin score adjustments; `solves` counts real solves only |
 | GET | `/leaderboard/timeline` | player, admin | H | `{ teams:[{ teamId, teamName, points:[{ t, score }] }] }` (top 10 teams) |
+| GET | `/leaderboard/me` | player, admin | H | `{ frozen, asOf, team }`: only while a scheduled event's scoreboard is frozen does `team` hold the caller's OWN live `{ teamId, teamName, points, solves }`; otherwise `team: null` (see `docs/EVENT_MODE.md`) |
+
+Other player views follow the same event view (frozen: up to `freezeAt`, ended: up to `endsAt`, admins live): `GET /feed` and `GET /players/:id/profile` only contain solves, badges and new teams up to that instant (profile counters, streak and `recentSolves` come from those rows only; a profile reads at most 1000 solves), with `Vary: Authorization`. `GET /me/achievements` and the own totals of `GET /teams/me` stay the caller's own live data.
 
 Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderboard.js`):
 - Both endpoints accept `player` and `admin` (no token 401) and need no team, so team-less and banned-team players can read them. Banned and deleted teams are hidden.
@@ -133,8 +137,9 @@ Phase 3 implementation notes (`services/leaderboardService.js`, `routes/leaderbo
 - Optional query `?limit=1..500` truncates the list after ranking (default: all teams). Anything else in the query string is ignored; an invalid `limit` is 400 `VALIDATION_ERROR`.
 - Timeline: teams are in rank order (top 10 including zero-solve teams). Each `points` array starts with `{ t, score: 0 }` at the time of the earliest solve shown (the current time if there are no solves yet), then one entry per solve in `solvedAt` order with the running total (`solves.points`, bonus included). A chart should hold a score flat until the next entry.
 - Responses contain only the fields above: no invite codes, member lists, emails, user ids or flag material. Nothing is cached in the process, so any replica returns the same data.
+- **Scheduled event (optional, `docs/EVENT_MODE.md`).** While the event phase is `frozen`, `GET /leaderboard` and `/leaderboard/timeline` return, to **players**, the standings computed from solves with `solvedAt <= freezeAt` (same shapes; the list stays an array and is flagged with the headers `X-Scoreboard-Frozen: true` and `X-Scoreboard-As-Of`; the timeline gets the additive fields `frozen: true`, `asOf`). **Admins** always get live data. After `ended` players get the final standings, computed from solves with `solvedAt <= endsAt` (a request admitted just before the end that was stored a moment after it never counts; no frozen headers); admins stay live. With no event configured nothing changes.
 
-## Terminal (Arena Terminal game)
+## Terminal (Arena Terminal)
 
 A Unix-terminal CTF mode (design and engine contract: `docs/TERMINAL_GAME.md`). Players type commands into a
 **virtual** shell and find hidden codes (flags) in three modes: `easy`, `medium`, `hard`. All routes are mounted at
@@ -144,7 +149,7 @@ A Unix-terminal CTF mode (design and engine contract: `docs/TERMINAL_GAME.md`). 
 |--------|------|------|-------|-------------|
 | GET | `/terminal/modes` | player, admin | API | `[{ mode, title, tagline, difficulty, codes, solved, points, pointsEarned, lore }]` |
 | GET | `/terminal/:mode/progress` | player, admin | API | `{ mode, total, solved:[{ n, title, points, firstBlood }], remaining }` |
-| POST | `/terminal/:mode/exec` | player, admin | API | Body `{ command, cwd }`. Response `{ output, cwd, exit, effect? }` |
+| POST | `/terminal/:mode/exec` | player, admin | API | Body `{ command, cwd, mailSeen? }` (`mailSeen`: optional integer 0..4095, a cosmetic bit mask of mails the browser has read, used only to print unread letters in `mail`). Response `{ output, cwd, exit, effect? }`. Unknown fields or an out-of-range `mailSeen` are 400 |
 | POST | `/terminal/:mode/complete` | player, admin | API | Body `{ partial, cwd }`. Response `{ matches: string[] }` (at most 50) |
 | POST | `/terminal/:mode/submit` | player | API | Body `{ flag }`. Response `{ correct, code?, title?, alreadySolved?, pointsAwarded, firstBlood, message, solved, total }` |
 
@@ -156,7 +161,7 @@ Notes:
   403 `TEAM_BANNED` for a banned team. Admins need no team: they explore with a preview flag set that no team can submit.
   `modes` and `progress` are read-only and also work for players without a team or with a banned team (`solved` is 0 and
   `solved: []` without a team), like `GET /challenges`.
-- **Not seeded.** The game uses the `challenges` documents created by `npm run seed:terminal`. When a mode has none
+- **Not seeded.** The Arena Terminal uses the `challenges` documents created by `npm run seed:terminal`. When a mode has none
   (or an admin hid all of them), `exec`, `submit` and `progress` return 503 `TERMINAL_NOT_SEEDED` with the message
   `Run npm run seed:terminal.`; `modes` still lists the mode from its definition.
 - **Validation.** Every body is `.strict()` (unknown keys are 400 `VALIDATION_ERROR`). `command` is a string of at most
@@ -166,7 +171,7 @@ Notes:
 - **`exec`** runs the command line in the JavaScript shell engine (`backend/src/terminal/shell.js`) over an in-memory
   filesystem: nothing real is executed. Output is deterministic, so every replica prints the same bytes. `effect` is
   one of `clear`, `matrix`, `reboot`, `confetti` and is omitted when the command has none. The output may contain the
-  calling team's own flags (that is the game); another team's flags never validate.
+  calling team's own flags (that is the exercise); another team's flags never validate.
 - **`exec` pacing (fair play).** For players only (admins are exempt), before the command runs: a command less than
   **300 ms** after the same user's previous executed command, or the 51st or later command within one UTC minute, is
   429 `SLOW_DOWN` with the message `Easy there, speed typist. Give each command a moment.` (nothing runs, and a command
@@ -189,33 +194,34 @@ Notes:
   not an error. At most **10 attempts per minute per team per mode** (all codes of the mode together), counted in
   MongoDB over `submissions`; the 11th is 429 `RATE_LIMITED`. Wrong attempts are stored against the mode's first code.
 - **No leaks.** No response contains a flag, flag hash, expected flag or the submitted flag, except the team's own
-  flags inside `exec` output when the game prints them. `solved` titles come from the mode definition.
-- A terminal challenge an admin hid (`visible: false`) is switched off for the game: it is not counted in `codes` or
+  flags inside `exec` output when the terminal prints them. `solved` titles come from the mode definition.
+- A terminal challenge an admin hid (`visible: false`) is switched off for the Arena Terminal: it is not counted in `codes` or
   `total`, `submit` does not accept it, and its `{{flag:N}}` token prints a placeholder that never validates.
 - Terminal challenges also exist as normal `challenges` documents with `type: "terminal"` and `category: "terminal"`
   (they appear in `GET /challenges`; the web UI shows one promo card instead of the cards). Their flags follow the
   dynamic per-team format of docker challenges, so `POST /challenges/:id/submit` would accept them too; the Terminal
   page uses `/terminal/:mode/submit`.
 
-## Cipher Lab (cryptography puzzle game)
+## Cipher Lab (cryptography category)
 
 Design, levels and points: `docs/CIPHER_LAB.md`. Mounted at `/api/cipherlab`; all routes need `Authorization: Bearer <ID token>`.
 Level ids are `e1`-`e4`, `m1`-`m4`, `h1`-`h4`, `i1`-`i3` (anything else is 404 `NOT_FOUND`).
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/cipherlab/overview` | player, admin | `{ maxPoints, pointsEarned, solved, total, streak, tracks:[{ id, title, difficulty, story, hintsAllowed, total, solved, maxPoints, pointsEarned, complete, speedrun:{ ms, badge }\|null, levels:[{ id, n, title, points, boss, status: solved\|open\|locked, solvedAt, hintsTotal }] }], toolbox:[{ id, name, description, unlockedBy, unlocked }] }` |
-| GET | `/cipherlab/levels/:id` | player, admin | This team's puzzle: `{ id, track, n, title, briefing, points, boss, status, ciphertext, params, hintsAllowed, hintsTotal, hints:[opened texts] }` |
-| POST | `/cipherlab/levels/:id/hints` | player | Body `{}`. Opens the next hint: `{ index, hint, used, total }`. Free; logged for admins |
-| POST | `/cipherlab/levels/:id/answer` | player | Body `{ answer }`. Wrong: `{ correct:false, pointsAwarded:0, firstBlood:false, message, streak:0 }`. Right: `{ correct:true, alreadySolved, pointsAwarded, firstBlood:false, flag, message, streak, trackComplete, nextLevelId }` |
+| GET | `/cipherlab/overview` | player, admin | `{ maxPoints, pointsEarned, solved, total, streak, tracks:[{ id, title, difficulty, story, hintsAllowed, total, solved, maxPoints, pointsEarned, complete, speedrun:{ ms, badge }\|null, levels:[{ id, n, title, points, boss, status: solved\|open\|locked, solvedAt, hintsTotal }] }], toolbox:[{ id, name, description, unlockedBy, unlocked }] }`. For admins every `toolbox[].unlocked` is `true` |
+| GET | `/cipherlab/levels/:id` | player, admin | This team's puzzle: `{ id, track, n, title, briefing, points, boss, status, ciphertext, params, hintsAllowed, hintsTotal, hints:[opened texts] }`. For admins `hints` holds all hint texts |
+| POST | `/cipherlab/levels/:id/hints` | player, admin | Body `{}`. Opens the next hint: `{ index, hint, used, total }`. Free; logged for admins. For an admin (preview puzzle) it returns `{ index, hint, used, total, hints:[all texts] }` and writes no `cipherhints` row; Insane levels give 403 `NO_HINTS` to admins too |
+| POST | `/cipherlab/levels/:id/answer` | player | Body `{ answer }`. Wrong: `{ correct:false, pointsAwarded:0, firstBlood:false, message, streak:0 }`. Right: `{ correct:true, alreadySolved, pointsAwarded, firstBlood:false, flag, message, streak, trackComplete, nextLevelId, badges? }` (`badges` only when a new solve earned achievements) |
 | GET | `/cipherlab/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, levelId, hint, at }]` |
 
 Notes:
 - Puzzles are derived per team from `HMAC(FLAG_SECRET, teamId + levelId)`; the plaintext and flag are never sent, except the
-  caller's own flag in the response to a correct answer. Admins see the preview puzzle (`admin-preview`) and cannot answer or open hints.
+  caller's own flag in the response to a correct answer. Admins see the preview puzzle (`admin-preview`) and cannot answer; they can read hints (nothing is stored).
 - Errors: 404 `NO_TEAM`, 403 `TEAM_BANNED`, 403 `LEVEL_LOCKED` (previous level of the track not solved), 403 `NO_HINTS`
   (insane track), 409 `NO_MORE_HINTS`, 429 `RATE_LIMITED` (8 attempts per team per level per minute, Mongo-backed),
   503 `CIPHERLAB_NOT_SEEDED` (`npm run seed:cipherlab`). `overview` also works without a team.
+- The `pipeline` tool unlocks by clearing level `h3`.
 - Points are fixed per level with no first-blood bonus (`firstBlood` is always false). Maximum 2060 in total.
 ## Web Exploit Lab
 
@@ -227,7 +233,7 @@ backed by `challenges` rows with `type: "weblab"` created by `npm run seed:webla
 |--------|------|------|-------------|
 | GET | `/weblab/labs` | player, admin | `{ tracks: [{ id, title, difficulty, theme, company:{ name, tagline, brief }, labs:[lab], solved, total, points, pointsEarned, cleared }], totals: { labs, solved, points, pointsEarned, bountyUsd }, inspector }` |
 | GET | `/weblab/labs/:slug` | player, admin | One lab: summary fields plus `{ story, objective, company, theme, site, form, request, inspector }` |
-| GET | `/weblab/labs/:slug/hints/:level` | player, admin | `{ level, count, text }` (one hint at a time, 1..`hintCount`) |
+| GET | `/weblab/labs/:slug/hints/:level` | player, admin | `{ level, count, text }` (one hint per request, 1..`hintCount`; the server does not track which hints a team has seen, the UI reveals them in order) |
 | POST | `/weblab/labs/:slug/request` | player, admin | Body `{ method, path, headers, cookies, body }`. Response `{ status, contentType, body, setCookies, page, exploited, hint }` |
 | POST | `/weblab/labs/:slug/submit` | player | Body `{ flag }`. Response `{ correct, pointsAwarded, firstBlood, message, severity?, bountyUsd?, alreadySolved? }` |
 
@@ -245,8 +251,8 @@ Notes:
 - **Validation.** Bodies are `.strict()`: `method` is one of GET POST PUT PATCH DELETE HEAD OPTIONS; `path` starts with
   `/` and has at most 300 characters; `headers` at most 20 entries (name 40, value 500); `cookies` at most 10 (name 40,
   value 500); `body` at most 2000 characters; `flag` 1-200 after trimming.
-- **`request`** runs a pure-function simulation (no real network, database or file access). `body` is capped at 8000
-  characters. `page` is a structured document `{ title, blocks }` (`heading`, `text`, `notice`, `code`, `table`, `kv`) or
+- **`request`** runs a pure-function simulation (no real network, database or file access). the response `body` (the simulated site's
+  output) is capped at 8000 characters; the request body is capped at 2000 (see Validation). `page` is a structured document `{ title, blocks }` (`heading`, `text`, `notice`, `code`, `table`, `kv`) or
   `null` for JSON answers; clients render it as text only. `exploited` is `true` when the simulated exploit succeeded and
   the body then contains the team's flag. A flag never appears otherwise.
 - **`submit`** compares in constant time. Wrong: 200 `{ correct: false, pointsAwarded: 0, firstBlood: false, message }`.
@@ -256,10 +262,10 @@ Notes:
   8 flag attempts per team per lab per minute (429 `RATE_LIMITED`).
 - **`inspector`** is `{ level, unlocked: [id], features: [{ id, label, blurb, at, unlocked }], next }`; it grows with the
   number of solved labs and only gates browser conveniences.
-- Maximum for the whole game is 1470 points (easy 120, medium 300, hard 550, insane 500).
-## Forensics Desk (investigation game)
+- Maximum for the whole category is 1470 points (easy 120, medium 300, hard 550, insane 500).
+## Forensics Desk (investigation category)
 
-Detective game with four case files (`easy`, `medium`, `hard`, `insane`), five stages each (design, scoring and
+Detective category with four case files (`easy`, `medium`, `hard`, `insane`), five stages each (design, scoring and
 the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/api/forensics` and need
 `Authorization: Bearer <ID token>`. Unknown `:track` or `:artefact` values are 404 `NOT_FOUND`.
 
@@ -268,6 +274,8 @@ the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/a
 | GET | `/forensics/tracks` | player, admin | API | `[{ id, title, caseTitle, difficulty, tagline, stages, solved, seeded, maxPoints, pointsEarned }]` |
 | GET | `/forensics/tracks/:track` | player, admin | API | Case file: `{ id, title, caseTitle, difficulty, tagline, briefing[], artefacts[], maxPoints, stages[], evidence[], suspects[], solved, total, pointsEarned, caseClosed }` |
 | GET | `/forensics/tracks/:track/artefacts/:artefact` | player, admin | API | One chunk of generated evidence (query below) |
+| GET | `/forensics/tracks/:track/interviews` | player, admin | API | Suspect interviews: `{ questions:[{ id, stage, text }], suspects:[{ id, name, role }] }`. One yes/no question per solved evidence stage (at most 3), quoting only that stage's confirmed evidence |
+| POST | `/forensics/tracks/:track/interviews` | player, admin | API | Body `{ suspectId: 's1'.., questionId: 'q1'.. }` (strict). Response `{ suspectId, questionId, answer: 'yes'\|'no', statement }`. Suspects do not always tell the truth: the culprit denies every question and each decoy tells exactly one false "no"; with two or more solved stages the culprit is the unique suspect with two or more false denials (shapes unchanged, see `docs/FORENSICS_DESK.md`). 400 validation, 404 unknown track/suspect or question not yet unlocked, 429 `RATE_LIMITED` (20 per minute, 120 per hour per team and case, keyed `forensics:<team>:<track>:interview:<i>`). No score and no stored state; admins read the preview world |
 | POST | `/forensics/tracks/:track/stages/:n/answer` | player | API | Body `{ answer }` (1-200 chars). Response `{ correct, pointsAwarded, firstBlood:false, message, solved, total, flag?, alreadySolved?, caseClosed? }` |
 
 - `stages[]`: `{ n, title, prompt, points, format, hint (string or null), whodunit, solved, locked, available, pointsEarned?, flag? }`.
@@ -278,7 +286,7 @@ the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/a
   `stego`, `disk`. Query (all optional, anything else is 400): `offset` (0-100000), `limit` (1-500, clamped to the
   artefact's page maximum: 500 log lines, 250 packets, 1024 file bytes), `cluster` (0-255) with `count` (1-8) for the
   disk reader, `image` (1-4) for the insane `stego` pictures. Responses: `log` `{ total, offset, lines[] }`; `capture`
-  `{ total, offset, packets:[{ n, t, src, sp, dst, dp, proto, len, info, hex }], start }`; `hexfile`
+  `{ total, offset, packets:[{ n, t, src, sp, dst, dp, sm, dm, proto, len, info, hex }], start }`; `hexfile`
   `{ name, size, offset, hex }`; `exif` `{ name, tags:[{ tag, value }] }`; `stego`
   `{ image, images, width, height, pixels (base64 RGB), encoding }`; `disk` without `cluster`
   `{ clusterSize, clusterCount, entries:[{ inode, name, size, mtime, deleted, cluster }] }`, with `cluster`
@@ -293,7 +301,7 @@ the per-team generator: `docs/FORENSICS_DESK.md`). All routes are mounted at `/a
 - The flag is the proof of the solve; it is not submitted anywhere else (`POST /challenges/:id/submit` rejects
   forensics rows).
 
-## Crackme Arcade (reverse-engineering game)
+## Crackme Arcade (reverse-engineering category)
 
 Design, ISA, levels and points: `docs/CRACKME_ARCADE.md`. Mounted at `/api/crackme`; all routes need
 `Authorization: Bearer <ID token>`. Level ids are `e1`-`e4`, `m1`-`m4`, `h1`-`h4`, `i1`-`i4` (anything else is 404
@@ -307,15 +315,19 @@ Design, ISA, levels and points: `docs/CRACKME_ARCADE.md`. Mounted at `/api/crack
 | POST | `/crackme/levels/:id/hints` | player | Body `{}`. Opens the next hint: `{ index, hint, used, total }`. Free; logged for admins. 403 `NO_HINTS` on the insane track, 409 `NO_MORE_HINTS` |
 | POST | `/crackme/levels/:id/answer` | player | Body `{ answer }` (1-32 printable ASCII characters, strict). The server runs the VM on it. Wrong: `{ correct:false, pointsAwarded:0, firstBlood:false, message, streak:0 }`. Right: `{ correct:true, alreadySolved, pointsAwarded, firstBlood:false, flag, message, streak, trackComplete, nextLevelId }` |
 | GET | `/crackme/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, levelId, hint, at }]` |
+| POST | `/crackme/levels/:id/patch` | player | Patch Bay (bonus mode on h1-h4 and i1-i4). Body `{ edits: [{ index: int 0..255, op: string }] }` (1-20 edits, strict). Response `{ valid, passed, total, serialOk, badge, message }`. 400 `VALIDATION_ERROR`, `PATCH_EMPTY`, `PATCH_TOO_MANY`, `PATCH_SHAPE`, `PATCH_RANGE`, `PATCH_DUPLICATE`, `PATCH_NOT_ALLOWED`; 403 `LEVEL_LOCKED`, `TEAM_BANNED` or admin; 404 `NO_PATCH_BAY` (easy and medium) or `NOT_FOUND`; 429 `RATE_LIMITED` (8 per minute per team and cabinet; a bad-shape patch costs no attempt). Counts toward the submissions freeze. The reward is a cosmetic badge only; hidden inputs are never returned |
+
+Patch Bay additions (additive): `GET /crackme/levels/:id` gains `patchBay` on h1-h4 and i1-i4 only: `{ maxEdits: 20, rules: { JNZ: ['JZ','POP'], JZ: ['JNZ','POP'], CMP: ['SUB','XOR'] }, tests: 6, steps: 20000, done }`.
+`GET /crackme/overview` levels gain `patchBay` and `patched` booleans, and the top level gains `patchBadges` (number). Design: `docs/CRACKME_ARCADE.md`.
 
 Notes:
 - Programs are derived per team from `HMAC(FLAG_SECRET, "crackme:" + teamId + ":" + levelId)`; the accepted input and the
   flag are never sent, except the caller's own flag in the response to a correct answer. Admins see the preview
   cabinet (`admin-preview`) and cannot answer or open hints.
 - Attempts: 8 per team per level per minute (429 `RATE_LIMITED`, counted in MongoDB, every attempt counts). Points are
-  fixed per level and never include a first-blood bonus; the maximum for the whole game is 1905.
+  fixed per level and never include a first-blood bonus; the maximum for the whole category is 1905.
 - The browser debugger runs the same `vm.js` with `DBG = 1`; the server verdict always uses `DBG = 0`.
-## OSINT Trail (open-source investigation game)
+## OSINT Trail (open-source investigation category)
 
 Design, cases, points and the owner-only solution notes: `docs/OSINT_TRAIL.md`. All routes are mounted at `/api/osint`, need
 `Authorization: Bearer <ID token>`, and are backed by `challenges` rows with `type: "osint"` created by `npm run seed:osint`.
@@ -326,11 +338,17 @@ The world of each team (a fully fictional cast, town, company, feed, registry, p
 |--------|------|------|-------------|
 | GET | `/osint/cases` | player, admin | `[{ id, title, caseTitle, difficulty, tagline, questions, solved, seeded, hints, maxPoints, pointsEarned }]` |
 | GET | `/osint/cases/:track` | player, admin | Case file: `{ id, title, caseTitle, difficulty, tagline, story[], hintsAllowed, maxPoints, questions[{ n, title, prompt, points, format, kind, final, solved, locked, available, hintsTotal, hints[], pointsEarned?, confirmed?, flag? }], sources[{ id, label, total, max, fallback }], town, company, solved, total, pointsEarned, caseClosed }`. `confirmed` and `flag` exist only on solved questions |
-| GET | `/osint/cases/:track/sources/:source` | player, admin | One page of one source (`feed`, `cast`, `pages`, `docs`, `registry`, `photos`, `pastes`, `map`): `{ source, total, offset, limit, items[] }` |
-| GET | `/osint/cases/:track/search?q=&offset=&limit=` | player, admin | Search over the case corpus: `{ query, offset, limit, results:[{ source, id, title, snippet }], hasMore }` |
+| GET | `/osint/cases/:track/sources/:source` | player, admin | One page of one source (`feed`, `cast`, `pages`, `docs`, `registry`, `photos`, `pastes`, `map`): `{ source, total, offset, limit, items[] }`. Query (strict): `offset` 0..10000, `limit` 1..50, and the optional filters `author` (`cNN`) and `date` (`YYYY-MM-DD`) |
+| GET | `/osint/cases/:track/search?q=&offset=&limit=` | player, admin | Search over the case corpus (`q` 2-64 chars, `offset` 0..1000, `limit` 1..20, default 10): `{ query, offset, limit, results:[{ source, id, title, snippet }], hasMore }` |
 | POST | `/osint/cases/:track/questions/:n/answer` | player | Body `{ answer }` (1-200 chars). Response `{ correct, pointsAwarded, firstBlood:false, message, solved, total, flag?, alreadySolved?, caseClosed? }` |
 | POST | `/osint/cases/:track/questions/:n/hints` | player | Body `{}`. Easy and medium only: opens the next free hint `{ index, hint, used, total }`, logged for admins |
 | GET | `/osint/admin/hints` | admin | Newest 200 hint openings: `[{ teamId, key, hint, at }]` (`key` is `<track>:<n>`) |
+| GET | `/osint/cases/:track/board` | player, admin | The team's shared evidence board: `{ version, pins:[{ id, kind, label, x, y }], links:[{ a, b, rel }], progress:{ level, total }, unlocked, nudge, limits:{ pins:40, links:2*M, size:1000 }, relations:[{ id, label, help }], readOnly }`. `readOnly` is true for admins, teamless players and banned teams (admins and teamless players get an empty preview board). `progress.level` is a coarse bucket, never an exact count: `complete` (the chain held at some save, sticky `unlocked`), `close` (all but at most one required link holds), `started` (at least half of the required links hold) or `none` (fewer than half, including zero). `total` is the number of required links |
+| PUT | `/osint/cases/:track/board` | player | Body `{ version: int >= 0, pins:[{ id, x, y }], links:[{ a, b, rel }] }` (strict). `id`, `a`, `b` look like `kind:id` and must be real evidence ids in the team's world; `x`,`y` are integers 0..1000; `rel` is one of `posted`, `at`, `owns`, `mentions`, `linked`. Returns the GET shape. Errors: 400 `BAD_EVIDENCE` / `BAD_BOARD`, 403 `NO_TEAM`, 409 `BOARD_CONFLICT` (stale `version`), 422 `BOARD_LIMIT` (over 40 pins or 2*M links; nothing stored), 423 `SUBMISSIONS_FROZEN`, 429 `RATE_LIMITED` (30 per minute, 200 per hour per team and case). A save reveals only the coarse `progress.level`, `unlocked` and one generic nudge, never an exact count and never which links are missing. A complete chain sets `unlocked` for good |
+| POST | `/osint/cases/:track/board/check` | player, admin | Body `{}` (strict). The explicit "Check my chain": `{ found, total, checksLeft, readOnly }` with the EXACT number of required links on the **saved** board (a draft that was not saved is not counted; once unlocked `found` equals `total`). It only reads: it never saves, unlocks or records anything. Strictly budgeted per team and case: 3 per minute and 10 per hour (key `osint-board-check:...`), 429 `RATE_LIMITED` beyond that; `checksLeft` is the smaller remaining budget. Admins, teamless players and banned teams get `{ found: 0, total, checksLeft: 0, readOnly: true }` and use no budget. 404 for an unknown case, 400 for any body field |
+| GET | `/osint/cases/:track/board/evidence?source=&q=&offset=&limit=` | player, admin | Evidence picker: `{ total, offset, limit, items:[{ id, kind, label }] }` (`limit` at most 50) |
+
+Board additions (additive): `GET /osint/cases/:track` gains `board: { required, unlocked }`, and the final question gains `lockedBy: 'questions' | 'board'` while locked. Answering or opening hints on a final question while the other questions are solved but the board has not held the chain returns 403 `BOARD_LOCKED` (403 `STAGE_LOCKED` still means unsolved questions). Design: `docs/OSINT_TRAIL.md` section 3b.
 
 - `:track` is `easy | medium | hard | insane`; anything else is 404 `NOT_FOUND`. `:n` is the question number (the last one of a case
   is the final question).
@@ -379,7 +397,7 @@ its `slug` cannot change (the flag derives from it), it cannot be converted to o
 rejected (nothing is stored). Re-running the seed resets `title`, `description`, `points` and `difficulty` to the mode
 definition and keeps `visible` and `solveCount`.
 
-Code-defined game challenges (`type` `game`, `weblab`, `forensics`, `reversing` or `osint`, for example the Cipher Lab levels and Web Exploit Lab labs) define their own points, flags and rules in code, so
+Code-defined range challenges (`type` `game`, `weblab`, `forensics`, `reversing` or `osint`, for example the Cipher Lab levels and Web Exploit Lab labs) define their own points, flags and rules in code, so
 an admin may `PUT` only `title`, `description` and `visible` (any subset, at least one). The body is not the full create
 body: other definition fields (`slug`, `category`, `difficulty`, `points`, `type`, `image`, `internalPort`,
 `attachments`) are accepted only when they equal the stored value (a form may echo the whole object back); a different
@@ -503,7 +521,7 @@ None of these change points or ranking (`docs/ACHIEVEMENTS.md`). All need a toke
 | GET | `/feed?limit=1..50` | Newest public events (default 20): `{ type: solve or first_blood or badge or team, at, team, challenge or badge }`. Team names and challenge titles only; banned teams and hidden challenges are skipped. `Cache-Control: private, max-age=5`. Invalid `limit` is 400. |
 | GET | `/daily` | `{ date, bonusLabel, resetsAt, challenge: { id, slug, title, category, difficulty, points } or null }`. Deterministic per UTC day. `Cache-Control: private, max-age=60`. |
 
-`POST /challenges/:id/submit` and `POST /terminal/:mode/submit` may add an optional `badges: [{ key, name, description, icon }]`
+`POST /challenges/:id/submit`, `POST /terminal/:mode/submit`, `POST /cipherlab/levels/:id/answer`, `POST /crackme/levels/:id/answer` and `POST /osint/cases/:track/questions/:n/answer`, `POST /weblab/labs/:slug/submit` and the Forensics submit answer may add an optional `badges: [{ key, name, description, icon }]`
 to a correct answer when new badges were just earned. The field is absent otherwise.
 ## Admin API v2
 
@@ -533,7 +551,7 @@ integrity review). Code: `backend/src/routes/admin/*`, `backend/src/services/adm
 - **Destructive actions** need an explicit confirmation: body `{ "confirm": true }` (POST) or `?confirm=true` (DELETE).
   Without it the answer is 400 and nothing changes.
 - **Audit**: every mutating call below writes an audit entry (see `GET /admin/audit`). Entries never contain flags, flag
-  hashes, invite codes, container ids or tokens.
+  hashes, invite codes, container ids or tokens. The audit write happens after the change succeeded: if it fails, the error is logged and the response is still the mutation's success (never a 500 for an action that completed).
 - **Never returned**: flags, flag hashes or salts, submitted flag text or its hash, container ids, `cognitoSub`, invite
   codes (the single exception is the response of invite-code regeneration). Emails ARE returned, but only by the user
   endpoints, the team detail and the users CSV, because admins need them for support.
@@ -582,6 +600,7 @@ integrity review). Code: `backend/src/routes/admin/*`, `backend/src/services/adm
 | GET / PUT | `/admin/settings` | Platform settings |
 | GET | `/admin/export/{users,teams,submissions,leaderboard}.csv` | CSV downloads |
 | GET | `/announcement` | PUBLIC banner and platform flags (no `/admin`, no token) |
+| GET | `/event` | PUBLIC scheduled-event phase and times (no `/admin`, no token) |
 
 ### Stats
 
@@ -610,7 +629,7 @@ integrity review). Code: `backend/src/routes/admin/*`, `backend/src/services/adm
   Submissions expire after 30 days (TTL), so submission counts for older days are 0.
 - `solveRate` = solves / number of teams. `hardest` / `easiest` hold 5 visible non-terminal challenges each.
 - `terminal.modes`: per mode `completions` = teams that solved every visible code, `averageScore` = mean points per
-  team that solved at least one code of the mode, `maxScore` = best team. Empty when the game is not seeded.
+  team that solved at least one code of the mode, `maxScore` = best team. Empty when the Arena Terminal is not seeded.
 - With `DOCKER_ENABLED=false` the instance count is not queried: `instances` is `{ "dockerEnabled": false, "active": 0 }`.
 
 `GET /admin/stats/timeseries?days=14` returns `{ "days": 14, "series": [ ... ] }` (same series).
@@ -695,7 +714,7 @@ is the admin who made it. There is no invite code here.
 ### Challenges
 
 - `GET /admin/challenges?page=1` - sort `createdAt` (default), `title`, `points`, `solveCount`; filters `q` (title or slug),
-  `category`, `difficulty`, `type`, `visible`. Items have the admin challenge shape (see "Challenge body" above, with
+  `category`, `difficulty`, `type` (any of `static`, `docker`, `terminal`, `game`, `weblab`, `forensics`, `reversing`, `osint`), `visible`. Items have the admin challenge shape (see "Challenge body" above, with
   `hasFlag`, never the flag).
 - `PATCH /admin/challenges/:id/visibility` body `{ "visible": true }` -> 200 `{ id, slug, visible }`. Hidden challenges
   vanish from player lists and are rejected on submit.
@@ -808,7 +827,12 @@ summaries (primitives and short strings, secret-looking keys dropped). `ip` is t
   "announcement": { "text": "CTF starts at 18:00 UTC", "level": "info" }, "updatedAt": "2026-11-22T10:00:00.000Z" }
 ```
 `announcement.text` 0-500 chars (empty hides the banner), `level` is `info | warning | critical`. Defaults: registration
-open, not frozen, no banner.
+open, not frozen, no banner, no event (`"event": null`).
+
+`event` is optional (scheduled Arena event, `docs/EVENT_MODE.md`): `null` or `{ name, startsAt, endsAt, freezeAt, phase }` where
+`phase` is `upcoming | live | frozen | ended` right now. `PUT` replaces it as a whole with `{ name?, startsAt, endsAt, freezeAt? }`
+(ISO 8601 with a zone; `name` 0-80 chars; `endsAt` after `startsAt`; `freezeAt` strictly between them or `null`) or clears it
+with `{ "event": null }`. Unknown keys, bad dates and an invalid window are 400 `VALIDATION_ERROR`. Changes are audited as `settings.update`.
 
 - **`submissionsFrozen`** is enforced server side on every answer route: `POST /challenges/:id/submit`,
   `POST /terminal/:mode/submit`, `POST /cipherlab/levels/:id/answer`, `POST /crackme/levels/:id/answer`,
@@ -816,12 +840,18 @@ open, not frozen, no banner.
   `POST /osint/cases/:track/questions/:n/answer` answer
   423 `SUBMISSIONS_FROZEN` (the check runs right after body validation, so a frozen platform also leaves no attempt
   records). Browsing, hints, instances, the terminal `exec` and the Web Exploit Lab simulator (`/weblab/labs/:slug/request`,
-  which never records a solve) stay available. The settings read has a 2 s timeout and fails open:
-  if the read fails, the submission continues.
+  which never records a solve) stay available. The settings read has a 2 s timeout and fails **closed**:
+  if the read errors or times out, the submission is refused with a retryable 503 `SETTINGS_UNAVAILABLE` (never "allowed").
+- **Scheduled event.** Only when an event is configured, the same guard also answers 423 `EVENT_NOT_STARTED` (before `startsAt`) and
+  423 `EVENT_ENDED` (from `endsAt`) on all of the routes above plus `POST /crackme/levels/:id/patch` and `PUT /osint/cases/:track/board`.
+  `live` and `frozen` accept submissions. `SUBMISSIONS_FROZEN` is checked first. With no event the guard is unchanged.
 - **`registrationOpen`** is stored and published only. Sign-up happens in Cognito (outside this API), so the backend cannot
   block it; the web app should hide its sign-up form when it is `false`. Closing Cognito self-sign-up is a follow-up.
 - **`GET /announcement`** (public, no token, `Cache-Control: no-store`):
   `{ "announcement": { "text": "...", "level": "info" }, "registrationOpen": true, "submissionsFrozen": false }`.
+- **`GET /event`** (public, no token, `Cache-Control: public, max-age=3`):
+  `{ "name": "Winter Cup", "phase": "none | upcoming | live | frozen | ended", "startsAt": "<ISO>|null", "endsAt": "<ISO>|null", "freezeAt": "<ISO>|null", "serverTime": "<ISO>" }`.
+  `serverTime` lets clients show a countdown without trusting their own clock. Nothing else is exposed.
 
 ### CSV exports
 
@@ -846,5 +876,5 @@ comma, quote or newline are quoted with doubled quotes. Numbers and booleans are
 - Players never receive `flag`, `flagHash`, or other teams' data except the leaderboard fields above.
 - A banned team gets `403 TEAM_BANNED` on submit and instance routes (and on terminal `exec`, `complete` and `submit`).
   A banned user gets `403 USER_BANNED` on the same routes. While submissions are frozen (`/admin/settings`) every
-  answer route (challenges, terminal and all games) answers `423 SUBMISSIONS_FROZEN`.
+  answer route (challenges, terminal and every range category) answers `423 SUBMISSIONS_FROZEN`.
 - Changing this file is a contract change: tell the group.

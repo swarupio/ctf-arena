@@ -2,11 +2,15 @@
 
 Models are written with Mongoose. Field types: S = string, N = number, D = date, B = boolean, OID = ObjectId.
 Owner: **S** Swarup, **G** Gururaj, **H** Shubham.
-Terminal game addition: `challenges.type` / `category` gain `terminal` plus the `terminal` sub-document (see below).
-Implementation status: `User`, `Team`, `Challenge`, `Instance`, `Submission`, `Solve` and `ReplicaStat`
-exist with the indexes below (the first six were verified live on Atlas; `ReplicaStat` was also exercised live by the
-end-to-end browser run). The leaderboard query is implemented in `services/leaderboardService.js`.
-Mongoose also adds its default `__v` version key to documents (the three fair-play collections below set `versionKey: false`).
+Arena Terminal addition: `challenges.type` / `category` gain `terminal` plus the `terminal` sub-document (see below).
+Implementation status: all 19 models, listed here with their collection names, exist and are described in this file: (`User`, `Team`, `Challenge`, `Instance`, `Submission`, `Solve`, `ReplicaStat`, `AuditLog`, `AppSetting`, `AttemptCounter`, `Achievement`, `CheatSignal`, `TaintedFlag`, `TerminalActivity`, `CipherHint`, `CrackmeHint`, `OsintHint`, `CrackmePatch`, `OsintBoard`)
+exist (collections: `users`, `teams`, `challenges`, `instances`, `submissions`, `solves`, `replicastats`, `auditlogs`, `appsettings`,
+`attemptcounters`, `achievements`, `cheatsignals`, `taintedflags`, `terminalactivities`, `cipherhints`, `crackmehints`, `osinthints`,
+`crackmepatches`, `osintboards`). The core six were verified live on Atlas; `ReplicaStat` was also exercised live by the
+end-to-end browser run. The leaderboard query is implemented in `services/leaderboardService.js`.
+Mongoose also adds its default `__v` version key to documents, except on the collections whose schema sets `versionKey: false`
+(`replicastats` keeps it; `auditlogs`, `appsettings`, `attemptcounters`, `cheatsignals`, `taintedflags`, `terminalactivities`, the three hint
+collections, `crackmepatches` and `osintboards` do not).
 Fair-play addition (`docs/FAIR_PLAY.md`): `cheatsignals`, `taintedflags` and `terminalactivities`, all with TTL indexes.
 Phase 2 detail: `instances` has no `updatedAt`; a failed start sets `status: 'failed'`, which sits outside the
 partial unique indexes and so frees the port. `solves.points` starts as the base points and is raised to include
@@ -23,6 +27,8 @@ the bonus when the team is the first solver (`solveCount` becomes 1 atomically).
 | teamId | OID or null | Mongoose ref `Team`, default null (collection `teams`) |
 | banned | B | default false; set by `PATCH /admin/users/:id/ban`. A banned user gets 403 `USER_BANNED` from `getTeamContext` (submit, instances, terminal) |
 | createdAt, updatedAt | D | |
+
+Indexes: **unique** `{ cognitoSub: 1 }`, `{ createdAt: -1 }` (admin user list, newest first).
 
 ## teams (S)
 | Field | Type | Notes |
@@ -53,7 +59,7 @@ They use the existing schemas; no seed-marker field or new model was added.
 | category | S | web, crypto, forensics, misc, pwn, terminal |
 | difficulty | S | easy, medium, hard |
 | points | N | |
-| type | S | `static`, `docker`, `terminal`, `forensics`, `reversing` or `osint` (also `game` and `weblab`, see each game's doc) |
+| type | S | `static`, `docker`, `terminal`, `forensics`, `reversing` or `osint`. Two more values are used by seeds: `game` (Cipher Lab levels, category `crypto`) and `weblab` (Web Exploit Lab, category `web`); see each category's doc |
 | image | S | Docker image name (docker type) |
 | internalPort | N | port inside the container (docker type) |
 | flagHash, flagSalt | S | static type only. **Never sent to clients** |
@@ -84,13 +90,13 @@ first-blood allowlist. Hints opened by teams are logged in the collection `osint
 createdAt }`, unique on `{ teamId, key, index }`, TTL 90 days; `key` is `<track>:<question>`). Created by
 `npm run seed:osint` (idempotent upsert keyed by slug).
 
-Terminal challenges (Arena Terminal game, `docs/TERMINAL_GAME.md`) have `type: 'terminal'`, `category: 'terminal'`,
+Terminal challenges (Arena Terminal, `docs/TERMINAL_GAME.md`) have `type: 'terminal'`, `category: 'terminal'`,
 slug `terminal-<mode>-<n>`, title `Terminal <Mode> #<n>`, `difficulty` equal to the mode and the points of the mode
 definition. Nothing is stored for their flag: like docker challenges it is derived per team
 (`dynamicFlag` over the slug, team id and challenge id), so `flagHash` and `flagSalt` stay unset. They are created by
 `npm run seed:terminal` (idempotent upsert keyed by slug; re-running resets title, description, points and difficulty,
 keeps `visible` and `solveCount`) and are not creatable through the admin API; admins may edit or hide them. A hidden
-one (`visible: false`) is switched off for the game. Solves and submissions use the normal `solves` and `submissions`
+one (`visible: false`) is switched off for the Arena Terminal. Solves and submissions use the normal `solves` and `submissions`
 collections.
 
 ## instances (G)
@@ -103,7 +109,7 @@ collections.
 | status | S | `starting`, `running`, `stopping`, `stopped`, `failed` |
 | expiresAt | D | start + `INSTANCE_TTL_MINUTES` |
 | extended | B | one extension allowed |
-| createdAt, stoppedAt | D | |
+| createdAt, stoppingAt, stoppedAt | D | `stoppingAt` is set when a stop claims the instance (`stopping`); the reaper finishes claims older than 5 minutes (crashed replica) |
 
 Indexes:
 - **Partial unique** on `{ port: 1 }` where `status` in `starting|running|stopping` -> atomic port claim across replicas.
@@ -114,7 +120,7 @@ Indexes:
 
 `stopping` is the short claim state while a replica removes the container. If that replica crashes mid-stop the
 instance stays `stopping` (still holding its port); the reaper and the player routes only claim `starting|running`,
-so the admin kill route claims it with `{ force: true }` and finishes the cleanup (see `API_SPEC.md`).
+so the admin kill route claims it with `{ force: true }` and finishes the cleanup (see `API_SPEC.md`). The reaper also takes over `stopping` claims older than 5 minutes (`stoppingAt`, atomic `findOneAndUpdate`).
 
 ## submissions (G)
 Every attempt, right or wrong. Used for rate limiting and admin stats.
@@ -125,9 +131,9 @@ Every attempt, right or wrong. Used for rate limiting and admin stats.
 | submittedHash | S | SHA-256 of what was submitted (do not store raw wrong flags) |
 | createdAt | D | |
 
-Indexes: `{ teamId: 1, challengeId: 1, createdAt: -1 }`. TTL index deletes rows after 30 days.
+Indexes: `{ teamId: 1, challengeId: 1, createdAt: -1 }`, `{ userId: 1, createdAt: -1 }` (admin submissions filtered by player). TTL index deletes rows after 30 days.
 
-Terminal game: `POST /terminal/:mode/submit` stores every attempt here. A correct attempt is stored against the code it
+Arena Terminal: `POST /terminal/:mode/submit` stores every attempt here. A correct attempt is stored against the code it
 matched, a wrong one against the mode's first code (lowest `terminal.code`). The per-mode rate limit (10 per minute per
 team) counts the team's rows over `challengeId in <the mode's challenge ids>` with `createdAt` in the last minute,
 which uses the index above.
@@ -142,10 +148,9 @@ which uses the index above.
 | adjustment | B | default false. `true` marks a **manual score adjustment** by an admin (Admin API v2): `challengeId` is a fresh random ObjectId that matches no challenge, `userId` is the admin, `points` may be negative |
 | reason | S | max 200; set on adjustments only |
 
-Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves), `{ solvedAt: 1 }` for the timeline, `{ teamId: 1, points: 1, solvedAt: 1, adjustment: 1 }` (covers the leaderboard `$group` and the team score without reading solve documents; an older index without `adjustment` may remain in existing databases and can be dropped).
-Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves; adjustments never collide because each has its own random `challengeId`), `{ solvedAt: 1 }` for the timeline.
+Indexes: **unique** `{ teamId: 1, challengeId: 1 }` (blocks double solves; adjustments never collide because each has its own random `challengeId`), `{ solvedAt: 1, adjustment: 1, teamId: 1, points: 1 }` for everything ordered by time (the activity feed, the frozen leaderboard and the admin per-day series are answered from the index alone; it replaces the older `{ solvedAt: 1 }`, which is now only a prefix of it and can be dropped, see docs/QUERY_PERFORMANCE.md), `{ teamId: 1, points: 1, solvedAt: 1, adjustment: 1 }` (covers the team score, `$match` on one team, without reading solve documents; the unfiltered live leaderboard `$group` gets a collection scan whatever the indexes, which is why its result is memoised; an older index without `adjustment` may remain in existing databases and can be dropped), `{ userId: 1, solvedAt: -1 }` (a player's solves, newest first: admin user detail and terminal reset) and `{ challengeId: 1, solvedAt: 1 }` (a challenge's solves in order: first-blood promotion, admin filters).
 Team score is still the sum of `points`, so adjustments count everywhere without query changes. Code that counts "solves" must
-filter `adjustment: { $ne: true }` (the admin API does; the public leaderboard's `solves` counter does not yet).
+filter `adjustment: { $ne: true }` (the admin API does; the public leaderboard's `solves` counter does too, while its `points` include adjustments).
 
 ## replicastats (H)
 Per-replica request counter for the admin dashboard (`GET /admin/stats` -> `requestsByReplica`).
@@ -243,9 +248,13 @@ Read on demand by every replica; nothing is cached in a process.
 |-------|------|-------|
 | key | S | required, **unique index**, always `platform` |
 | registrationOpen | B | default true. Published through `GET /announcement`; not enforced by the API (sign-up is in Cognito) |
-| submissionsFrozen | B | default false. Enforced: every answer route (challenges, terminal, Cipher Lab, Crackme, Web Exploit Lab, Forensics, OSINT) answers 423 `SUBMISSIONS_FROZEN` |
+| submissionsFrozen | B | default false. Enforced: every answer route (challenges, terminal, Cipher Lab, Crackme, Web Exploit Lab, Forensics, OSINT) answers 423 `SUBMISSIONS_FROZEN`. With `event` set, the same routes answer 423 `EVENT_NOT_STARTED` / `EVENT_ENDED` outside the window |
 | announcement.text | S | max 500, empty = no banner |
 | announcement.level | S | `info`, `warning`, `critical` |
+| event | object | optional scheduled Arena event (`docs/EVENT_MODE.md`); absent = no event. Cleared with `$unset`. The phase is never stored, it is derived from these timestamps and the clock |
+| event.name | S | optional, max 80 |
+| event.startsAt, event.endsAt | D | both required for the event to count; `endsAt` > `startsAt` (validated by the admin API) |
+| event.freezeAt | D | optional, strictly between start and end; the public scoreboard shows solves with `solvedAt <= freezeAt` from then until `endsAt` |
 | updatedBy | S | email of the last admin who saved |
 | updatedAt | D | |
 
@@ -262,11 +271,52 @@ Solve.aggregate([
 ```
 Teams with zero solves (and not banned) are appended at the bottom with 0 points. The service then sorts the whole list
 in memory with the tie-breaks points desc, earliest `lastSolveAt`, team name, team id, so every replica returns the same
-order. The timeline reads the `solves` of the top 10 teams in `solvedAt` order (the `{ solvedAt: 1 }` index).
+order. The timeline reads the `solves` of the top 10 teams in `solvedAt` order (the `{ teamId: 1, challengeId: 1 }` index, then a small in-memory sort).
+
+## cipherhints (G)
+One row per hint a team opened in Cipher Lab (an admin audit log; hints are free). Admin previews write no row.
+| Field | Type | Notes |
+|-------|------|-------|
+| teamId, userId | OID | who opened it |
+| levelId | S | Cipher Lab level id, for example `e1` |
+| index | N | 0-based hint number |
+| createdAt | D | no `updatedAt`, no `__v` |
+
+Indexes: **unique** `{ teamId: 1, levelId: 1, index: 1 }` (a double click or a second replica writes one row), TTL on `{ createdAt: 1 }` of 90 days.
+
+## osintboards (G)
+The team's shared red-string evidence board per OSINT case (model `OsintBoard`, one document per team and case). Only evidence ids, positions and relation types are stored; the required chain is recomputed from the team's deterministic world.
+| Field | Type | Notes |
+|-------|------|-------|
+| teamId | OID | ref Team |
+| track | S | case id, at most 20 characters |
+| version | N | default 0; every save is `findOneAndUpdate({ teamId, track, version }, { $set, $inc: { version: 1 } })`, a stale version is a 409 |
+| pins | `[{ id, x, y }]` | no `_id`; `id` is `<source>:<id>` (at most 70 chars), `x` and `y` numbers 0..1000; at most 40 pins (service limit) |
+| links | `[{ a, b, rel }]` | no `_id`; `a` and `b` evidence ids (at most 70 chars), `rel` at most 12 chars; at most 2 x M (M = required links of the case, service limit) |
+| unlocked | B | default false; set in the same atomic update as the save that completed the chain, never cleared |
+| updatedBy | OID | ref User |
+| createdAt, updatedAt | D | |
+
+Indexes: **unique** `{ teamId: 1, track: 1 }`. Run `npm run db:indexes` once after deploy.
+
+## crackmepatches (G)
+Cosmetic Patch Bay badges (model `CrackmePatch`): written once when a team's patch makes a hard or insane cabinet accept every hidden test input.
+| Field | Type | Notes |
+|-------|------|-------|
+| teamId, userId | OID | who patched |
+| levelId | S | cabinet id, for example `h2` |
+| edits | N | number of edits used |
+| createdAt | D | |
+
+Indexes: **unique** `{ teamId: 1, levelId: 1 }` (an atomic `$setOnInsert` upsert), no TTL. No points are stored here.
+
+## crackmehints and osinthints (G)
+Same shape and purpose as `cipherhints` (free hints, admin audit log, no `updatedAt`, no `__v`). Fields: `teamId`, `userId`, `index` (0-based),
+`createdAt`, plus `levelId` (S, `crackmehints`, for example `h2`) or `key` (S, `osinthints`, `<track>:<question>`). Indexes: **unique**
+`{ teamId, levelId, index }` (`crackmehints`) or `{ teamId, key, index }` (`osinthints`), and a TTL on `{ createdAt: 1 }` of 90 days.
 
 ## attemptcounters (security)
-Fixed-window counters shared by all replicas (`services/attemptLimiter.js`). One document per limiter key; today only the team join
-limit uses it (`join:<cognito sub>`: 10 attempts per 15 minutes, then 429).
+Fixed-window counters shared by all replicas (`services/attemptLimiter.js`). One document per limiter key; used by team join (`join:<cognito sub>`: 10 attempts per 15 minutes, then 429) and by every range category's answer, hint and request limits (`cipherlab:`, `crackme:`, `forensics:`, `osint:`, `weblab-req:`, `weblab-submit:`, `crackme-patch:`, `osint-board:` keys and `forensics:<teamId>:<track>:interview:<i>`).
 | Field | Type | Notes |
 |-------|------|-------|
 | key | String | Unique, for example `join:<cognito sub>` |

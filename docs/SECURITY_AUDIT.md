@@ -21,7 +21,7 @@ Terminal engine, honeypot and integrity code (written by other people at the sam
 | Info     | 5     | -     | 5 (accepted or by design) |
 
 Tests: 7 files and 367 tests in `backend/tests/security/` (route matrix, data exposure, IDOR, injection, token handling, join limit,
-env guard); the whole backend suite is green (50 files, 1446 passed, 1 skipped).
+env guard); the whole backend suite was green at the time of the audit (50 files, 1446 passed, 1 skipped). Those numbers are a snapshot: the suite has grown since, run `cd backend && npm test` for the current count.
 
 ## 2. Findings
 
@@ -29,7 +29,7 @@ Status: **fixed** (in this change, with tests) or **open** (needs an owner decis
 
 | ID | Sev | Area | Status | Where | How verified |
 |----|-----|------|--------|-------|--------------|
-| SEC-01 | High | Repository | open | The GitHub repository is **public** (`gh repo view`: PUBLIC). It contains the static flags (`challenges/sanity-check`, `challenges/caesar-says`: `challenge.json` and README solution notes), the source and solution notes of every Docker challenge, and the full terminal game (`backend/src/terminal`), which spells out where each code hides. Per-team flags (Docker, terminal) are HMACs and are **not** in the repo, but anyone can solve the static challenges and play the terminal quickly from the source. | `gh repo view --json visibility`; `grep CTF{`. |
+| SEC-01 | High | Repository | open | The GitHub repository is **public** (`gh repo view`: PUBLIC). It contains the static flags (`challenges/sanity-check`, `challenges/caesar-says`: `challenge.json` and README solution notes), the source and solution notes of every Docker challenge, and the full Arena Terminal (`backend/src/terminal`), which spells out where each code hides. Per-team flags (Docker, terminal) are HMACs and are **not** in the repo, but anyone can solve the static challenges and play the terminal quickly from the source. | `gh repo view --json visibility`; `grep CTF{`. |
 | SEC-02 | High | Transport | open | The stack serves plain HTTP unless the optional Caddy step in `docs/SECURITY.md` is done. Cognito ID tokens (sent as `Authorization` on every call), invite codes and the flags the terminal prints cross the network unencrypted; on shared Wi-Fi anyone can lift a token (valid up to 60 minutes) and act as that player. | `nginx/nginx.conf` listens on 80 only; `docker-compose.yml` publishes only that. |
 | SEC-03 | High | Secrets | fixed (guard) | Every team flag is `HMAC(FLAG_SECRET, teamId:challengeId)`; `teamId` is public on the leaderboard and `challengeId` on `/api/challenges`. The local `.env` uses the **public placeholder** from `.env.example` (checked by comparing, value never printed). On a server with that value anyone could compute every team's flags. `env.js` now refuses to start with `NODE_ENV=production` and a placeholder-looking secret (error names the variable only). The VM value itself must still be verified by the owner. | `tests/security/envGuard.test.js` |
 | SEC-04 | Med | Brute force | fixed | `POST /api/teams/join` had no attempt counter (6 characters, 32^6 = 1.07e9 codes, Nginx 20 r/s per IP only). Now 10 attempts per 15 minutes per account, counted atomically in MongoDB (`services/attemptLimiter.js`, collection `attemptcounters`, TTL), every attempt counts, other accounts are unaffected, parallel bursts cannot exceed it. One account needs about 5 years of nonstop guessing for even odds against 200 live teams. | `tests/security/joinLimit.test.js` (13 tests incl. window reset and 40-way burst) |
@@ -130,10 +130,10 @@ Nginx `limit_req` (20 r/s per IP, burst 60, exempt: loopback and Docker bridge) 
 **Can**
 - Read all frontend code and every endpoint path, and call them. Without a valid Cognito ID token every protected call is 401.
 - Create a normal player account (if sign-up is open: e-mail verification and TOTP MFA are required) and play, including with an AI doing
-  the clicking and typing. The terminal game cannot stop that; the fair-play layer (pacing, canary commands, tainted decoy flags,
+  the clicking and typing. The Arena Terminal cannot stop that; the fair-play layer (pacing, canary commands, tainted decoy flags,
   `docs/FAIR_PLAY.md`) only makes it visible to admins.
 - Guess flags at 5 per minute per challenge and team (10 per minute per terminal mode), guess invite codes at 10 per 15 minutes per account.
-- Run their own challenge containers (up to the team limit) and attack them, which is the game. From inside one they can currently
+- Run their own challenge containers (up to the team limit) and attack them, which is the exercise. From inside one they can currently
   reach other containers, the host and the metadata service until SEC-11 is closed.
 - Sniff tokens and flags of anyone using the site over HTTP until SEC-02 is closed, and read puzzle solutions and static flags from the
   public repository until SEC-01 is closed.

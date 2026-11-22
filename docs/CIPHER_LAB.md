@@ -1,6 +1,6 @@
 # Cipher Lab
 
-A browser-playable cryptography puzzle game: four tracks (easy, medium, hard, insane), 15 levels, a decoder toolbox that
+A browser-playable cryptography puzzle category on The Range: four tracks (easy, medium, hard, insane), 15 levels, a decoder toolbox that
 unlocks as levels are cleared. Code: `backend/src/games/cipherlab/**`, `backend/src/routes/cipherlab.js`,
 `frontend/src/pages/CipherLab*.jsx`, `frontend/src/components/cipherlab/`. Endpoints: `docs/API_SPEC.md` "Cipher Lab".
 
@@ -17,8 +17,9 @@ unlocks as levels are cleared. Code: `backend/src/games/cipherlab/**`, `backend/
 ## Per-team variation, statelessness
 
 `Rng(secret, teamId, levelId)` expands `HMAC(FLAG_SECRET, "cipherlab:<teamId>:<levelId>")` into a byte stream. Plaintext
-sentences, keys, shifts, rail counts, primes, salts, substitution alphabets and even the layer order of the Insane
-chains come from it. Nothing is stored: every request recomputes the puzzle, so replicas agree and two teams never
+sentences, keys, shifts, rail counts, primes, salts and substitution alphabets come from it. The layer order of
+the Insane chains is fixed (i2 and i3 always use the order in the table; i1 uses one of three fixed wrappings);
+only the shifts, keys and rail counts vary. Nothing is stored: every request recomputes the puzzle, so replicas agree and two teams never
 share a ciphertext or an answer. Admins preview with the fixed id `admin-preview`, which no team has.
 
 ## Security properties
@@ -32,7 +33,8 @@ share a ciphertext or an answer. Admins preview with the fixed id `admin-preview
   (hash only).
 - Fair play: a wrong answer calls `integrityService.checkSubmittedFlag`, so a pasted honeypot or canary flag leaves a
   signal, exactly like the other submit routes. Pacing rules are terminal-specific and not used here.
-- Points come from the level definition, not from the Challenge row, so editing a row cannot raise the maximum.
+- Points come from the level definition in code (`levels.js`), not from the Challenge row, so editing a row in MongoDB
+  cannot change or raise them. To change points, edit `levels.js` and update the maximums below.
 
 ## Points and maximums
 
@@ -55,11 +57,11 @@ No first-blood bonus: `scoringService.hasFirstBloodBonus(challenge)` is false fo
 | | h3 Keyed and Hexed | Vigenere in hex, crib | 150 |
 | | h4 Boss: The Onion | Caesar, rail fence, hex, Base64 | 250 |
 | | **Track max** | | **650** |
-| Insane (Black Chamber, no hints) | i1 Triple Wrap | random 3-layer chain | 200 |
+| Insane (Black Chamber, no hints) | i1 Triple Wrap | one message, 3 or 4 layers (Caesar/Atbash/reverse, hex, Base64) | 200 |
 | | i2 The Keyed Fence | Vigenere, rail, hex, Base64 | 300 |
 | | i3 Boss: The Black Chamber | Vigenere, rail, reverse, Base64, hex | 500 |
 | | **Track max** | | **1000** |
-| | **Game max** | | **2060** |
+| | **Category max** | | **2060** |
 
 `tests/cipherlab/api.test.js` solves everything repeatedly and in parallel and asserts the total is exactly 2060.
 
@@ -68,12 +70,37 @@ No first-blood bonus: `scoringService.hasFirstBloodBonus(challenge)` is false fo
 - **Story**: each track has a briefing; each level has a short briefing; playful messages on right and wrong answers.
 - **Toolbox**: ten client-side tools (shift slider, frequency chart, codec bench, Vigenere, XOR, rail fence,
   substitution mapper, RSA workbench, hash lab, pipeline). A tool unlocks when its level is solved (`TOOLS.unlockedBy`
-  in `levels.js`); the server reports `unlocked` in `/overview`.
-- **Streak**: consecutive correct answers (each level once), counted from the newest `Submission` rows.
+  in `levels.js`; the pipeline opens with h3, before the h4 boss that recommends it); the server reports `unlocked` in
+  `/overview`. Admin preview has every tool unlocked.
+- **Recipe workbench** (the `pipeline` tool, `components/cipherlab/Workbench.jsx`, pure functions in
+  `frontend/src/cipherlab/ops.js`): client-side only, no effect on puzzles, points or answers. The input is the shared
+  Working text. The player chains steps (add, remove, move up/down with buttons, per-step parameters), sees the output
+  after every step, copies it or feeds it back with "Use as input" (which drops the steps already applied). A failing
+  step shows its own error and later steps are skipped. Analysis helpers (not chainable): letter frequency chart and
+  index of coincidence (gated by `frequency`), and "Magic" suggestions (heuristic hints about what the text looks like;
+  never decodes, never searches for a flag). Limits: input 20000 characters, 12 steps, 100000 characters of output per
+  step, single-byte XOR ranks all 256 keys on the first 4096 bytes and shows the top 5.
+  An operation is offered (and run) only when its toolbox tool is unlocked, plus `pipeline` itself:
+
+  | Operations | Needs tool |
+  |---|---|
+  | From/To Base64, From/To Hex, Reverse | `codec` |
+  | Caesar shift back, ROT13, ROT47, Atbash | `shift` |
+  | Rail fence decode | `rail` |
+  | Vigenere decode | `vigenere` |
+  | XOR with key, single-byte XOR brute force | `xor` |
+  | From/To Binary, From/To Base32, URL decode, Morse decode, A1Z26 decode (no matching tool) | `pipeline` |
+  | Letter frequency chart, index of coincidence | `frequency` |
+  | Magic | `pipeline` |
+
+  Tests: `frontend/tests/cipherOps.test.js`.
+- **Streak**: consecutive correct answers (each level once), counted from the newest `Submission` rows. Attempts on a
+  level after its team solve are ignored. A wrong answer returns streak 0 and the page says the streak was lost.
 - **Speed-run badge** (cosmetic): for a fully solved track, the span between its first and last `Solve.solvedAt`.
   Gold, silver, bronze thresholds per track (easy 10/20/40 min, medium 20/40/90, hard 30/60/120, insane 45/90/180).
 - **Hints**: free, optional, one at a time, logged in `cipherhints` (`CipherHint`, unique per team/level/index) and
-  readable by admins at `GET /api/cipherlab/admin/hints`.
+  readable by admins at `GET /api/cipherlab/admin/hints`. Admins previewing a level see every hint and
+  `POST /levels/:id/hints` returns them all without writing a `CipherHint` row; admins still cannot answer.
 
 ## Operations
 
@@ -84,6 +111,6 @@ npm run seed:cipherlab     # 15 Challenge rows (type game, category crypto), ide
 
 Rows are keyed by slug `cipherlab-<level id>`. Hiding a row (`visible: false`) switches that level off and relaxes the
 ladder. The Insane track is stored with difficulty `hard` (the model has no `insane`). The generic
-`/api/challenges` list shows these rows too, but the game is only playable through `/api/cipherlab`; the generic submit
-route rejects them (no stored flag). The admin challenge editor does not yet accept `type: game`; edit points or
-visibility in MongoDB until that schema is extended.
+`/api/challenges` list shows these rows too, but the category is only playable through `/api/cipherlab`; the generic submit
+route rejects them (no stored flag). The admin challenge editor does not yet accept `type: game`; edit visibility in MongoDB until that schema is
+extended (points live in `levels.js`, not in the row).
