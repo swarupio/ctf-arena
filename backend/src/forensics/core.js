@@ -15,12 +15,6 @@ export function trackSeed(secret, teamId, trackId) {
 export const rngFor = (seed, label) => rng(`${seed}|${label}`);
 
 // Cheap 32-bit mixer for per-index jitter (no allocation, no hashing).
-export function mix(seed, index) {
-  let x = (Number.parseInt(seed.slice(0, 8), 16) ^ Math.imul(index + 1, 0x9e3779b1)) >>> 0;
-  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b) >>> 0;
-  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35) >>> 0;
-  return (x ^ (x >>> 16)) >>> 0;
-}
 
 const sha = (text) => createHash('sha256').update(text).digest();
 

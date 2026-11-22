@@ -72,4 +72,20 @@ describe('environment configuration', () => {
     expect(output).not.toContain('private-invalid-uri');
     expect(output).not.toContain('private-short-secret');
   });
+
+  it.each([
+    { NODE_ENV: 'staging-private-mode' },
+    { DOCKER_ENABLED: 'private-maybe' },
+    { MONGODB_URI: 'http://private-host.example/db' },
+    { PORT: '70000' },
+    { INSTANCE_TTL_MINUTES: 'private-soon' },
+  ])('names the variable and never prints the rejected value: %j', async (overrides) => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('startup refused'); });
+    await expect(loadEnv(overrides)).rejects.toThrow('startup refused');
+    const output = stderr.mock.calls.flat().join('');
+    const [name, value] = Object.entries(overrides)[0];
+    expect(output).toContain(name);
+    expect(output).not.toContain(value);
+  });
 });

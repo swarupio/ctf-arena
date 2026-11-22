@@ -22,7 +22,9 @@ export function autoIndexEnabled(source = process.env) {
 
 const baseOptions = { serverSelectionTimeoutMS: 10000, maxPoolSize: 10, minPoolSize: 1, maxIdleTimeMS: 60000 };
 
-export async function connectDB(uri) {
+const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+async function connectOnce(uri) {
   if (mongoose.connection?.readyState === 1) { return; }
   if (!cache.promise) {
     cache.promise = mongoose.connect(uri, { ...baseOptions, ...serverlessOptions, autoIndex: autoIndexEnabled() })
@@ -34,4 +36,21 @@ export async function connectDB(uri) {
       .finally(() => { cache.promise = null; });
   }
   await cache.promise;
+}
+
+// `attempts` > 1 (the long-running server does this at boot) retries a failed first connection with exponential
+// backoff, so a database that is still starting or briefly unreachable does not make the container crash-loop.
+// Default is one attempt: serverless handlers fail fast and retry on the next invocation. The driver error is never
+// logged (it can carry the URI); the last one is rethrown for the caller to report.
+export async function connectDB(uri, { attempts = 1, baseDelayMs = 1000, maxDelayMs = 10000, sleep = wait } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await connectOnce(uri);
+    } catch (error) {
+      if (attempt >= attempts) { throw error; }
+      const delay = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
+      process.stderr.write(`MongoDB connection attempt ${attempt}/${attempts} failed; retrying in ${Math.round(delay / 1000)}s.\n`);
+      await sleep(delay);
+    }
+  }
 }

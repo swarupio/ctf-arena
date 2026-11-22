@@ -552,7 +552,6 @@ export class FsView {
 }
 
 // Convenience wrappers named in the task brief.
-export const getNode = (view, path, options) => view.lookup(path, options);
 export function listDir(view, path, options = {}) {
   const found = view.lookup(path, options);
   if (found.error) return { error: found.error };

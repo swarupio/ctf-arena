@@ -131,15 +131,6 @@ function buildMap(r, count) {
 }
 
 // The landmark nearest to a point (the generator guarantees a unique nearest one for GPS and street-corner clues).
-export function nearestLandmark(map, x, y) {
-  let best = null;
-  let bestDistance = Infinity;
-  for (const lm of map.landmarks) {
-    const d = Math.hypot(lm.x - x, lm.y - y);
-    if (d < bestDistance) { best = lm; bestDistance = d; }
-  }
-  return best;
-}
 export const landmarkAt = (map, ci, cj) => map.landmarks.find((lm) => lm.ci === ci && lm.cj === cj) ?? null;
 
 // ---- the world -------------------------------------------------------------------------------------------
@@ -230,8 +221,6 @@ export function buildBase(seed, track) {
 
 export const realCast = (w) => w.cast.filter((c) => !c.alias);
 export const staffOf = (w) => w.cast.filter((c) => c.staff);
-export const byId = (w, id) => w.cast.find((c) => c.id === id);
-export const landmarkById = (w, id) => w.map.landmarks.find((lm) => lm.id === id);
 
 // ---- adding things (used by the filler below and by the plots) -------------------------------------------
 // opts: { landmark, gps: true | {x,y} | false, takenMs, clockOff (minutes the camera clock runs ahead of UTC), offsetTag,

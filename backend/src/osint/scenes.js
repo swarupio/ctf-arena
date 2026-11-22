@@ -87,5 +87,3 @@ export function sceneFor(r, { draw, hour, people = 0, signs = [] }) {
   }
   return { w: SCENE_W, h: SCENE_H, tod, shapes };
 }
-
-export const DRAW_KEYS = Object.keys(DRAW);

@@ -25,6 +25,3 @@ export function timestamp(r, baseIso, spreadMinutes = 600) {
 }
 
 // Joins `count` generated lines with newlines (trailing newline included).
-export function repeatLines(count, makeLine) {
-  return `${Array.from({ length: count }, (_, index) => makeLine(index)).join('\n')}\n`;
-}

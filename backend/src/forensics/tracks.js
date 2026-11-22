@@ -6,11 +6,10 @@ import {
   NAMES, SURNAMES, WORDS, buildScenario, fullName, pickDistinct, publicIp, rngFor, trackSeed,
 } from './core.js';
 import {
-  CLUSTERS_PER_REQUEST, STEGO_IMAGES, diskClusters, diskListing, exifTable, hexFilePage, stegoImage,
-  HEX_PAGE_MAX,
+  diskClusters, diskListing, exifTable, hexFilePage, stegoImage,
 } from './files.js';
-import { LOG_PAGE_MAX, logLevel, logPage, logPlan } from './logs.js';
-import { PACKET_PAGE_MAX, packetLevel, packetPage, packetPlan } from './packets.js';
+import { logPage, logPlan } from './logs.js';
+import { packetPage, packetPlan } from './packets.js';
 
 export const TRACK_IDS = ['easy', 'medium', 'hard', 'insane'];
 
@@ -252,15 +251,6 @@ export function suspectsFor(ctx) {
 }
 
 // ---- artefact dispatch -----------------------------------------------------------------------------------
-export function artefactSummary(ctx, artefact) {
-  const base = { ...artefact };
-  if (artefact.kind === 'log') { return { ...base, total: logLevel(ctx.level).lines, pageMax: LOG_PAGE_MAX }; }
-  if (artefact.kind === 'packets') { return { ...base, total: packetLevel(ctx.level).slots, pageMax: PACKET_PAGE_MAX }; }
-  if (artefact.kind === 'hex') { return { ...base, pageMax: HEX_PAGE_MAX }; }
-  if (artefact.kind === 'stego') { return { ...base, images: ctx.level === 'insane' ? STEGO_IMAGES : 1 }; }
-  if (artefact.kind === 'disk') { return { ...base, clustersPerRequest: CLUSTERS_PER_REQUEST }; }
-  return base;
-}
 
 // `query` is already validated (integers within range). Returns null for an artefact this track does not have.
 export function artefactData(ctx, id, query) {
