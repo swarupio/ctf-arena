@@ -66,7 +66,7 @@ Script time varies by +-100 ms between runs on this machine; treat differences u
 - API GET cache with revalidation (`src/api/cache.js`) untouched.
 
 ## Not changed, and why
-- `aws-amplify` (40 KB gzip) stays in the first load: the session is restored on every start and `AuthContext`/`token.js` are Foundation-owned. Loading it only when a stored session exists would save ~40 KB for signed-out visitors; needs an auth-owner decision.
+- `aws-amplify` (40 KB gzip) is no longer in the first load for signed-out visitors (second pass, see `docs/LIGHTHOUSE.md`): `auth/session.js` checks localStorage for a `CognitoIdentityServiceProvider.*` key synchronously and loads the amplify chunk only for a stored session, a sign-in form or an auth call. First-load JS 136.4 -> 99.5 KB gzip when signed out. `deploy/bundle-size.mjs` fails if `index.html` references the amplify chunk again.
 - Play-screen tab splits (OSINT map/web/registry tabs, Forensics disk/pixel/timeline viewers, Crackme time-travel/patch bay, Cipher Lab tools): 10-25 KB raw each, in files other work was editing; revisit with `React.lazy` per tab.
 - `ChallengeDetail` re-renders once a second for its countdown (small page); isolate the countdown if the page grows.
 - `Demo` (22.7 KB gzip) is already lazy and only opened on purpose.
@@ -86,3 +86,13 @@ cd frontend && npx vite build --outDir <scratch dir> --emptyOutDir     # never o
 node -e "const fs=require('fs'),z=require('zlib'),p=require('path');const d=process.argv[1];let t=0,g=0;(function w(x){for(const f of fs.readdirSync(x,{withFileTypes:true})){const q=p.join(x,f.name);if(f.isDirectory())w(q);else if(q.endsWith('.js')){const b=fs.readFileSync(q);t+=b.length;g+=z.gzipSync(b).length;console.log(f.name,b.length,z.gzipSync(b).length)}}})(d);console.log('TOTAL',t,g)" <scratch dir>/assets
 ```
 Check the build is a production build: `react-<hash>.js` should be about 220 KB raw (about 430 KB means the development build is back). For per-chunk module contents, add a throwaway Rollup plugin whose `generateBundle` prints `chunk.modules[id].renderedLength`. For load numbers use puppeteer-core with `Network.emulateNetworkConditions`, `Emulation.setCPUThrottlingRate` and `Performance.getMetrics`.
+
+## Second pass: Lighthouse and axe (2026-11-22)
+Full before and after tables, axe counts, the fixes and what was left are in `docs/LIGHTHOUSE.md`. Headline: CLS 0.28 -> 0 on most pages (the footer no longer jumps while a page loads), SEO 82 -> 100, mobile Performance 83-86 -> 97-98 on the affected pages, distinct document title per route, first-load JS -37 KB gzip when signed out.
+
+Regression guard (tools are installed in a scratch folder, not in the repo):
+```bash
+cd docs/harness && node ../../frontend/node_modules/vite/bin/vite.js build --config vite.perf.config.js --outDir <scratch>/dist-harness --emptyOutDir
+DIST=<scratch>/dist-harness PERF_TOOLS=<tools> node axe.cjs         # exit 1 on a serious or critical axe violation outside the documented allowlist
+DIST=<scratch>/dist-harness PERF_TOOLS=<tools> node lighthouse.cjs  # 10 pages, mobile and desktop, prints the table
+```
