@@ -23,10 +23,11 @@
   color: inherit; text-decoration: none; background: var(--color-surface); border: var(--border);
   transition: background-color 0.12s;
 }
-@media (hover: hover) { .challenge-card:hover { color: var(--color-ink); background: var(--color-surface); box-shadow: 4px 4px 0 var(--color-shadow); } }
+@media (hover: hover) { .challenge-card:hover { color: var(--color-ink); background: var(--color-surface); box-shadow: var(--shadow-hover); } }
 .challenge-card:focus-visible { box-shadow: var(--shadow-hard); }
-.challenge-card.solved { background: var(--color-accent-tint); }
-@media (hover: hover) { .challenge-card.solved:hover { color: var(--color-ink); background: var(--color-accent-tint); } }
+/* Captured: a calm 8% lime wash and a lime left edge instead of a large saturated block */
+.challenge-card.solved { background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); border-left: 8px solid var(--color-accent); }
+@media (hover: hover) { .challenge-card.solved:hover { color: var(--color-ink); background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); } }
 .challenge-title { font-family: var(--font-display); font-size: 1.75rem; font-weight: 400; letter-spacing: 0.02em; line-height: 1.1; overflow-wrap: anywhere; }
 .challenge-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: auto; min-height: 28px; }
 .challenge-meta { color: var(--color-muted); font-size: 0.875rem; }
@@ -39,6 +40,7 @@
 .challenge-body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
 .challenge-main, .challenge-side { display: grid; gap: var(--space-5); min-width: 0; }
 .challenge-description { margin: 0; padding: var(--space-5); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--color-surface); border: var(--border); }
+.challenge-description code { padding: 1px var(--space-2); font-size: 0.9em; color: var(--color-code-text); background: var(--color-code-bg); border: 1px solid var(--color-line-soft); overflow-wrap: anywhere; }
 .attachments { margin: 0; padding: 0; list-style: none; border: var(--border); background: var(--color-surface); }
 .attachments li { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-line-soft); overflow-wrap: anywhere; }
 .attachments li:first-child { border-top: 0; }

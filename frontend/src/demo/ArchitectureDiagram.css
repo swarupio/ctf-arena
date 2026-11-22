@@ -20,7 +20,7 @@
 .demo-arch .demo-arch__svg {
   display: block;
   width: 100%;
-  min-width: 560px;
+  min-width: 812px; /* scale 1: 11 px labels stay 11 px; the box scrolls sideways on narrow screens */
   height: auto;
 }
 

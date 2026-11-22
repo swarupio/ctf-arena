@@ -1,14 +1,21 @@
 /* First-run onboarding. Tokens come from styles.css. Mobile first: one column, 44px targets, nothing wider than the viewport. */
 
-.ob-checklist, .ob-welcome, .ob-preview { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.ob-checklist, .ob-welcome { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .ob-checklist, .ob-welcome {
   display: grid; gap: var(--space-4); align-content: start; padding: var(--space-4);
   background: var(--color-surface); border: var(--border);
 }
+.ob-body { display: grid; gap: var(--space-4); min-width: 0; }
+/* Completed: one line (title, summary, toggle); the six steps sit behind the toggle */
+.ob-checklist.is-cleared { padding: var(--space-3) var(--space-4); }
+.ob-done-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.ob-checklist.is-cleared h2 { font-size: 1.25rem; }
+.ob-done-line { flex: 1 1 18rem; margin: 0; color: var(--color-ink); overflow-wrap: anywhere; }
+.ob-done-row .button, .ob-done-row button { min-height: 44px; }
 .ob-welcome { background: var(--color-accent-tint); margin-top: var(--space-5); }
 .ob-checklist h2, .ob-welcome h2 { margin: 0; overflow-wrap: anywhere; }
 .ob-checklist h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
-.ob-lead, .ob-objective, .ob-meta, .ob-next, .ob-cleared, .ob-note { margin: 0; overflow-wrap: anywhere; }
+.ob-lead, .ob-objective, .ob-meta, .ob-next, .ob-note { margin: 0; overflow-wrap: anywhere; }
 .ob-lead, .ob-objective, .ob-meta { color: var(--color-muted); }
 .ob-welcome .ob-lead { color: var(--color-ink); }
 
@@ -19,10 +26,9 @@
 .ob-bar > span { display: block; height: 100%; max-width: 100%; background: var(--color-accent); border-right: var(--border); }
 .ob-bar > span[style*='width: 0%'] { border-right: 0; }
 
-.ob-note, .ob-preview, .ob-cleared {
+.ob-note {
   padding: var(--space-3) var(--space-4); background: var(--color-accent-tint); border: var(--border); border-left: 8px solid var(--color-accent);
 }
-.ob-preview { margin: 0; overflow-wrap: anywhere; }
 
 /* Steps */
 .ob-steps { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
@@ -69,7 +75,7 @@
 .ob-explainer-panel p, .ob-explainer-panel ul { margin: 0; }
 .ob-explainer-panel ul { display: grid; gap: var(--space-2); padding-left: var(--space-5); }
 
-.ob-next a, .ob-cleared a, .ob-note a { display: inline-flex; align-items: center; min-height: 44px; }
+.ob-next a, .ob-note a { display: inline-flex; align-items: center; min-height: 44px; }
 
 .ob-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 

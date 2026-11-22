@@ -134,3 +134,8 @@ export function getThemeController() {
   shared ??= createThemeController();
   return shared;
 }
+
+// Pure: the short line shown next to the footer selector. The filled segment already shows the preference; this adds what the page looks like.
+export const themeHint = (preference, effective) => (preference === 'light' || preference === 'dark'
+  ? `${themeLabel(preference)} is set.`
+  : `Auto: now ${effective === 'dark' ? 'dark' : 'light'}.`);

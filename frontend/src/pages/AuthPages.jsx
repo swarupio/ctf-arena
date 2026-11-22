@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { confirmResetPassword, resetPassword } from 'aws-amplify/auth';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { authMessage, returnPath, signInPath } from '../auth/logic.js';
 
 export default function AuthPage({ mode }) {
   const auth = useAuth();
+  const { preload } = auth;
+  // Start the (lazy) amplify download as soon as a sign-in form is on screen, so the first submit does not wait for it.
+  useEffect(() => { preload?.(); }, [preload]);
   const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState(location.state?.email ?? auth.email);
@@ -52,11 +54,11 @@ export default function AuthPage({ mode }) {
         navigate(result.isSignUpComplete ? '/login' : '/confirm', { state: { from, email } });
       } else if (mode === 'forgot') {
         if (!resetSent) {
-          await resetPassword({ username: email });
+          await auth.resetPassword(email);
           setResetSent(true);
           setMessage('A reset code was sent to your email. Enter it below with a new password.');
         } else {
-          await confirmResetPassword({ username: email, confirmationCode: code, newPassword: password });
+          await auth.confirmResetPassword(email, code, password);
           setCode('');
           setPassword('');
           navigate('/login', { replace: true, state: { from, email, message: 'Password updated. Log in to continue.' } });

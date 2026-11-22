@@ -23,7 +23,8 @@ test('timeAgo buckets', () => {
   assert.equal(timeAgo(ago(5), now), 'just now');
   assert.equal(timeAgo(ago(120), now), '2 min ago');
   assert.equal(timeAgo(ago(7200), now), '2 h ago');
-  assert.equal(timeAgo(ago(3 * 86_400), now), '3 d ago');
+  assert.equal(timeAgo(ago(3 * 86_400), now), '3 days ago');
+  assert.equal(timeAgo(ago(86_400), now), '1 day ago');
   assert.equal(timeAgo(new Date(now + 5000).toISOString(), now), 'just now');
 });
 

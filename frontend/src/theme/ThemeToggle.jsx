@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import { DARK_THEME_ENABLED } from './config.js';
-import { THEME_OPTIONS, getThemeController, nextTheme, themeLabel } from './theme.js';
+import { THEME_OPTIONS, getThemeController, nextTheme, themeHint } from './theme.js';
 import './theme.css';
 
 // One SVG set: 24x24 box, 2px round strokes, currentColor. Only sun and moon are used by the header switch.
@@ -61,7 +61,7 @@ export function ThemeSelect({ className = '' }) {
         <span>{option.label}</span>
       </label>)}
     </div>
-    <p className="theme-hint">{preference === 'system' ? `Auto (follows your device): now ${effective}.` : `${themeLabel(preference)} is set. System is Auto (follows your device).`}</p>
+    <p className="theme-hint">{themeHint(preference, effective)}<span className="theme-status"> System is Auto (follows your device).</span></p>
     <span className="theme-status" role="status">{announcement}</span>
   </fieldset>;
 }

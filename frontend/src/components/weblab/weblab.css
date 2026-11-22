@@ -161,9 +161,10 @@
   .wl-site-body { min-height: 120px; }
 }
 @media (min-width: 901px) {
-  .wl-grid > .wl-frame { position: static; align-self: stretch; }
+  /* The target is only as tall as its page and follows the scroll beside the taller inspector (no empty void under the form) */
+  .wl-grid > .wl-frame { position: sticky; top: var(--space-4); align-self: start; }
 }
 
 /* The address bar wraps instead of cutting the URL (a hover title is not reachable by touch). */
 .wl-url { overflow: visible; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
-.wl-locks { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 0.8125rem; color: var(--color-muted); overflow-wrap: anywhere; }
+.wl-locks { margin: 0; padding: var(--space-2) var(--space-3); list-style: none; display: grid; gap: 2px; font-size: 0.8125rem; color: var(--color-muted); overflow-wrap: anywhere; }

@@ -8,7 +8,7 @@ export default function HintBar({ state, mode, isAdmin, busy, onRun }) {
   const view = hintBarView(state, { mode, isAdmin });
   if (!view.visible) { return null; }
   return <div className="tm-hintbar" role="group" aria-label="Hints">
-    <button type="button" className="tm-chip tm-hint-btn" disabled={busy} onClick={() => onRun(view.firstCommand)} aria-label={view.nextCommand ? 'Run hint: show the first hint for your next code' : 'Run hint: show a hint for your next code'}>Hints</button>
+    <button type="button" className="tm-chip tm-hint-btn" disabled={busy} onClick={() => onRun(view.firstCommand)} aria-label={view.nextCommand ? 'Hints: show the first hint for your next code' : 'Hints: show a hint for your next code'}>Hints</button>
     {view.nextCommand && <button type="button" className="tm-chip tm-hint-btn" disabled={busy} onClick={() => onRun(view.nextCommand)} aria-label={`Next hint: run ${view.nextCommand}`}>Next hint</button>}
     <span className="tm-hint-info">
       {view.tierText && <span>{view.tierText}</span>}

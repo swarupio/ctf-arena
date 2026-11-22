@@ -12,10 +12,10 @@ function TerminalPromo({ summary }) {
   return <Link to="/terminal" className="challenge-card tm-promo">
     <span className="tm-promo-prompt" aria-hidden="true">guest@arena:~$ _</span>
     <span className="challenge-title">Arena Terminal</span>
-    <span className="tm-promo-text">Explore a pretend Unix machine with real commands and hunt for hidden codes.</span>
+    <span className="tm-promo-text">Explore a pretend Unix machine with real commands and hunt for hidden flags.</span>
     <span className="challenge-foot">
       <span className="tm-promo-meta">{progress}{summary.points > 0 ? ` · ${summary.points} pts` : ''}</span>
-      <span className="tm-promo-go">open terminal <span aria-hidden="true">{'▸'}</span></span>
+      <span className="challenge-go">Open terminal <span aria-hidden="true">{'▸'}</span></span>
     </span>
   </Link>;
 }
@@ -61,6 +61,7 @@ export default function ChallengeList() {
           <span className="challenge-foot">
             <span className="challenge-meta" title={challenge.solveCount == null ? 'Solve counts are hidden while the scoreboard is frozen.' : undefined}>{solveCountLabel(challenge.solveCount)}</span>
             {challenge.solvedByMyTeam && <span className="badge">Captured</span>}
+            <span className="challenge-go" aria-hidden="true">Open {'▸'}</span>
           </span>
         </Link>)}
       </div>
@@ -72,7 +73,7 @@ export default function ChallengeList() {
         <Link to="/range" className="challenge-card">
           <span className="challenge-title">The Range</span>
           <span className="challenge-meta">Terminal, Cipher Lab, Web Lab, Forensics, Crackme and OSINT live on the Range.</span>
-          <span className="challenge-foot"><span className="tm-promo-go">open the Range <span aria-hidden="true">{'▸'}</span></span></span>
+          <span className="challenge-foot"><span className="challenge-go">Open the Range <span aria-hidden="true">{'▸'}</span></span></span>
         </Link>
       </div>
     </div>

@@ -53,6 +53,7 @@ export default function OsintTrail() {
   return <section className="os-page ov-page">
     <header className="ov-header">
       <Link className="back-games" to="/range">Back to the Range</Link>
+      <p className="ov-kicker">open-source intelligence</p>
       <h1>OSINT Trail</h1>
       <p className="os-lead ov-lead">
         Open-source intelligence in a fully fictional world: invented people, an invented town, a pretend company, a pretend network.

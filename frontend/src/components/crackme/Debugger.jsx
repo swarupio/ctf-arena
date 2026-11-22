@@ -163,6 +163,7 @@ export default function Debugger({ puzzle, input, onInput, onSubmit, canSubmit =
           {SPEEDS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
       </label>
+      <button type="button" className="secondary small cm-keys-toggle" aria-pressed={shortcuts} onClick={toggleShortcuts}>{shortcutsLabel(shortcuts)}</button>
       <label className="cm-check">
         <input type="checkbox" checked={hideDebugger} onChange={(event) => setHideDebugger(event.target.checked)} />
         Hide debugger (DBG pushes 0)
@@ -184,8 +185,7 @@ export default function Debugger({ puzzle, input, onInput, onSubmit, canSubmit =
       cabinet runs with no debugger attached, and only the server&apos;s own run counts.
     </p>
     <p className="cm-note cm-keys">
-      <button type="button" className="secondary small" aria-pressed={shortcuts} onClick={toggleShortcuts}>{shortcutsLabel(shortcuts)}</button>
-      {shortcuts && <> Keys (when no text box is focused): <kbd>S</kbd> step forward, <kbd>B</kbd> step back, <kbd>R</kbd> run or pause, <kbd>E</kbd> run to end, <kbd>X</kbd> reset, <kbd>W</kbd> pin a cell.</>}
+      {shortcuts && <>Keys (when no text box is focused): <kbd>S</kbd> step forward, <kbd>B</kbd> step back, <kbd>R</kbd> run or pause, <kbd>E</kbd> run to end, <kbd>X</kbd> reset, <kbd>W</kbd> pin a cell.<br /></>}
       Move the slider (drag it, or use the arrow keys) to travel through the steps you have already run.
     </p>
     <div className="cm-grid">

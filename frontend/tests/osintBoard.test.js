@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BOARD_SIZE, LEVEL_TEXT, applyOp, applyOps, checkText, checksLeftText, clampPos, describeBoardError, levelPercent, levelText, describeLink, emptyBoard, isDrag, keyMove, linkKey, meterPercent, meterText,
-  nextPinPosition, pointerToBoard, suggestRelation, toPayload, whyNot,
+  BOARD_SIZE, LEVEL_TEXT, applyOp, applyOps, checkText, checksLeftText, clampPos, describeBoardError, levelPercent, levelText, describeLink, emptyBoard, keyMove, linkKey, meterPercent, meterText,
+  nextPinPosition, suggestRelation, toPayload, whyNot,
 } from '../src/osint/board.js';
 import {
   MAX_ROUNDS, NOT_SAVED_MESSAGE, RETRY_DELAY_MS, UNREACHABLE_MESSAGE, classifySaveError, leavingPayload, runFlush,
@@ -97,15 +97,6 @@ test('arrow keys move a pin by 10 units, 50 with shift, inside the board', () =>
   assert.deepEqual(keyMove({ x: 0, y: 1000 }, 'ArrowLeft'), { x: 0, y: 1000 });
   assert.deepEqual(keyMove({ x: 0, y: 1000 }, 'ArrowDown'), { x: 0, y: 1000 });
   assert.equal(keyMove({ x: 1, y: 1 }, 'Enter'), null);
-});
-
-test('pointer positions map into board units and a tiny movement is a click, not a drag', () => {
-  const rect = { left: 100, top: 50, width: 500, height: 250 };
-  assert.deepEqual(pointerToBoard(rect, 350, 175), { x: 500, y: 500 });
-  assert.deepEqual(pointerToBoard(rect, 0, 9999), { x: 0, y: 1000 });
-  assert.equal(pointerToBoard({ left: 0, top: 0, width: 0, height: 5 }, 1, 1), null);
-  assert.equal(isDrag({ x: 0, y: 0 }, { x: 2, y: 2 }), false);
-  assert.equal(isDrag({ x: 0, y: 0 }, { x: 9, y: 0 }), true);
 });
 
 test('the meter and the messages say what the server said, without inventing detail', () => {

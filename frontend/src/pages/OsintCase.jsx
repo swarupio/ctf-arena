@@ -58,7 +58,7 @@ function Desk({ view, canAnswer, onSolved }) {
         <SearchBox />
         <Tabs tab={tab} onTab={setTab} />
       </div>
-      <div className="os-questions" role="region" aria-label="Questions">
+      <div className="os-questions" role="region" aria-label="Questions" tabIndex={0}>
         <h2>Questions</h2>
         <div className="os-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-label="Case progress"><span style={{ width: `${percent}%` }} /></div>
         {next && <p className="os-muted">Next open: {next}.</p>}

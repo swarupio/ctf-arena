@@ -91,7 +91,9 @@ export default function Overview() {
         </Panel>
         <Panel title="Instances" id="ov-instances">
           {docker
-            ? <><p><strong>{formatNumber(data?.instances?.active ?? 0)}</strong> active challenge containers.</p><p><Link to="/admin/instances">Manage instances</Link></p></>
+            ? ((data?.instances?.active ?? 0) > 0
+              ? <><p><strong>{formatNumber(data.instances.active)}</strong> active challenge containers.</p><p><Link to="/admin/instances">Manage instances</Link></p></>
+              : <div className="adm-state"><p><strong>No containers running</strong></p><p className="adm-muted">Containers appear here while players run Docker challenges.</p><p><Link to="/admin/instances">Open instances</Link></p></div>)
             : <div className="adm-state"><p><Badge tone="muted">Docker disabled</Badge></p><p className="adm-muted">This server runs with DOCKER_ENABLED=false, so no containers are started or counted.</p></div>}
         </Panel>
       </div>

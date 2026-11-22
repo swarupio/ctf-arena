@@ -25,6 +25,7 @@ export default function WebLab() {
   return <section className="wl-page-root ov-page">
     <header className="ov-header">
       <Link className="back-games" to="/range">Back to the Range</Link>
+      <p className="ov-kicker">bug bounty</p>
       <h1>Web Exploit Lab</h1>
       <p className="wl-lead ov-lead">
         You are a bug bounty hunter. Four companies, four difficulty tracks, ten simulated websites, each with a classic

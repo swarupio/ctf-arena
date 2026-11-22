@@ -25,5 +25,6 @@ export default function DailySpotlight() {
       <span className="tag">{challenge.category}</span> <span className={`tag tag-${challenge.difficulty}`}>{challenge.difficulty}</span> <span className="tag tag-points">{challenge.points} pts</span>
     </p>
     <p className="fx-note">A new pick appears every day at 00:00 UTC. The bonus tag is just for fun: points never change.</p>
+    <Link className="button fx-daily-play" to={`/challenges/${challenge.id}`}>Play it<span className="fx-sr"> {challenge.title}</span></Link>
   </section>;
 }

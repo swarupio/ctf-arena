@@ -13,7 +13,7 @@
 .pf-stats dd { margin: 0; font-family: var(--font-display); font-size: 2rem; line-height: 1.1; }
 .pf-unit { font-family: var(--font-body); font-size: 0.8125rem; color: var(--color-muted); }
 .pf-streak { padding: var(--space-2) var(--space-4); border: var(--border); background: var(--color-surface-2); }
-.pf-streak.is-live { color: var(--color-on-accent); background: var(--color-accent); border-left-width: 8px; }
+.pf-streak.is-live { background: var(--color-accent-tint); border-left: 8px solid var(--color-accent); }
 
 .pf-card { --panel-pad: var(--space-5); min-width: 0; padding: var(--panel-pad); background: var(--color-surface); border: var(--border); }
 .pf-card h2 {
@@ -23,7 +23,7 @@
 }
 .pf-card h2::before { content: '> '; content: '> ' / ''; }
 
-.pf-badges { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
+.pf-badges { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
 .pf-badge { display: grid; gap: var(--space-1); align-content: start; padding: var(--space-3); border: var(--border); background: var(--color-surface); }
 .pf-badge.is-open { background: var(--color-accent-tint); box-shadow: 3px 3px 0 var(--color-shadow); }
 .pf-badge.is-locked { color: var(--color-muted); border-style: dashed; background: var(--color-surface-2); }

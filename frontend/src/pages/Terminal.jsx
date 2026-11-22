@@ -75,13 +75,14 @@ export default function Terminal() {
   return <section className="tm-page ov-page">
     <header className="ov-header">
       <Link className="back-games" to="/range">Back to the Range</Link>
+      <p className="ov-kicker">pretend unix machine</p>
       <h1>Arena Terminal</h1>
       <p className="tm-lead ov-lead">
         A pretend Unix machine that lives in your browser tab. Type real commands, dig through its files and find the hidden
         codes. Every code you submit scores for your team on the leaderboard.
       </p>
     </header>
-    {user?.role === 'admin' && <p className="tm-note ov-note">Admin preview: you can open every mode and run commands, but only players can submit codes.</p>}
+    {user?.role === 'admin' && <p className="tm-note ov-note">Admin preview: you can open every mode and run commands, but only players can submit flags.</p>}
 
     {noTeam && !problem && <ProblemPanel problem={describeError({ code: 'NO_TEAM' })} />}
     {problem && <ProblemPanel problem={problem} onRetry={load} />}

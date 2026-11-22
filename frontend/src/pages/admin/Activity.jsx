@@ -49,7 +49,7 @@ function useActivityFilters(extra, initial, kind) {
   const fields = [
     { name: 'teamId', label: 'Team', type: 'select', options: withCurrent(options.teams, values.teamId, 'All teams'), initial: '' },
     { name: 'challengeId', label: 'Challenge', type: 'select', options: withCurrent(options.challenges, values.challengeId, 'All challenges'), initial: '' },
-    { name: 'userId', label: 'User id (24 hex characters)', type: 'text', maxLength: 24, initial: '' },
+    { name: 'userId', label: 'User id', type: 'text', placeholder: '24 hex characters', maxLength: 24, initial: '' },
   ];
   return { list, fields, values };
 }

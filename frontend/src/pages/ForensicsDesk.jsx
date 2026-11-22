@@ -54,6 +54,7 @@ export default function ForensicsDesk() {
   return <section className="fx-page ov-page">
     <header className="ov-header">
       <Link className="back-games" to="/range">Back to the Range</Link>
+      <p className="ov-kicker">digital forensics</p>
       <h1>Forensics Desk</h1>
       <p className="fx-lead ov-lead">
         Four case files, from a trainee's first log to an eyes-only mystery with decoys everywhere. Investigate in your browser,

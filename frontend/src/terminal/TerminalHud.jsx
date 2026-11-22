@@ -51,7 +51,7 @@ export default function TerminalHud({
     </p>
 
     <div id="tm-hud-body" className="tm-hud-body" hidden={!open}>
-      {isAdmin && <p className="tm-hud-note">Admin preview: you can explore every mode, but only players can submit codes.</p>}
+      {isAdmin && <p className="tm-hud-note">Admin preview: you can explore every mode, but only players can submit flags.</p>}
 
       <section aria-labelledby="tm-codes-title">
         <h3 id="tm-codes-title">Codes</h3>
@@ -64,7 +64,7 @@ export default function TerminalHud({
             <span className="tm-code-title">{row.title}</span>
             {row.points !== null && row.points !== undefined && <span className="tm-code-points">+{row.points}</span>}
           </li>)}
-          {rows.length === 0 && <li className="tm-hud-muted">No codes reported for this mode yet.</li>}
+          {rows.length === 0 && <li className="tm-hud-muted">No flags reported for this mode yet.</li>}
         </ul>
       </section>
 
@@ -88,7 +88,7 @@ export default function TerminalHud({
           </li>)}
           <li><Link to="/terminal">all modes</Link></li>
         </ul>
-        <p className="tm-hud-muted">Switching modes starts a fresh terminal. Your codes are kept.</p>
+        <p className="tm-hud-muted">Switching modes starts a fresh terminal. Your flags are kept.</p>
       </nav>
 
       <section aria-labelledby="tm-keys-title">

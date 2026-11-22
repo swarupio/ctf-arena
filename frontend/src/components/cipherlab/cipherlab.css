@@ -86,11 +86,9 @@ a.cl-rung-link:focus-visible { border-color: var(--color-line); background: var(
 .cl-map label { display: grid; grid-template-columns: 1fr; gap: 2px; text-align: center; }
 .cl-map input { text-align: center; text-transform: lowercase; padding: 4px; }
 .cl-map-bad input { border-color: var(--color-danger); background: var(--color-danger-tint); }
-.cl-hashes, .cl-trail, .cl-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); font-size: 0.8125rem; }
-.cl-hashes li, .cl-trail li, .cl-steps li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: space-between; padding: 4px var(--space-2); border: 1px solid var(--color-line-soft); overflow-wrap: anywhere; }
+.cl-hashes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); font-size: 0.8125rem; }
+.cl-hashes li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: space-between; padding: 4px var(--space-2); border: 1px solid var(--color-line-soft); overflow-wrap: anywhere; }
 .cl-hashes li.is-match { background: var(--color-accent); color: var(--color-on-accent); border-color: var(--color-line); font-weight: 700; }
-.cl-trail code { flex: 1 1 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
-.cl-steps input { width: 90px; min-height: 32px; }
 
 /* Frequency chart */
 .cl-freq { display: grid; grid-template-columns: repeat(26, minmax(0, 1fr)); gap: 2px; height: 140px; }

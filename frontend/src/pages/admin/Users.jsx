@@ -5,7 +5,7 @@ import {
 } from '../../api/admin.js';
 import { useAct, useAdminData, useListState } from '../../admin/hooks.js';
 import {
-  challengeName, formatDate, formatNumber, formatSigned, orDash, timeAgo,
+  challengeName, formatDate, formatDateCompact, formatNumber, formatSigned, orDash, timeAgo,
 } from '../../admin/format.js';
 import AsyncBlock from '../../components/admin/AsyncBlock.jsx';
 import ConfirmDialog from '../../components/admin/ConfirmDialog.jsx';
@@ -30,12 +30,12 @@ export default function Users() {
   const { data, error, loading, reload } = useAdminData((signal) => listUsers(list.query, signal), [list.query]);
 
   const columns = [
-    { key: 'displayName', header: 'Name', sortKey: 'displayName', render: (user) => <strong>{user.displayName}</strong> },
-    { key: 'email', header: 'Email', sortKey: 'email', render: (user) => user.email },
+    { key: 'displayName', header: 'Name', sortKey: 'displayName', className: 'adm-wrap-any', render: (user) => <strong>{user.displayName}</strong> },
+    { key: 'email', header: 'Email', sortKey: 'email', className: 'adm-wrap-any', render: (user) => user.email },
     { key: 'role', header: 'Role', render: (user) => <Badge tone={user.role === 'admin' ? 'info' : ''}>{user.role}</Badge> },
     { key: 'status', header: 'Status', render: (user) => (user.banned ? <Badge tone="danger">Banned</Badge> : <Badge tone="ok">Active</Badge>) },
     { key: 'team', header: 'Team', render: (user) => (user.team ? <Link to={`/admin/teams?team=${encodeURIComponent(user.team.id)}`}>{user.team.name ?? '(deleted)'}</Link> : <span className="adm-muted">No team</span>) },
-    { key: 'createdAt', header: 'Joined', sortKey: 'createdAt', render: (user) => formatDate(user.createdAt) },
+    { key: 'createdAt', header: 'Joined (UTC)', sortKey: 'createdAt', className: 'adm-nowrap', render: (user) => formatDateCompact(user.createdAt) },
     { key: 'actions', header: <span className="adm-sr">Actions</span>, render: (user) => <button type="button" className="secondary small" onClick={() => setParams({ user: user.id })}>Details<span className="adm-sr"> for {user.displayName}</span></button> },
   ];
 

@@ -1,3 +1,4 @@
+import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { nextStep } from './firstLevels.js';
 import WhatIsFlag from './WhatIsFlag.jsx';
@@ -30,8 +31,19 @@ export default function FirstFlagChecklist({ steps, progress, onRetry, needsTeam
   const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   const cleared = progress.loaded && progress.done === progress.total;
   const next = nextStep(steps);
-  return <section className="ob-checklist" aria-labelledby="ob-checklist-heading">
-    <h2 id="ob-checklist-heading">Capture your first flag</h2>
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  const collapsed = cleared && !open;
+  const heading = <h2 id="ob-checklist-heading">Capture your first flag</h2>;
+  return <section className={`ob-checklist${cleared ? ' is-cleared' : ''}`} aria-labelledby="ob-checklist-heading">
+    {cleared
+      ? <div className="ob-done-row">
+        {heading}
+        <p className="ob-done-line" role="status">{progress.done} of {progress.total} first flags captured. Range cleared. <Link to="/challenges">Try the Challenges board</Link></p>
+        <button type="button" className="secondary small" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((value) => !value)}>{open ? 'Hide the steps' : 'Show the steps'}</button>
+      </div>
+      : heading}
+    {!collapsed && <div id={bodyId} className="ob-body">
     <p className="ob-lead">One easy level in each category. Do them in any order; each takes a few minutes.</p>
     <div className="ob-meter">
       <p className="ob-meter-label">{progress.done} of {progress.total} first flags</p>
@@ -41,12 +53,11 @@ export default function FirstFlagChecklist({ steps, progress, onRetry, needsTeam
       </div>
     </div>
     {needsTeam && <p className="ob-note" role="note">You are not on a team yet. Flags you capture only score once you <Link to="/team">join or create a team</Link>.</p>}
-    {cleared
-      ? <p className="ob-cleared" role="status"><strong>Range cleared.</strong> Now try the <Link to="/challenges">Challenges board</Link>.</p>
-      : next && progress.done > 0 && <p className="ob-next">Next up: <Link to={next.href}>{next.title}</Link></p>}
+    {!cleared && next && progress.done > 0 && <p className="ob-next">Next up: <Link to={next.href}>{next.title}</Link></p>}
     <ol className="ob-steps">
       {steps.map((step) => <Step key={step.id} step={step} onRetry={onRetry} />)}
     </ol>
     <WhatIsFlag />
+    </div>}
   </section>;
 }

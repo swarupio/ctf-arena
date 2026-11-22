@@ -4,12 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#ffffff" />
+    <meta name="description" content="CTF Arena: train on the Range, compete in the Arena. Capture-the-flag challenges with private containers, hands-on labs and a live leaderboard." />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CTF Arena" />
+    <meta property="og:title" content="CTF Arena" />
+    <meta property="og:description" content="Train on the Range. Compete in the Arena. A capture-the-flag platform with private challenge containers and a live leaderboard." />
     <meta name="color-scheme" content="light" />
     <!-- Applies the stored theme before first paint. A file, not inline: the CSP forbids inline scripts. Does nothing while DARK_THEME_ENABLED is false. -->
     <script src="/theme-init.js"></script>
     <!-- TODO(dev): remove before release. internal debug endpoints still enabled on staging:
          /api/internal/debug/flags (no auth), /api/internal/config -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="preload" href="/fonts/jersey10-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
     <title>CTF Arena</title>

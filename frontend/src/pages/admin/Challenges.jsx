@@ -48,8 +48,10 @@ export default function Challenges() {
     { key: 'category', header: 'Category', render: (item) => `${item.category}, ${item.difficulty}` },
     { key: 'points', header: 'Points', sortKey: 'points', align: 'right', render: (item) => formatNumber(item.points) },
     { key: 'solveCount', header: 'Solves', sortKey: 'solveCount', align: 'right', render: (item) => formatNumber(item.solveCount) },
-    { key: 'visible', header: 'Status', render: (item) => <button type="button" className="secondary small" aria-pressed={Boolean(item.visible)} disabled={act.busy} onClick={() => toggle(item)}>
-      {act.isPending(`vis:${item.id}`) ? 'Saving…' : item.visible ? 'Published – hide' : 'Hidden – publish'}<span className="adm-sr"> {item.title}</span></button> },
+    { key: 'visible', header: 'Status', render: (item) => <span className="adm-state-cell">
+      {item.visible ? <Badge tone="ok">Published</Badge> : <Badge tone="muted">Hidden</Badge>}
+      <button type="button" className="secondary small" disabled={act.busy} onClick={() => toggle(item)}>
+        {act.isPending(`vis:${item.id}`) ? 'Saving…' : item.visible ? 'Hide' : 'Publish'}<span className="adm-sr"> {item.title}</span></button></span> },
     { key: 'actions', header: <span className="adm-sr">Actions</span>, render: (item) => <button type="button" className="secondary small" onClick={() => setParams({ challenge: item.id })}>Manage<span className="adm-sr"> {item.title}</span></button> },
   ];
 

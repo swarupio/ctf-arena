@@ -1,4 +1,3 @@
-export const CHART_TEAMS = 10;
 export const COLOR_SLOTS = 8;
 // Beyond the eight validated hues, extra lines are neutral and told apart by their dash pattern.
 const OVERFLOW_DASHES = ['7 4', '2 4'];

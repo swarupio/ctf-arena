@@ -9,12 +9,18 @@ const storage = () => { try { return window.localStorage; } catch { return null;
 // nothing is sent to the server and nothing about it reaches the score.
 export function useTimeline(email, trackId) {
   const key = timelineKey(email, trackId);
-  const [state, setState] = useState(() => readTimeline(storage(), key));
-  useEffect(() => { setState(readTimeline(storage(), key)); }, [key]);
-  const update = useCallback((change) => setState((prev) => {
-    const next = change(prev);
-    if (next !== prev) { writeTimeline(storage(), key, next); }
-    return next;
+  // The stored board remembers which key it was read for, so a new user or case never shows (or writes to) the previous board.
+  const [held, setHeld] = useState(() => ({ key, value: readTimeline(storage(), key) }));
+  let state = held.value;
+  if (held.key !== key) {
+    state = readTimeline(storage(), key);
+    setHeld({ key, value: state });
+  }
+  const update = useCallback((change) => setHeld((prev) => {
+    const base = prev.key === key ? prev.value : readTimeline(storage(), key);
+    const next = change(base);
+    if (next !== base) { writeTimeline(storage(), key, next); }
+    return { key, value: next };
   }), [key]);
   const findings = useMemo(() => findContradictions(state.pins), [state.pins]);
   // The badge is cosmetic and sticks once earned on this browser.

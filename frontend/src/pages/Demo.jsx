@@ -219,10 +219,11 @@ export default function Demo() {
       <div className="demo-col">
         <ArchitectureDiagram hop={diagramHop} activeEdges={activeEdges} servedBy={servedByAt(step, hops, hopIndex)} running={running} />
       </div>
-      <div className="demo-col">
+      {started && <div className="demo-col">
         <StepTerminal step={step} hop={hopIndex} running={running} />
-      </div>
+      </div>}
     </div>
+    {!started && <p className="demo-idle">Press Play demo. The terminal, the browser window, the challenge containers and the scoreboard appear here and update as the match runs.</p>}
 
     {started && <section className="demo-jump" aria-label="Step navigator">
       <ol className="demo-phases" aria-label="Jump to a step">
@@ -243,7 +244,7 @@ export default function Demo() {
       </ol>
     </section>}
 
-    <div className="demo-grid">
+    {started && <div className="demo-grid">
       <div className="demo-col">
         <ScreenMock screen={step?.screen} actor={step?.actor} minute={minute} />
         <InstancePanel instances={state.instances} limits={LIMITS} />
@@ -251,7 +252,7 @@ export default function Demo() {
       <div className="demo-col">
         <Scoreboard teams={state.teams} />
       </div>
-    </div>
+    </div>}
 
     {showProof && <section className="demo-proof" aria-labelledby="demo-proof-title">
       <h2 id="demo-proof-title">Proof checklist</h2>

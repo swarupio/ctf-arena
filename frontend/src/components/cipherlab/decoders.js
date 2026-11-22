@@ -174,16 +174,6 @@ export async function sha256Hex(text) {
 }
 
 // Pipeline tool: each step is { op, arg }. A step that cannot be applied returns null and stops the chain.
-export const PIPELINE_OPS = [
-  { id: 'base64', label: 'Base64 decode', arg: null },
-  { id: 'hex', label: 'Hex decode', arg: null },
-  { id: 'reverse', label: 'Reverse', arg: null },
-  { id: 'atbash', label: 'Atbash', arg: null },
-  { id: 'caesar', label: 'Caesar shift', arg: 'number' },
-  { id: 'rail', label: 'Rail fence', arg: 'number' },
-  { id: 'vigenere', label: 'Vigenere key', arg: 'text' },
-];
-
 export function applyStep(text, { op, arg }) {
   switch (op) {
     case 'base64': return base64ToText(text);
