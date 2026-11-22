@@ -8,11 +8,19 @@ import CelebrationHost from '../components/CelebrationHost.jsx';
 import AnnouncementBanner from '../components/AnnouncementBanner.jsx';
 import EventBanner from '../components/EventBanner.jsx';
 import { REPLICA_HINT, replicaLabel } from './replica.js';
-import ThemeToggle, { ThemeSelect } from '../theme/ThemeToggle.jsx';
+import ThemeToggle, { ThemeAuto } from '../theme/ThemeToggle.jsx';
+import { initialsOf } from './userInitials.js';
 
 export default function Layout() {
   const { user } = useAuth();
   return <TeamProvider key={user?.email ?? 'signed-out'}><LayoutContent /></TeamProvider>;
+}
+
+// The signed-in account as a small box (two initials, or one big one for a single word handle): it links to the profile, and the
+// full address stays in the title and the accessible name instead of being cut off in the navigation.
+function AccountBox({ user, name }) {
+  const { text, solo } = initialsOf({ displayName: name, email: user.email });
+  return <Link className={`avatar${solo ? ' is-solo' : ''}`} to="/profile" title={user.email} aria-label={`Your profile (${user.email})`}><span aria-hidden="true">{text}</span></Link>;
 }
 
 function LayoutContent() {
@@ -67,10 +75,10 @@ function LayoutContent() {
         {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
       </nav>
       <div className="account">
-        {loading ? <span>Loading…</span> : user ? <><span className="email" title={user.email}>{user.email}</span><button className="secondary small" onClick={logout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button></> : <><span className="session-status">Not logged in</span><Link className="button secondary small" to="/login">Login</Link><Link className="button small" to="/signup">Sign up</Link></>}
+        {loading ? <span>Loading…</span> : user ? <><AccountBox user={user} name={profile?.displayName} /><span className="email" title={user.email}>{user.email}</span><button className="secondary small" onClick={logout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button></> : <><span className="session-status">Not logged in</span><Link className="button secondary small" to="/login">Login</Link><Link className="button small" to="/signup">Sign up</Link></>}
         <ThemeToggle />
       </div>
-      <ThemeSelect className="theme-select-menu" />
+      <ThemeAuto className="theme-auto-menu" />
       </div>
     </header>
     <main id="main" tabIndex={-1}>
@@ -79,6 +87,6 @@ function LayoutContent() {
       <Outlet />
     </main>
     <CelebrationHost />
-    <footer className="site-footer"><span>CTF Arena · Train on the Range. Compete in the Arena.</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><ThemeSelect className="theme-select-footer" /><span className="replica" title={REPLICA_HINT}>{replicaLabel(replica)}</span></footer>
+    <footer className="site-footer"><span>CTF Arena · Train on the Range. Compete in the Arena.</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><ThemeAuto className="theme-auto-footer" /><span className="replica" title={REPLICA_HINT}>{replicaLabel(replica)}</span></footer>
   </div>;
 }

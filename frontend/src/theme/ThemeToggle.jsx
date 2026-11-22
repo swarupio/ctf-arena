@@ -1,6 +1,6 @@
-import { useEffect, useId, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { DARK_THEME_ENABLED } from './config.js';
-import { THEME_OPTIONS, getThemeController, nextTheme, themeHint } from './theme.js';
+import { getThemeController, nextTheme, themeHint } from './theme.js';
 import './theme.css';
 
 // One SVG set: 24x24 box, 2px round strokes, currentColor. Only sun and moon are used by the header switch.
@@ -41,27 +41,22 @@ export default function ThemeToggle() {
   </div>;
 }
 
-// Three-option selector (System / Light / Dark) for the footer and the mobile menu. System lives here, not in the header button.
-export function ThemeSelect({ className = '' }) {
+// Footer and mobile menu: "System" is not a third theme, it means "follow my device". It is the default until the header switch is
+// used once; after that this small line says which theme is set and offers to go back to the device setting. While the device
+// setting is in use nothing is shown (the live region stays for screen readers).
+export function ThemeAuto({ className = '' }) {
   const { controller, preference, effective } = useTheme();
-  const name = useId();
   const [announcement, setAnnouncement] = useState('');
   if (!DARK_THEME_ENABLED) return null;
+  const chosen = preference === 'light' || preference === 'dark';
 
-  function choose(value) {
-    controller.setPreference(value);
-    setAnnouncement(`Theme set to ${value === 'system' ? `system, showing ${controller.getEffective()}` : value}`);
+  function useDevice() {
+    controller.setPreference('system');
+    setAnnouncement(`Theme set to follow your device, now ${controller.getEffective()}`);
   }
 
-  return <fieldset className={`theme-select ${className}`.trim()}>
-    <legend>Theme</legend>
-    <div className="theme-select-options">
-      {THEME_OPTIONS.map((option) => <label key={option.value} className="theme-option">
-        <input type="radio" name={name} value={option.value} checked={preference === option.value} onChange={() => choose(option.value)} />
-        <span>{option.label}</span>
-      </label>)}
-    </div>
-    <p className="theme-hint">{themeHint(preference, effective)}<span className="theme-status"> System is Auto (follows your device).</span></p>
+  return <div className={`theme-auto ${className}`.trim()}>
+    {chosen && <p className="theme-auto-line">{themeHint(preference, effective)} <button type="button" className="link theme-auto-btn" onClick={useDevice}>Use device setting</button></p>}
     <span className="theme-status" role="status">{announcement}</span>
-  </fieldset>;
+  </div>;
 }

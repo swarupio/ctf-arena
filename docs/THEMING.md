@@ -742,3 +742,7 @@ Known remaining limits: disabled and locked controls stay below 4.5:1 by design 
 - **Selection colour** (`::selection`: lime with dark text) applies only when the flag is on, in both themes.
 - **`color-mix` and `light-dark()`** are not used (older Safari and Firefox on phones); the duplicated blocks are the compatibility choice.
 - Not tested on real devices (iOS Safari `theme-color` behaviour, Android automatic dark mode / force-dark).
+
+### Update: account box and the footer line
+
+The header now has an account box (initials) next to Logout and the theme switch, all at the same height. The three-option footer selector was replaced by `ThemeAuto`: nothing is shown while the device setting is in use; after a choice it shows "<Theme> is set. Use device setting". The stored values (`ctf.theme`: light, dark, or absent for the device setting) are unchanged.

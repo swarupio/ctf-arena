@@ -4,6 +4,7 @@ const as = sessionStorage.getItem('as') || 'player';
 const users = {
   player: { email: 'player.with.a.rather.long.email.address@example-university.edu', role: 'player' },
   admin: { email: 'admin@arena.test', role: 'admin' },
+  owner: { email: 'patilswarup110@gmail.com', role: 'admin' }, // a realistic 24 character address for header width checks
 };
 const step = as === 'mfa-setup' ? { signInStep: 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP', totpSetupDetails: { sharedSecret: 'JBSWY3DPEHPK3PXP', getSetupUri: () => new URL('otpauth://totp/CTF%20Arena:me?secret=JBSWY3DPEHPK3PXP') } }
   : as === 'mfa' ? { signInStep: 'CONFIRM_SIGN_IN_WITH_TOTP_CODE' } : null;
