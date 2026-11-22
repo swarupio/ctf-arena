@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { openHint, submitAnswer } from '../../api/osint.js';
 import { useDesk } from './DeskContext.jsx';
 import { describeOsintError } from '../../osint/helpers.js';
+import PreviewNote from '../PreviewNote.jsx';
 import HintLadder, { HintsUsed } from '../../hints/HintLadder.jsx';
 import Debrief from '../../debrief/Debrief.jsx';
 
@@ -56,18 +57,17 @@ function Question({ trackId, q, hintsAllowed, canAnswer, onSolved }) {
           preview={!canAnswer} previewNote="Admin preview: only players can open hints." onOpen={hint} describeError={describeOsintError}
         />
       </div>}
-      <form className="os-answer" onSubmit={submit}>
+      {canAnswer ? <form className="os-answer" onSubmit={submit}>
         <label>Your answer<input
           value={answer} onChange={(e) => setAnswer(e.target.value)} maxLength={200} autoComplete="off" spellCheck="false"
-          disabled={!canAnswer || busy} aria-describedby={`os-format-${q.n}`}
+          disabled={busy} aria-describedby={`os-format-${q.n}`}
         /></label>
-        <button type="submit" disabled={!canAnswer || busy || answer.trim() === ''}>{busy ? 'Checking...' : q.final ? 'Submit the final answer' : 'Check answer'}</button>
+        <button type="submit" disabled={busy || answer.trim() === ''}>{busy ? 'Checking...' : q.final ? 'Submit the final answer' : 'Check answer'}</button>
         <p id={`os-format-${q.n}`} className="os-format">Format: {q.format}</p>
         {pickable && <button type="button" className="secondary small" disabled={!fromPick} onClick={() => setAnswer(fromPick)}>
           {fromPick ? `Use my map pick (${fromPick})` : 'Pick a point on the Map tab first'}
         </button>}
-      </form>
-      {!canAnswer && <p className="os-muted">Admins can browse the case but only players can answer.</p>}
+      </form> : <PreviewNote>Admins can browse the case, but only players can answer.</PreviewNote>}
     </>}
     <div aria-live="polite" className="os-feedback">
       {feedback?.kind === 'wrong' && <p className="os-wrong">{'✗'} {feedback.result.message}</p>}

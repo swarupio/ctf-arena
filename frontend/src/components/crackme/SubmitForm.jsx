@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { submitInput } from '../../api/crackme.js';
+import PreviewNote from '../PreviewNote.jsx';
 import { HintsUsed } from '../../hints/HintLadder.jsx';
 import { confettiPieces, crackmeErrorMessage, inputProblem, streakText } from './helpers.js';
 
@@ -38,14 +39,13 @@ export default function SubmitForm({ puzzle, input, canSubmit, onSolved, submitR
 
   return <section className="cm-box cm-answer" aria-labelledby="cm-answer-title">
     <h2 id="cm-answer-title">Insert the code</h2>
-    {!canSubmit && <p className="notice">Admins can preview cabinets but cannot submit.</p>}
-    <form onSubmit={submit} noValidate>
+    {!canSubmit ? <PreviewNote>Admins can run the debugger on any cabinet, but only players can submit an input.</PreviewNote> : <form onSubmit={submit} noValidate>
       <p className="cm-note">
         Input to submit: <code className="cm-flag">{input || '(empty, type it in the debugger above)'}</code>
       </p>
       <p className="cm-note">The server runs its own copy of the machine on this input. A pass in your debugger is not enough: check for traps.</p>
-      <button type="submit" disabled={!canSubmit || busy || !input}>{busy ? 'Checking...' : 'Submit input'}</button>
-    </form>
+      <button type="submit" disabled={busy || !input}>{busy ? 'Checking...' : 'Submit input'}</button>
+    </form>}
     {error && <p role="alert" className="error">{error}</p>}
     {result && !result.correct && <p role="status" className="cm-wrong">{result.message}</p>}
     {result?.correct && <div role="status" className="cm-win">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { submitPatch } from '../../api/crackme.js';
+import PreviewNote from '../PreviewNote.jsx';
 import { crackmeErrorMessage } from './helpers.js';
 import { editOf, editsLabel, patchableRows, withEdit } from './patchEditor.js';
 
@@ -70,9 +71,9 @@ export default function PatchBay({
           </div>;
         })}
       </div>
-      {!canSubmit && <p className="notice">Admins can preview the Patch Bay but cannot submit.</p>}
+      {!canSubmit && <PreviewNote>Admins can try patches here, but only players can submit one.</PreviewNote>}
       <div className="cm-buttons">
-        <button type="submit" disabled={!canSubmit || busy || edits.length === 0}>{busy ? 'Testing...' : 'Submit patch'}</button>
+        {canSubmit && <button type="submit" disabled={busy || edits.length === 0}>{busy ? 'Testing...' : 'Submit patch'}</button>}
         <button type="button" className="secondary" onClick={() => changeEdits([])} disabled={edits.length === 0}>Clear edits</button>
       </div>
     </form>

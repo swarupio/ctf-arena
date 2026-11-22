@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { submitAnswer } from '../../api/forensics.js';
 import { describeForensicsError } from '../../forensics/caseHelpers.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import PreviewNote from '../PreviewNote.jsx';
 import HintLadder, { HintsUsed } from '../../hints/HintLadder.jsx';
 import { useStoredCount } from '../../hints/hooks.js';
 import Debrief from '../../debrief/Debrief.jsx';
@@ -45,15 +46,14 @@ export default function StagePanel({ trackId, stage, canAnswer, onSolved, prefil
         category="forensics" hints={stage.hint ? [stage.hint].slice(0, opened) : []} total={stage.hint ? 1 : 0} allowed={Boolean(stage.hint)}
         onOpen={openNext}
       />
-      <form className="fx-answer" onSubmit={submit}>
+      {canAnswer ? <form className="fx-answer" onSubmit={submit}>
         <label>Your answer<input
           ref={input} value={answer} onChange={(e) => setAnswer(e.target.value)} maxLength={200} autoComplete="off" spellCheck="false"
-          disabled={!canAnswer || busy} aria-describedby={`fx-format-${stage.n}`} placeholder={stage.whodunit ? 'Full name' : ''}
+          disabled={busy} aria-describedby={`fx-format-${stage.n}`} placeholder={stage.whodunit ? 'Full name' : ''}
         /></label>
-        <button type="submit" disabled={!canAnswer || busy || answer.trim() === ''}>{busy ? 'Checking...' : stage.whodunit ? 'Make the accusation' : 'Check answer'}</button>
+        <button type="submit" disabled={busy || answer.trim() === ''}>{busy ? 'Checking...' : stage.whodunit ? 'Make the accusation' : 'Check answer'}</button>
         <p id={`fx-format-${stage.n}`} className="fx-format">Format: {stage.format}</p>
-      </form>
-      {!canAnswer && <p className="fx-muted">Admins can browse the evidence but only players can answer.</p>}
+      </form> : <PreviewNote>Admins can browse the evidence, but only players can answer.</PreviewNote>}
     </>}
     <div aria-live="polite" className="fx-feedback">
       {feedback?.kind === 'wrong' && <p className="fx-wrong">{'✗'} {feedback.result.message}</p>}

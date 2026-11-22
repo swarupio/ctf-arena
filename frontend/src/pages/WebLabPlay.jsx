@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import PreviewNote from '../components/PreviewNote.jsx';
 import { getLab, sendLabRequest, submitLabFlag } from '../api/weblab.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import RequestInspector from '../components/weblab/RequestInspector.jsx';
@@ -143,7 +144,7 @@ function Play({ slug }) {
       <section aria-labelledby="wl-flag-title">
         <h2 id="wl-flag-title">Submit the flag</h2>
         {isAdmin
-          ? <p className="wl-muted">Only players can submit flags.</p>
+          ? <PreviewNote>Admins can break into any lab, but only players can submit a flag.</PreviewNote>
           : <FlagBox onSubmit={submit} solved={lab.solved} response={response} />}
       </section>
     </div>
