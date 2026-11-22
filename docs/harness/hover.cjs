@@ -31,7 +31,7 @@ async function measureEl(page, handle) {
     const texts = [];
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     let t; const seen = new Set();
-    while ((t = walker.nextNode())) { if (!t.textContent.trim()) continue; const pe = t.parentElement; if (seen.has(pe)) continue; seen.add(pe); const own = lib.bgOf(pe); const col = lib.parse(getComputedStyle(pe).color); const eff = lib.over(col, own); texts.push({ tag: pe.tagName.toLowerCase() + (pe.className && typeof pe.className === 'string' ? '.' + pe.className.trim().split(/\s+/)[0] : ''), text: t.textContent.trim().slice(0, 24), ratio: Math.round(lib.ratio(eff, own) * 100) / 100 }); if (texts.length >= 6) break; }
+    while ((t = walker.nextNode())) { if (!t.textContent.trim()) continue; const pe = t.parentElement; if (seen.has(pe)) continue; seen.add(pe); const own = lib.bgOf(pe); const col = lib.parse(getComputedStyle(pe).color); const eff = lib.over(col, own); texts.push({ tag: pe.tagName.toLowerCase() + (pe.className && typeof pe.className === 'string' ? '.' + pe.className.trim().split(/\s+/)[0] : ''), text: t.textContent.trim().slice(0, 24), ratio: Math.round(lib.ratio(eff, own) * 100) / 100, fg: getComputedStyle(pe).color, bg: String(own), hovered: pe.matches(":hover"), cls: String(pe.className).slice(0, 60) }); if (texts.length >= 6) break; }
     const worst = texts.reduce((m, x) => (x.ratio < m.ratio ? x : m), { ratio: 99 });
     return { worst, n: texts.length };
   }, handle, inPage.toString());
@@ -75,7 +75,7 @@ async function measureEl(page, handle) {
   await browser.close();
   const uniq = new Map(); for (const b of bad) { const k = b.el.replace(/ ".*"$/, ''); if (!uniq.has(k)) uniq.set(k, { ...b, pages: new Set([b.page]) }); else uniq.get(k).pages.add(b.page); }
   console.log('hovered elements checked:', checked, '| low-contrast hover cases:', bad.length, '| distinct selectors:', uniq.size);
-  for (const [k, v] of uniq) console.log(' -', k, '| ratio', v.worst.ratio, 'on', v.worst.tag, '"' + v.worst.text + '" | pages:', [...v.pages].slice(0, 5).join(','));
+  for (const [k, v] of uniq) console.log(' -', k, '| ratio', v.worst.ratio, 'on', v.worst.tag, '"' + v.worst.text + '" fg=' + v.worst.fg + ' bg=' + v.worst.bg + ' hovered=' + v.worst.hovered + ' cls=' + v.worst.cls + ' | pages:', [...v.pages].slice(0, 5).join(','));
   if (process.env.OUT && bad.length) { fs.mkdirSync(process.env.OUT, { recursive: true }); fs.writeFileSync(`${process.env.OUT}/hover-${THEME}-${STATE}.json`, JSON.stringify(bad, null, 1)); }
   console.log(bad.length ? `FAIL (${THEME}, ${STATE}, threshold ${THRESH}): ${uniq.size} selector(s) below the threshold` : `OK (${THEME}, ${STATE}, threshold ${THRESH}): ${checked} elements`);
   process.exit(bad.length ? 1 : 0);
