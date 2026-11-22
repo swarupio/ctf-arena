@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { filterLines, makeHighlighter, makeLineMatcher } from '../../forensics/logFilter.js';
+import { logPin } from '../../forensics/timeline.js';
 import { usePagedArtefact } from './hooks.js';
 import VirtualList from './VirtualList.jsx';
 
@@ -7,15 +8,18 @@ const PAGE = 500;
 const pick = (page, offset) => page.lines.map((text, i) => ({ n: offset + i + 1, text }));
 
 // Log viewer: pages arrive from the server (500 lines at most each), search/filter/regex run in the browser.
-export default function LogViewer({ track, artefact }) {
+export default function LogViewer({ track, artefact, timeline }) {
   const { items, total, loading, error } = usePagedArtefact({ track, artefact: artefact.id, pageSize: PAGE, pick });
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState('text');
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [invert, setInvert] = useState(false);
+  const [selectedN, setSelectedN] = useState(null);
   const options = { query, mode, caseSensitive, invert };
   const matcher = useMemo(() => makeLineMatcher(options), [query, mode, caseSensitive, invert]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useMemo(() => (matcher.ok ? filterLines(items, matcher) : items), [items, matcher]);
+  const selected = selectedN === null ? -1 : shown.findIndex((line) => line.n === selectedN);
+  const chosen = selected >= 0 ? shown[selected] : null;
   const highlight = useMemo(() => makeHighlighter(options), [query, mode, caseSensitive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <section className="fx-tool" aria-label="Log viewer">
@@ -39,8 +43,15 @@ export default function LogViewer({ track, artefact }) {
       {mode === 'regex' && ' · regex is length- and complexity-limited'}
     </p>
     {error && <p role="alert" className="error">{error}</p>}
+    {timeline && <div className="fx-row-buttons">
+      <button type="button" className="small" disabled={!chosen || timeline.has(`log:${chosen.n}`)} onClick={() => timeline.pin(logPin(chosen))}>
+        {chosen && timeline.has(`log:${chosen.n}`) ? `Line ${chosen.n} is pinned` : 'Pin selected line to the timeline'}
+      </button>
+      <span className="fx-muted">{chosen ? `Selected: line ${chosen.n}` : 'Tap or click a line (or focus it and press Enter) to select it.'}</span>
+    </div>}
     <VirtualList
       count={shown.length} rowHeight={22} label="Log lines" className="fx-log"
+      selected={timeline ? selected : undefined} onActivate={timeline ? (i) => setSelectedN(shown[i].n) : undefined}
       renderRow={(i) => {
         const line = shown[i];
         return <><span className="fx-ln" aria-hidden="true">{line.n}</span><span className="fx-text">

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { loadMailSeen, markRead as markMailRead, saveMailSeen } from './mail.js';
 
 /** Subscribe to a CSS media query. */
 export function useMediaQuery(query, initial = false) {
@@ -17,3 +18,24 @@ export function useMediaQuery(query, initial = false) {
 }
 
 export const useReducedMotion = () => useMediaQuery('(prefers-reduced-motion: reduce)');
+
+const browserStorage = () => {
+  try { return window.localStorage; } catch { return null; }
+};
+
+/**
+ * Which mails this browser has read in this mode (a bit mask kept in localStorage, never stored on the server).
+ * `markRead(ids)` updates the state and the storage; `seenRef` always holds the latest mask for async callbacks.
+ */
+export function useMailSeen(email, mode) {
+  const [seen, setSeen] = useState(() => loadMailSeen(browserStorage(), email, mode));
+  const seenRef = useRef(seen);
+  const markRead = useCallback((ids) => {
+    const next = markMailRead(seenRef.current, ids);
+    if (next === seenRef.current) return;
+    seenRef.current = next;
+    setSeen(next);
+    saveMailSeen(browserStorage(), email, mode, next);
+  }, [email, mode]);
+  return { seen, seenRef, markRead };
+}

@@ -1,20 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { submitInput } from '../../api/crackme.js';
-import { confettiPieces, crackmeErrorMessage, streakText } from './helpers.js';
+import { HintsUsed } from '../../hints/HintLadder.jsx';
+import { confettiPieces, crackmeErrorMessage, inputProblem, streakText } from './helpers.js';
 
 const PIECES = confettiPieces();
 
 // Submits the input from the debugger toolbar. The server runs its own VM on it; only then is the team flag returned.
-export default function SubmitForm({ puzzle, input, canSubmit, onSolved }) {
+export default function SubmitForm({ puzzle, input, canSubmit, onSolved, submitRef, hintsUsed = null }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const solved = puzzle.status === 'solved' || result?.correct;
 
   async function submit(event) {
-    event.preventDefault();
-    if (!input || busy) { return; }
+    event?.preventDefault?.();
+    if (!canSubmit || busy) { return; }
+    const problem = inputProblem(input);
+    if (problem) { setError(problem); return; }
     setBusy(true);
     setError('');
     try {
@@ -25,6 +28,13 @@ export default function SubmitForm({ puzzle, input, canSubmit, onSolved }) {
       setError(crackmeErrorMessage(err));
     } finally { setBusy(false); }
   }
+
+  // Lets the debugger's Enter key and its own button submit through this one code path.
+  useEffect(() => {
+    if (!submitRef) { return undefined; }
+    submitRef.current = () => submit();
+    return () => { submitRef.current = null; };
+  });
 
   return <section className="cm-box cm-answer" aria-labelledby="cm-answer-title">
     <h2 id="cm-answer-title">Insert the code</h2>
@@ -45,9 +55,10 @@ export default function SubmitForm({ puzzle, input, canSubmit, onSolved }) {
       <p className="cm-win-title">{result.message}</p>
       {result.pointsAwarded > 0 && <p>+{result.pointsAwarded} points &middot; {streakText(result.streak)}</p>}
       <p>Team flag: <code className="cm-flag">{result.flag}</code></p>
+      {hintsUsed !== null && puzzle.hintsAllowed && <HintsUsed count={hintsUsed} />}
       {result.trackComplete && <p className="cm-win-title">Track cleared!</p>}
       {result.nextLevelId && <Link className="button" to={`/reversing/${result.nextLevelId}`}>Next cabinet</Link>}
     </div>}
-    {solved && !result && <p className="notice">Your team already solved this cabinet. Submit again to see your flag.</p>}
+    {solved && !result && <p className="notice">Your team already captured this cabinet. Submit again to see your flag.</p>}
   </section>;
 }

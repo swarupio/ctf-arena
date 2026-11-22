@@ -8,13 +8,16 @@ export default function DiskViewer({ track, artefact }) {
   const [cluster, setCluster] = useState(null);
   const [count, setCount] = useState(1);
   const [typed, setTyped] = useState('');
-  const clusters = useArtefact(track, artefact.id, cluster === null ? { cluster: 0, count: 1 } : { cluster, count });
+  const [formError, setFormError] = useState('');
+  const clusters = useArtefact(track, artefact.id, cluster === null ? null : { cluster, count });
   const data = listing.data;
-  const open = (start, size) => { setCluster(start); setCount(Math.max(1, Math.min(8, Math.ceil(size / (data?.clusterSize ?? 128))))); setTyped(String(start)); };
+  const open = (start, size) => { setCluster(start); setCount(Math.max(1, Math.min(8, Math.ceil(size / (data?.clusterSize ?? 128))))); setTyped(String(start)); setFormError(''); };
   const submit = (event) => {
     event.preventDefault();
     const n = Number.parseInt(typed, 10);
-    if (Number.isInteger(n) && n >= 0 && n < (data?.clusterCount ?? 256)) { setCluster(n); }
+    const limit = data?.clusterCount ?? 256;
+    if (/^\d+$/.test(typed.trim()) && Number.isInteger(n) && n >= 0 && n < limit) { setFormError(''); setCluster(n); return; }
+    setFormError(`Cluster number must be a whole number from 0 to ${limit - 1}.`);
   };
 
   return <section className="fx-tool" aria-label="Disk viewer">
@@ -34,10 +37,11 @@ export default function DiskViewer({ track, artefact }) {
         </table>
       </div>
       <form className="fx-inline" onSubmit={submit}>
-        <label>Cluster number<input value={typed} onChange={(e) => setTyped(e.target.value)} inputMode="numeric" maxLength={3} placeholder="0-255" /></label>
+        <label>Cluster number<input value={typed} onChange={(e) => setTyped(e.target.value)} inputMode="numeric" maxLength={3} placeholder="0-255" aria-invalid={formError !== ''} aria-describedby={formError ? 'fx-cluster-error' : undefined} /></label>
         <label>How many<select value={count} onChange={(e) => setCount(Number(e.target.value))}>{[1, 2, 3, 4, 6, 8].map((k) => <option key={k} value={k}>{k}</option>)}</select></label>
         <button type="submit" className="secondary">Read clusters</button>
       </form>
+      {formError && <p id="fx-cluster-error" role="alert" className="error">{formError}</p>}
       {cluster !== null && clusters.error && <p role="alert" className="error">{clusters.error}</p>}
       {cluster !== null && clusters.data && <pre className="fx-hex" aria-label="Cluster contents">
         {clusters.data.clusters.map((c) => `-- cluster ${c.n} --\n${hexRows(c.hex, 0, 16).map((row) => `${offsetLabel(row.offset).slice(4)}  ${row.hex.join(' ').padEnd(47)}  ${row.ascii}`).join('\n')}`).join('\n')}

@@ -34,17 +34,20 @@ export function usePagedArtefact({ track, artefact, pageSize, pick }) {
   return state;
 }
 
-// One-shot fetch of a small artefact (metadata, disk listing, an image, a few clusters).
+// One-shot fetch of a small artefact (metadata, disk listing, an image, a few clusters). `params === null` means
+// "not wanted yet": nothing is fetched.
 export function useArtefact(track, artefact, params) {
-  const [state, setState] = useState({ data: null, loading: true, error: null });
+  const [state, setState] = useState({ data: null, loading: params !== null, error: null });
   const key = JSON.stringify(params ?? {});
+  const skip = params === null;
   useEffect(() => {
+    if (skip) { setState({ data: null, loading: false, error: null }); return undefined; }
     const controller = new AbortController();
     setState((prev) => ({ ...prev, loading: true, error: null }));
     getArtefact(track, artefact, JSON.parse(key), { signal: controller.signal })
       .then((data) => setState({ data, loading: false, error: null }))
       .catch((error) => { if (!controller.signal.aborted) { setState({ data: null, loading: false, error: describeForensicsError(error) }); } });
     return () => controller.abort();
-  }, [track, artefact, key]);
+  }, [track, artefact, key, skip]);
   return state;
 }

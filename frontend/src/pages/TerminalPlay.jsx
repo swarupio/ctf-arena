@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getProgress, listModes } from '../api/terminal.js';
 import { describeError } from '../terminal/adapters.js';
 import { isMode } from '../terminal/data.js';
+import { useMailSeen } from '../terminal/hooks.js';
+import { mailIds, unreadCount } from '../terminal/mail.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useTeam } from '../layout/TeamContext.jsx';
 import ProblemPanel from '../terminal/Notices.jsx';
 import TerminalHud from '../terminal/TerminalHud.jsx';
 import TerminalWindow from '../terminal/TerminalWindow.jsx';
+import TerminalDebriefs from '../debrief/TerminalDebriefs.jsx';
 import '../terminal/terminal.css';
 
 function PlaySession({ mode }) {
@@ -22,6 +25,9 @@ function PlaySession({ mode }) {
   const [progress, setProgress] = useState(null);
   const [progressFailed, setProgressFailed] = useState(false);
   const [startedAt, setStartedAt] = useState(null);
+  // Mail ids come from the solved codes (same rule as the server); what was read is remembered in this browser only.
+  const { seen, seenRef, markRead } = useMailSeen(user?.email, mode);
+  const unread = useMemo(() => unreadCount(mailIds(progress?.solved ?? [], progress?.total ?? 0), seen), [progress, seen]);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
@@ -78,9 +84,13 @@ function PlaySession({ mode }) {
     <div className="tm-play">
       <TerminalWindow
         mode={mode}
+        email={user?.email}
         info={info}
         statusLabel={statusLabel}
         isAdmin={isAdmin}
+        unread={unread}
+        mailSeenRef={seenRef}
+        onMailRead={markRead}
         onFirstCommand={markStarted}
         onSolved={loadProgress}
         onUnauthorized={unauthorized}
@@ -94,8 +104,10 @@ function PlaySession({ mode }) {
         onRetry={loadProgress}
         startedAt={startedAt}
         isAdmin={isAdmin}
+        unread={unread}
       />
     </div>
+    <TerminalDebriefs mode={mode} progress={progress} />
   </section>;
 }
 

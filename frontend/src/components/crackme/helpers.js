@@ -1,10 +1,11 @@
 // Pure view helpers for Crackme Arcade (tested in tests/crackme.test.js). The VM itself is ./vm.js, the same file the
 // server runs; nothing here decides whether an input is correct.
 import { OPCODES, currentProgram, stepMachine } from './vm.js';
+import { eventMessage } from '../../event/messages.js';
 
 export const TRACK_ORDER = ['easy', 'medium', 'hard', 'insane'];
 export const TRACK_BLURB = { easy: 'Plain compares', medium: 'Checksums and hashes', hard: 'Serials and traps', insane: 'No hints' };
-export const STATUS_LABEL = { solved: 'Solved', open: 'Open', locked: 'Locked' };
+export const STATUS_LABEL = { solved: 'Captured', open: 'Open', locked: 'Locked' };
 
 export const percent = (done, total) => (total > 0 ? Math.round((Math.min(done, total) * 100) / total) : 0);
 
@@ -35,8 +36,23 @@ const MESSAGES = {
 };
 
 export function crackmeErrorMessage(error) {
+  const event = eventMessage(error);
+  if (event) { return event; }
   if (error?.code && MESSAGES[error.code]) { return MESSAGES[error.code]; }
   return error?.message || 'Something went wrong. Please try again.';
+}
+
+// The server accepts printable ASCII only (space to tilde) and says nothing useful otherwise, so check before sending.
+export const PRINTABLE_ASCII = /^[\x20-\x7e]+$/;
+export function inputProblem(input) {
+  if (!input) { return 'Type an input first.'; }
+  if (!PRINTABLE_ASCII.test(input)) { return 'Only printable ASCII characters (letters, digits, punctuation and spaces) are allowed.'; }
+  return '';
+}
+
+// A failed reload after a correct answer must not wipe the page: keep the last puzzle and only show the error.
+export function afterLoadFailure(current, message, keep) {
+  return { puzzle: keep ? current.puzzle : null, error: message };
 }
 
 // ---- listing ---------------------------------------------------------------------------------------------------------

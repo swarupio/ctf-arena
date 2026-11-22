@@ -6,7 +6,7 @@ import {
   textToHex, vigenereDecode, xorHexDecode, xorKeyFromCrib,
 } from '../src/components/cipherlab/decoders.js';
 import {
-  blocks, cipherErrorMessage, confettiPieces, formatDuration, nextLevel, percent, speedrunText, streakText,
+  blocks, cipherErrorMessage, confettiPieces, formatDuration, nextLevel, percent, speedrunText, missText, streakText,
 } from '../src/components/cipherlab/helpers.js';
 
 test('caesar, rot13 and atbash invert correctly and keep non-letters', () => {
@@ -102,6 +102,9 @@ test('helpers format durations, progress, streaks and speed-run text', () => {
   assert.equal(percent(5, 4), 100);
   assert.equal(percent(0, 0), 0);
   assert.equal(streakText(0), 'No streak yet');
+  assert.equal(missText(3, 0), 'Streak lost.');
+  assert.equal(missText(0, 0), '');
+  assert.equal(missText(2, 2), '');
   assert.equal(streakText(3), '3 in a row');
   assert.equal(speedrunText(null), null);
   assert.match(speedrunText({ ms: 60_000, badge: 'gold' }), /Gold.*1m 00s/);

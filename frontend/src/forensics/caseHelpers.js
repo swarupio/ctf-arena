@@ -1,9 +1,13 @@
 // Pure helpers of the Forensics Desk pages: timer badges, labels, error messages and progress maths.
+import { eventMessage } from '../event/messages.js';
+import { scopedKey } from '../storage/userScope.js';
 export const DIFFICULTY_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard', insane: 'Insane' };
 export const DIFFICULTY_LEVEL = { easy: 1, medium: 2, hard: 3, insane: 4 };
 
 // Cosmetic only: the clock runs in this browser (localStorage) and never reaches the server or the score.
 export const TIMER_PREFIX = 'forensics-timer:';
+// One key per signed-in user (like timelineKey); '' when signed out, which means no clock is stored.
+export const timerKey = (email, trackId) => scopedKey(TIMER_PREFIX, email, `:${trackId}`);
 
 export function formatElapsed(ms) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -25,21 +29,39 @@ export function timerBadge(trackId, elapsedMs) {
   return { id: 'cold-case', label: 'Cold-case closer', note: 'Slow and unstoppable.' };
 }
 
-export function readStart(storage, trackId, now = Date.now()) {
+// A rank is only earned by closing the case in this session with a genuine stored start: never for a case that was
+// already closed when the page loaded, and never when there is no start to measure from.
+export function earnedBadge({ trackId, closed, reviewed, hasStart, elapsed }) {
+  if (!closed || reviewed || !hasStart || !Number.isFinite(elapsed) || elapsed <= 0) { return null; }
+  return timerBadge(trackId, elapsed);
+}
+
+export function readStart(storage, email, trackId, now = Date.now()) {
+  const key = timerKey(email, trackId);
+  if (!key) { return null; }
   try {
-    const value = Number(storage?.getItem(`${TIMER_PREFIX}${trackId}`));
+    const value = Number(storage?.getItem(key));
     if (Number.isFinite(value) && value > 0 && value <= now) { return value; }
   } catch { /* storage may be blocked */ }
   return null;
 }
 
-export function writeStart(storage, trackId, now = Date.now()) {
-  try { storage?.setItem(`${TIMER_PREFIX}${trackId}`, String(now)); } catch { /* ignore */ }
+export function writeStart(storage, email, trackId, now = Date.now()) {
+  const key = timerKey(email, trackId);
+  if (!key) { return now; }
+  try { storage?.setItem(key, String(now)); } catch { /* ignore */ }
   return now;
 }
 
-export function clearStart(storage, trackId) {
-  try { storage?.removeItem(`${TIMER_PREFIX}${trackId}`); } catch { /* ignore */ }
+export function clearStart(storage, email, trackId) {
+  const key = timerKey(email, trackId);
+  if (!key) { return; }
+  try { storage?.removeItem(key); } catch { /* ignore */ }
+}
+
+// A failed reload after a correct answer must not wipe the case: keep the last view and only report the error.
+export function afterCaseLoadFailure(current, message, keep) {
+  return { view: keep ? current.view : null, error: message };
 }
 
 export function progressPercent(solved, total) {
@@ -52,6 +74,8 @@ export function nextOpenStage(stages) {
 
 export function describeForensicsError(error) {
   const code = error?.code;
+  const event = eventMessage(error);
+  if (event) { return event; }
   if (code === 'NO_TEAM') { return 'Join or create a team first: cases are scored per team.'; }
   if (code === 'TEAM_BANNED') { return 'Your team has been banned from the arena.'; }
   if (code === 'FORENSICS_NOT_SEEDED') { return 'The Forensics Desk is not set up yet. Ask an admin to run npm run seed:forensics.'; }

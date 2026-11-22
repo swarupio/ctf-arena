@@ -7,8 +7,8 @@ export const isMode = (mode) => MODES.includes(mode);
 // Tab completion offers these without a network call; the server fills in paths (and any extra commands).
 export const CLIENT_COMMANDS = ['clear', 'history', 'submit', 'exit'];
 export const COMMANDS = [...new Set([
-  'help', 'man', 'whoami', 'id', 'hostname', 'uname', 'date', 'pwd', 'cd', 'echo', 'env', 'true', 'false', 'motd', 'hint',
-  'status', 'codes',
+  'help', 'man', 'id', 'hostname', 'uname', 'date', 'pwd', 'cd', 'echo', 'env', 'true', 'false', 'motd', 'hint',
+  'status', 'codes', 'mail', 'make', 'novi', 'whoami',
   'ls', 'cat', 'tac', 'head', 'tail', 'less', 'more', 'nl', 'wc', 'file', 'stat', 'tree', 'find', 'du', 'ln', 'cp', 'mv',
   'rm', 'mkdir', 'touch',
   'grep', 'sort', 'uniq', 'cut', 'tr', 'rev', 'sed', 'awk', 'diff', 'comm', 'paste', 'column', 'xargs',

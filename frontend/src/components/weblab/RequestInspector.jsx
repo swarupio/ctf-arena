@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { CurlBox, Decoder, DiffView, HistoryList } from './InspectorTools.jsx';
 import { METHODS, buildPayload, statusQuip } from './helpers.js';
 
@@ -31,33 +31,52 @@ export default function RequestInspector({
 }) {
   const id = useId();
   const [tab, setTab] = useState('request');
+  const tabs = useRef(new Map());
   const unlocked = new Set(features.filter((feature) => feature.unlocked).map((feature) => feature.id));
   const need = new Map(features.map((feature) => [feature.id, feature.at]));
   const built = buildPayload(draft);
   const set = (field) => (event) => onDraftChange({ ...draft, [field]: event.target.value });
   const send = () => { if (built.ok) { onSend(built.payload); setTab('response'); } };
 
+  // Locked tabs stay focusable (aria-disabled, not disabled) so keyboard and screen reader users can reach their tooltip.
+  const isOpen = (item) => unlocked.has(item.feature);
+  const onTabKey = (event, index) => {
+    const last = TABS.length - 1;
+    const target = { ArrowRight: index === last ? 0 : index + 1, ArrowLeft: index === 0 ? last : index - 1, Home: 0, End: last }[event.key];
+    if (target === undefined) { return; }
+    event.preventDefault();
+    tabs.current.get(TABS[target].id)?.focus();
+    if (isOpen(TABS[target])) { setTab(TABS[target].id); }
+  };
+
   return <section className="wl-inspector" aria-label="Request inspector">
     <div className="wl-tabs" role="tablist" aria-label="Inspector tools">
-      {TABS.map((item) => {
-        const open = unlocked.has(item.feature);
+      {TABS.map((item, index) => {
+        const open = isOpen(item);
+        const unlockNote = `Unlocks after ${need.get(item.feature)} solved lab${need.get(item.feature) === 1 ? '' : 's'}`;
         return <button
           key={item.id}
+          ref={(node) => { if (node) { tabs.current.set(item.id, node); } else { tabs.current.delete(item.id); } }}
           type="button"
           role="tab"
           id={`${id}-tab-${item.id}`}
           aria-selected={tab === item.id}
           aria-controls={`${id}-panel`}
-          disabled={!open}
-          title={open ? undefined : `Unlocks after ${need.get(item.feature)} solved lab${need.get(item.feature) === 1 ? '' : 's'}`}
+          tabIndex={tab === item.id ? 0 : -1}
+          aria-disabled={open ? undefined : true}
+          title={open ? undefined : unlockNote}
+          onKeyDown={(event) => onTabKey(event, index)}
           className={`secondary small${tab === item.id ? ' is-active' : ''}`}
-          onClick={() => setTab(item.id)}
+          onClick={() => { if (open) { setTab(item.id); } }}
         >
-          {item.label}{open ? '' : ' (locked)'}
+          {item.label}{open ? '' : ' (locked)'}{!open && <span className="wl-sr">. {unlockNote}</span>}
           {item.id === 'response' && response?.exploited && <span className="wl-ping" aria-hidden="true" />}
         </button>;
       })}
     </div>
+    {TABS.some((item) => !isOpen(item)) && <ul className="wl-locks" aria-hidden="true">
+      {TABS.filter((item) => !isOpen(item)).map((item) => <li key={item.id}>{item.label} unlocks after {need.get(item.feature)} solved lab{need.get(item.feature) === 1 ? '' : 's'}.</li>)}
+    </ul>}
     <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-tab-${tab}`} className="wl-panel">
       {tab === 'request' && <form className="wl-request" onSubmit={(event) => { event.preventDefault(); send(); }}>
         <div className="wl-row wl-row-method">

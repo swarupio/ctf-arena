@@ -7,6 +7,8 @@ import AnswerForm from '../components/cipherlab/AnswerForm.jsx';
 import HintPanel from '../components/cipherlab/HintPanel.jsx';
 import Toolbox from '../components/cipherlab/Toolbox.jsx';
 import { STATUS_LABEL, cipherErrorMessage } from '../components/cipherlab/helpers.js';
+import Debrief from '../debrief/Debrief.jsx';
+import { keyById } from '../debrief/levels.js';
 import '../components/cipherlab/cipherlab.css';
 
 const PARAM_LABELS = {
@@ -30,7 +32,7 @@ function Params({ params }) {
 export default function CipherLabPlay() {
   const { levelId } = useParams();
   const { user } = useAuth();
-  const [state, setState] = useState({ puzzle: null, tools: null, error: '' });
+  const [state, setState] = useState({ puzzle: null, tools: null, streak: 0, error: '' });
   const [copied, setCopied] = useState(false);
 
   const latest = useRef(null);
@@ -39,21 +41,21 @@ export default function CipherLabPlay() {
     const current = latest.current.begin(); // an answer for a level the player already left is dropped
     try {
       const [puzzle, overview] = await Promise.all([getLevel(levelId), getOverview()]);
-      if (current()) { setState({ puzzle, tools: overview.toolbox, error: '' }); }
+      if (current()) { setState({ puzzle, tools: overview.toolbox, streak: overview.streak ?? 0, error: '' }); }
     } catch (error) {
       if (current()) { setState((previous) => ({ ...previous, puzzle: null, error: cipherErrorMessage(error) })); }
     }
   }, [levelId]);
 
   useEffect(() => {
-    setState({ puzzle: null, tools: null, error: '' });
+    setState({ puzzle: null, tools: null, streak: 0, error: '' });
     setCopied(false);
     void load();
     const guard = latest.current;
     return () => guard.cancel();
   }, [load]);
 
-  const { puzzle, tools, error } = state;
+  const { puzzle, tools, streak, error } = state;
   async function copy() {
     try { await navigator.clipboard.writeText(puzzle.ciphertext); setCopied(true); } catch { setCopied(false); }
   }
@@ -81,11 +83,12 @@ export default function CipherLabPlay() {
             <button type="button" className="secondary small" onClick={copy}>{copied ? 'Copied' : 'Copy ciphertext'}</button>
             <Params params={puzzle.params} />
           </section>
-          <AnswerForm key={puzzle.id} puzzle={puzzle} canSubmit={user?.role !== 'admin'} onSolved={load} />
-          <HintPanel puzzle={puzzle} onOpened={load} disabled={user?.role === 'admin'} />
+          <AnswerForm key={puzzle.id} puzzle={puzzle} canSubmit={user?.role !== 'admin'} onSolved={load} streak={streak} hintsUsed={user?.role === 'admin' ? null : puzzle.hints.length} />
+          <HintPanel puzzle={puzzle} onOpened={load} isAdmin={user?.role === 'admin'} />
         </div>
         <Toolbox key={puzzle.id} tools={tools} puzzle={puzzle} />
       </div>
+      <Debrief levelKey={keyById('cipherlab', levelId)} captured={puzzle.status === 'solved'} hintsUsed={user?.role === 'admin' ? null : puzzle.hints.length} />
     </>}
   </section>;
 }

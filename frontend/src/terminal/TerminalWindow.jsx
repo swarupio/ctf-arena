@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { completePath, execCommand, submitCode } from '../api/terminal.js';
 import { announce as celebrate } from '../pages/socialHelpers.js';
 import { describeError } from './adapters.js';
 import { stripAnsi } from './ansi.js';
-import { FIRST_BLOOD_BANNER } from './banner.js';
 import {
   DEFAULT_HOME, MAX_COMMAND_LENGTH, classifyCommand, formatPrompt, submitErrorMessage,
 } from './commandLine.js';
@@ -15,12 +14,18 @@ import { QUICK_CHIPS } from './data.js';
 import {
   formatHistory, freshNav, loadHistory, pushHistory, saveHistory, stepHistory,
 } from './history.js';
+import { INITIAL_HINTS, hintReducer, isHintLine } from './hintBar.js';
 import { useMediaQuery, useReducedMotion } from './hooks.js';
+import {
+  loadCommandCount, mailChipLabel, mailNotice, newMailNotice, parBadge, parseMailRead, saveCommandCount,
+} from './mail.js';
 import { capEntries } from './scrollback.js'; // scrollback cap (entries and total characters), oldest entries drop off
 import { bootLength, bootLines, revealLines } from './viewModel.js';
 import Confetti from './Confetti.jsx';
 import Entry from './Entry.jsx';
+import HintBar from './HintBar.jsx';
 import MatrixRain from './MatrixRain.jsx';
+import './terminal-hints.css';
 
 /*
  * The Arena Terminal window: title strip, scrollback (role="log"), a sticky prompt line and quick-command chips.
@@ -47,7 +52,8 @@ function useSpinnerFrame(active, reduced) {
 }
 
 export default function TerminalWindow({
-  mode, info, statusLabel, isAdmin = false, home = DEFAULT_HOME, onFirstCommand, onSolved, onUnauthorized,
+  mode, email, info, statusLabel, isAdmin = false, home = DEFAULT_HOME, unread = 0, mailSeenRef, onMailRead,
+  onFirstCommand, onSolved, onUnauthorized,
 }) {
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion();
@@ -61,7 +67,8 @@ export default function TerminalWindow({
   const [matrixRun, setMatrixRun] = useState(0);
   const [confettiRun, setConfettiRun] = useState(0);
   const [announcement, setAnnouncement] = useState('');
-  const [history, setHistory] = useState(() => loadHistory(browserStorage(), mode));
+  const [history, setHistory] = useState(() => loadHistory(browserStorage(), email, mode));
+  const [hints, dispatchHints] = useReducer(hintReducer, INITIAL_HINTS);
 
   // Mirrors of state for the key handlers and async callbacks (always the latest value, never a stale closure).
   const windowRef = useRef(null);
@@ -82,10 +89,14 @@ export default function TerminalWindow({
   const seqRef = useRef(0);
   const timersRef = useRef(new Set());
   const handlersRef = useRef({});
-  handlersRef.current = { onFirstCommand, onSolved, onUnauthorized };
+  handlersRef.current = { onFirstCommand, onSolved, onUnauthorized, onMailRead };
+  // The login banner reports the unread count as it was when the terminal opened; later changes use the chip and notices.
+  const [startNotice] = useState(() => mailNotice(unread));
+  const commandCountRef = useRef(null);
+  if (commandCountRef.current === null) commandCountRef.current = loadCommandCount(browserStorage(), email, mode);
 
   // ----- boot text -----
-  const lines = useMemo(() => bootLines((info?.lore ?? []).map(stripAnsi)), [info]);
+  const lines = useMemo(() => bootLines((info?.lore ?? []).map(stripAnsi), startNotice), [info, startNotice]);
   const total = useMemo(() => bootLength(lines), [lines]);
   const shownChars = reducedMotion ? total : Math.min(boot.chars, total);
   const bootDone = shownChars >= total;
@@ -139,7 +150,7 @@ export default function TerminalWindow({
     }
   }, [value]);
 
-  useEffect(() => { saveHistory(browserStorage(), mode, history); }, [history, mode]);
+  useEffect(() => { saveHistory(browserStorage(), email, mode, history); }, [history, email, mode]);
 
   // ----- small helpers -----
   const later = useCallback((fn, ms) => {
@@ -223,11 +234,17 @@ export default function TerminalWindow({
   const runExec = useCallback(async (line) => {
     const controller = begin();
     try {
-      const result = await execCommand(mode, { command: line, cwd: cwdRef.current }, { signal: controller.signal });
+      const result = await execCommand(mode, { command: line, cwd: cwdRef.current, mailSeen: mailSeenRef?.current ?? 0 }, { signal: controller.signal });
       if (controller.signal.aborted || !mountedRef.current) return;
+      // `mail N` that worked marks message N as read in this browser (cosmetic: only the unread count uses it).
+      const read = result.exit === 0 ? parseMailRead(line) : [];
+      if (read.length > 0 && handlersRef.current.onMailRead) handlersRef.current.onMailRead(read);
       if (result.cwd) { cwdRef.current = result.cwd; setCwd(result.cwd); }
       if (result.effect === 'clear') clearScreen();
       if (result.output !== '') append({ kind: 'out', text: result.output.replace(/\n$/, '') });
+      if (isHintLine(line)) dispatchHints({ type: 'output', text: result.output });
+      // One short polite status per command (never the output itself), so long listings cannot flood a screen reader.
+      if (result.output !== '') announce(`Output received, ${result.output.replace(/\n$/, '').split('\n').length} lines.`);
       if (result.effect && result.effect !== 'clear') applyEffect(result.effect);
     } catch (error) {
       if (controller.signal.aborted || !mountedRef.current) return;
@@ -235,39 +252,43 @@ export default function TerminalWindow({
     } finally {
       end(controller);
     }
-  }, [mode, begin, end, append, fail, clearScreen, applyEffect]);
+  }, [mode, mailSeenRef, begin, end, append, announce, fail, clearScreen, applyEffect]);
 
   const showSubmitResult = useCallback((result) => {
     if (result.correct && !result.alreadySolved) {
       const which = result.code === null ? 'Code' : `Code ${result.code}`;
       const name = result.title ? ` "${result.title}"` : '';
-      const progress = result.solved !== null && result.total !== null ? `codes found ${result.solved}/${result.total}` : '';
+      const progress = result.solved !== null && result.total !== null ? `flags found ${result.solved}/${result.total}` : '';
       const cleared = result.solved !== null && result.total !== null && result.total > 0 && result.solved >= result.total;
       const extra = [];
-      if (cleared) extra.push('All codes found - mode cleared!');
-      append(
-        {
-          kind: 'result', tone: 'ok', tag: 'CORRECT', headline: `${which}${name} captured  +${result.pointsAwarded} pts`,
-          lines: [...(result.message ? [result.message] : []), ...extra, ...(progress ? [progress] : [])],
-        },
-        ...(result.firstBlood ? [{ kind: 'banner', lines: FIRST_BLOOD_BANNER, label: 'First blood!' }] : []),
-      );
-      if ((result.firstBlood || cleared) && !reducedMotion) setConfettiRun((run) => run + 1);
-      announce(`Correct. ${which}${name ? `, ${result.title}` : ''}, ${result.pointsAwarded} points.${result.firstBlood ? ' First blood!' : ''}${progress ? ` ${progress.replace('codes found ', '')} codes found.` : ''}`);
+      if (cleared) extra.push('All flags found - mode cleared!');
+      // Cosmetic only: commands sent since the previous solve, counted in this browser (no server data, no schema).
+      const badge = parBadge(mode, commandCountRef.current);
+      commandCountRef.current = 0;
+      saveCommandCount(browserStorage(), email, mode, 0);
+      if (badge) extra.push(badge.text);
+      append({
+        kind: 'result', tone: 'ok', tag: 'CORRECT', headline: `${which}${name} captured  +${result.pointsAwarded} pts`,
+        lines: [...(result.message ? [result.message] : []), ...extra, ...(progress ? [progress] : [])],
+      });
+      say('info', newMailNotice());
+      dispatchHints({ type: 'solved' });
+      if (cleared && !reducedMotion) setConfettiRun((run) => run + 1);
+      announce(`Correct. ${which}${name ? `, ${result.title}` : ''}, ${result.pointsAwarded} points.${progress ? ` ${progress.replace('flags found ', '')} flags found.` : ''}${badge ? ` ${badge.text}.` : ''} New mail arrived.`);
       celebrate(result); // cosmetic toast for first blood / new badges (the layout's CelebrationHost shows it)
       if (handlersRef.current.onSolved) handlersRef.current.onSolved(result);
     } else if (result.correct) {
       append({
-        kind: 'result', tone: 'info', tag: 'ALREADY SOLVED', headline: result.message || 'Your team already has that code.', lines: [],
+        kind: 'result', tone: 'info', tag: 'ALREADY CAPTURED', headline: result.message || 'Your team already has that code.', lines: [],
       });
-      announce('That code was already solved by your team.');
+      announce('That code was already captured by your team.');
     } else {
       append({
         kind: 'result', tone: 'bad', tag: 'INCORRECT', headline: result.message || 'That is not a valid code for this mode.', lines: [],
       });
       announce('Incorrect code.');
     }
-  }, [append, announce, reducedMotion]);
+  }, [mode, email, append, say, announce, reducedMotion]);
 
   const runSubmit = useCallback(async (flag) => {
     if (isAdmin) {
@@ -321,9 +342,11 @@ export default function TerminalWindow({
       if (command.ok) await runSubmit(command.flag);
       else say('error', submitErrorMessage(command.error));
     } else {
+      commandCountRef.current += 1;
+      saveCommandCount(browserStorage(), email, mode, commandCountRef.current);
       await runExec(command.line);
     }
-  }, [setInput, skipBoot, echo, clearScreen, say, append, navigate, runSubmit, runExec]);
+  }, [mode, email, setInput, skipBoot, echo, clearScreen, say, append, navigate, runSubmit, runExec]);
 
   // ----- keyboard -----
   const completeLine = useCallback(async () => {
@@ -441,6 +464,16 @@ export default function TerminalWindow({
     focusInput();
   }
 
+  // The Hints buttons run the very command a player could type, through runLine (same pacing, history and logging).
+  // Text the player was typing is put back afterwards, then the prompt gets focus again.
+  async function runHint(command) {
+    if (busyRef.current) return;
+    const saved = valueRef.current;
+    await runLine(command);
+    if (saved !== '' && mountedRef.current) setInput(saved, saved.length);
+    focusInput();
+  }
+
   function insertChip(text) {
     const current = valueRef.current;
     const next = current.trim() === '' ? text : `${current}${current.endsWith(' ') ? '' : ' '}${text}`;
@@ -504,7 +537,12 @@ export default function TerminalWindow({
       {matrixRun > 0 && !reducedMotion ? <MatrixRain key={matrixRun} onDone={() => setMatrixRun(0)} /> : null}
     </div>
 
+    <HintBar state={hints} mode={mode} isAdmin={isAdmin} busy={busy} onRun={runHint} />
+
     <div className="tm-chips" role="group" aria-label="Quick commands">
+      <button type="button" className={`tm-chip tm-chip--mail${unread > 0 ? ' has-unread' : ''}`} onClick={() => insertChip('mail')} aria-label={mailChipLabel(unread)}>
+        mail{unread > 0 ? <span className="tm-badge" aria-hidden="true">{unread}</span> : null}
+      </button>
       {QUICK_CHIPS.map((chip) => (
         <button type="button" className="tm-chip" key={chip.label} onClick={() => insertChip(chip.text)}>{chip.label}</button>
       ))}

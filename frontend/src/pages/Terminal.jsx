@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { useTeam } from '../layout/TeamContext.jsx';
 import ProblemPanel from '../terminal/Notices.jsx';
 import '../terminal/terminal.css';
+import '../overview.css';
 
 // Teaser: the first two lore lines, as shell comments.
 const teaser = (lore) => lore.map((line) => line.trim()).filter(Boolean).slice(0, 2);
@@ -24,17 +25,19 @@ function ModeCard({ item }) {
       </span>
     </div>
     <div className="tm-card-body">
-      <p className="tm-card-kicker">{item.mode}{done ? ' · cleared' : ''}</p>
-      <h2 id={`tm-card-${item.mode}`}>{item.title}</h2>
-      {item.tagline && <p className="tm-card-tagline">{item.tagline}</p>}
+      <div className="tm-card-head">
+        <p className="tm-card-kicker">{item.mode}{done ? ' · cleared' : ''}</p>
+        <h2 id={`tm-card-${item.mode}`}>{item.title}</h2>
+        {item.tagline && <p className="tm-card-tagline">{item.tagline}</p>}
+      </div>
       {lines.length > 0 && <div className="tm-card-lore" aria-hidden="true">
         {lines.map((line, index) => <div key={index}># {line}</div>)}
       </div>}
       <div className="tm-card-stats">
         <div>
-          <span className="tm-stat-label">codes found</span>
+          <span className="tm-stat-label">flags found</span>
           <strong>{item.solved}/{item.codes}</strong>
-          <span className="tm-meter" role="img" aria-label={`${item.solved} of ${item.codes} codes found`}>
+          <span className="tm-meter" role="img" aria-label={`${item.solved} of ${item.codes} flags found`}>
             {Array.from({ length: Math.min(item.codes, 12) }, (_, index) => <span key={index} className={index < item.solved ? 'is-on' : undefined} />)}
           </span>
         </div>
@@ -69,24 +72,26 @@ export default function Terminal() {
   useEffect(() => { void load(); }, [load]);
 
   const { modes, problem } = state;
-  return <section className="tm-page">
-    <Link className="back-games" to="/games">Back to Games</Link>
-    <h1>Arena Terminal</h1>
-    <p className="tm-lead">
-      A pretend Unix machine that lives in your browser tab. Type real commands, dig through its files and find the hidden
-      codes. Every code you submit scores for your team on the leaderboard.
-    </p>
-    {user?.role === 'admin' && <p className="tm-note">Admin preview: you can open every mode and run commands, but only players can submit codes.</p>}
+  return <section className="tm-page ov-page">
+    <header className="ov-header">
+      <Link className="back-games" to="/range">Back to the Range</Link>
+      <h1>Arena Terminal</h1>
+      <p className="tm-lead ov-lead">
+        A pretend Unix machine that lives in your browser tab. Type real commands, dig through its files and find the hidden
+        codes. Every code you submit scores for your team on the leaderboard.
+      </p>
+    </header>
+    {user?.role === 'admin' && <p className="tm-note ov-note">Admin preview: you can open every mode and run commands, but only players can submit codes.</p>}
 
     {noTeam && !problem && <ProblemPanel problem={describeError({ code: 'NO_TEAM' })} />}
     {problem && <ProblemPanel problem={problem} onRetry={load} />}
     {!problem && !modes && <p role="status">Loading terminal modes…</p>}
     {modes && modes.length === 0 && <section className="tm-empty">
       <h2>No terminals online</h2>
-      <p>The game has no modes yet. Ask an admin to run the terminal seed, then refresh this page.</p>
+      <p>The Arena Terminal has no modes yet. Ask an admin to run the terminal seed, then refresh this page.</p>
       <Link className="button secondary" to="/challenges">Back to challenges</Link>
     </section>}
-    {modes && modes.length > 0 && <div className="tm-cards">
+    {modes && modes.length > 0 && <div className="tm-cards ov-grid" data-count={modes.length}>
       {modes.map((item) => <ModeCard key={item.mode} item={item} />)}
     </div>}
   </section>;

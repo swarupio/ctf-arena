@@ -21,7 +21,7 @@ function SessionTimer({ startedAt }) {
  * hints. On narrow screens it stacks under the terminal, starts collapsed and keeps a one-line summary visible.
  */
 export default function TerminalHud({
-  mode, info, modes, progress, progressFailed, onRetry, startedAt, isAdmin,
+  mode, info, modes, progress, progressFailed, onRetry, startedAt, isAdmin, unread = 0,
 }) {
   const [open, setOpen] = useState(() => !(typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     && window.matchMedia('(max-width: 760px)').matches));
@@ -46,7 +46,8 @@ export default function TerminalHud({
       >{open ? 'Hide HUD' : 'Show HUD'}</button>
     </div>
     <p className="tm-hud-summary">
-      <strong>{solvedCount}/{codeTotal}</strong> codes <span aria-hidden="true">·</span> <strong>{earned}{pointsTotal ? `/${pointsTotal}` : ''}</strong> pts
+      <strong>{solvedCount}/{codeTotal}</strong> flags <span aria-hidden="true">·</span> <strong>{earned}{pointsTotal ? `/${pointsTotal}` : ''}</strong> pts
+      {unread > 0 && <> <span aria-hidden="true">·</span> <strong className="tm-hud-mail">{unread}</strong> unread mail<span className="tm-sr"> (type mail in the terminal)</span></>}
     </p>
 
     <div id="tm-hud-body" className="tm-hud-body" hidden={!open}>
@@ -60,7 +61,7 @@ export default function TerminalHud({
             <span className="tm-code-mark" aria-hidden="true">{row.solved ? '[x]' : '[ ]'}</span>
             <span className="tm-sr">{row.solved ? 'Solved:' : 'Not solved yet:'}</span>
             <span className="tm-code-n">{row.n}</span>
-            <span className="tm-code-title">{row.title}{row.firstBlood && <>{' '}<span className="tm-code-fb" title="Your team got first blood">FB</span></>}</span>
+            <span className="tm-code-title">{row.title}</span>
             {row.points !== null && row.points !== undefined && <span className="tm-code-points">+{row.points}</span>}
           </li>)}
           {rows.length === 0 && <li className="tm-hud-muted">No codes reported for this mode yet.</li>}

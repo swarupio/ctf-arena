@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ALPHABET, ENGLISH_FREQ, PIPELINE_OPS, applySubstitution, atbash, base64ToText, caesarShift, factorSemiprime, hexToText,
-  keyFromCrib, letterFrequency, mappingConflicts, modInverse, modPow, railDecode, reverseText, runPipeline, sha256Hex,
+  ALPHABET, ENGLISH_FREQ, applySubstitution, atbash, base64ToText, caesarShift, factorSemiprime, hexToText,
+  keyFromCrib, letterFrequency, mappingConflicts, modInverse, modPow, railDecode, reverseText, sha256Hex,
   shortestRepeat, vigenereDecode, xorHexDecode, xorKeyFromCrib,
 } from './decoders.js';
+import Workbench from './Workbench.jsx';
 
 // The decoder toolbox. Every tool is client-side only. They share one working text (`text`) so the output of one
 // tool can be sent on to the next with "use as input".
@@ -150,49 +151,31 @@ export function HashTool({ puzzle }) {
   const params = puzzle?.params ?? {};
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState('');
   async function run() {
     setBusy(true);
-    const candidates = params.candidates ?? [];
-    setRows(await Promise.all(candidates.map(async (word) => ({ word, hash: await sha256Hex(`${params.salt}${word}`) }))));
-    setBusy(false);
+    setFailed('');
+    try {
+      const candidates = params.candidates ?? [];
+      setRows(await Promise.all(candidates.map(async (word) => ({ word, hash: await sha256Hex(`${params.salt}${word}`) }))));
+    } catch {
+      // crypto.subtle only exists in secure contexts (https or localhost).
+      setRows(null);
+      setFailed('Hashing is not available in this browser or connection. Open the site over https or use a modern browser.');
+    } finally { setBusy(false); }
   }
-  useEffect(() => { setRows(null); }, [puzzle?.id]);
+  useEffect(() => { setRows(null); setFailed(''); }, [puzzle?.id]);
   const match = rows?.find((row) => row.hash === puzzle?.ciphertext);
   return <div className="cl-tool">
     <p className="cl-note">Salt <code>{params.salt ?? '-'}</code>, {params.candidates?.length ?? 0} candidates. Target <code className="cl-break">{puzzle?.ciphertext}</code></p>
     <button type="button" className="secondary small" onClick={run} disabled={busy || !params.candidates}>{busy ? 'Hashing…' : 'Hash all candidates'}</button>
+    {failed && <p role="alert" className="error">{failed}</p>}
     {rows && <p role="status" className={match ? 'cl-good' : 'cl-warn'}>{match ? `Match: ${match.word}` : 'No candidate matches.'}</p>}
     {rows && <ul className="cl-hashes">{rows.map((row) => <li key={row.word} className={row === match ? 'is-match' : undefined}><span>{row.word}</span><code>{row.hash.slice(0, 16)}…</code></li>)}</ul>}
   </div>;
 }
 
-const MAX_PIPELINE_STEPS = 20; // every step re-runs on each keystroke; a long chain is never needed
-
-export function PipelineTool({ text, setText }) {
-  const [steps, setSteps] = useState([]);
-  const trail = useMemo(() => runPipeline(text, steps), [text, steps]);
-  const add = (id) => setSteps((current) => current.length >= MAX_PIPELINE_STEPS ? current : [...current, { op: id, arg: id === 'caesar' ? -3 : id === 'rail' ? 3 : '' }]);
-  const update = (index, arg) => setSteps((current) => current.map((step, i) => (i === index ? { ...step, arg } : step)));
-  return <div className="cl-tool">
-    <div className="cl-chips">
-      {PIPELINE_OPS.map((op) => <button key={op.id} type="button" className="secondary small" onClick={() => add(op.id)}>+ {op.label}</button>)}
-    </div>
-    <ol className="cl-steps">
-      {steps.map((step, index) => {
-        const def = PIPELINE_OPS.find((op) => op.id === step.op);
-        return <li key={index}>
-          <span>{def.label}</span>
-          {def.arg && <input aria-label={`${def.label} value`} value={step.arg} inputMode={def.arg === 'number' ? 'numeric' : 'text'} onChange={(event) => update(index, event.target.value)} />}
-          <button type="button" className="secondary small" onClick={() => setSteps((s) => s.filter((_, i) => i !== index))} aria-label={`Remove step ${index + 1}`}>x</button>
-        </li>;
-      })}
-    </ol>
-    <ol className="cl-trail" aria-label="Pipeline output after each step">
-      {trail.map((item, index) => <li key={index}><span>{item.label}</span><code>{item.text ?? 'cannot decode'}</code></li>)}
-    </ol>
-    {steps.length > 0 && trail.at(-1).text && <button type="button" className="secondary small" onClick={() => setText(trail.at(-1).text)}>Use last output as input</button>}
-  </div>;
-}
+// The pipeline tool is the Recipe workbench (Workbench.jsx); it keeps the 'pipeline' unlock id.
 
 export const TOOL_COMPONENTS = {
   shift: ShiftTool,
@@ -204,5 +187,5 @@ export const TOOL_COMPONENTS = {
   substitution: SubstitutionTool,
   rsa: RsaTool,
   hash: HashTool,
-  pipeline: PipelineTool,
+  pipeline: Workbench,
 };

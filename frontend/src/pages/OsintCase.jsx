@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getCase } from '../api/osint.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { DeskProvider, useDesk } from '../components/osint/DeskContext.jsx';
+import BoardTab from '../components/osint/BoardTab.jsx';
 import FeedTab from '../components/osint/FeedTab.jsx';
 import MapTab from '../components/osint/MapTab.jsx';
 import NotesTab from '../components/osint/NotesTab.jsx';
@@ -11,7 +12,7 @@ import Questions from '../components/osint/Questions.jsx';
 import RegistryTab from '../components/osint/RegistryTab.jsx';
 import SearchBox from '../components/osint/SearchBox.jsx';
 import WebTab from '../components/osint/WebTab.jsx';
-import { DIFFICULTY_LABEL, describeOsintError, nextOpenQuestion, progressPercent } from '../osint/helpers.js';
+import { DIFFICULTY_LABEL, afterCaseLoadFailure, describeOsintError, nextOpenQuestion, progressPercent } from '../osint/helpers.js';
 import '../components/osint/osint.css';
 
 const TABS = [
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'registry', label: 'Registry / WHOIS', Panel: RegistryTab },
   { id: 'map', label: 'Map', Panel: MapTab },
   { id: 'photos', label: 'Photos', Panel: PhotosTab },
+  { id: 'board', label: 'Case board', Panel: BoardTab },
   { id: 'notes', label: 'Notes', Panel: NotesTab },
 ];
 
@@ -49,7 +51,7 @@ function Desk({ view, canAnswer, onSolved }) {
   const [tab, setTab] = useState('feed');
   const percent = progressPercent(view.solved, view.total);
   const next = nextOpenQuestion(view.questions);
-  return <DeskProvider track={view.id} onOpenTab={setTab}>
+  return <DeskProvider track={view.id} onOpenTab={setTab} onRefresh={onSolved}>
     <div className="os-layout">
       <div className="os-desk" role="region" aria-label="Investigation desk">
         <h2>Investigation desk</h2>
@@ -70,17 +72,33 @@ export default function OsintCase() {
   const { track } = useParams();
   const { user } = useAuth();
   const [state, setState] = useState({ view: null, error: '' });
-  const load = useCallback(async () => {
-    try { setState({ view: await getCase(track), error: '' }); } catch (error) { setState({ view: null, error: describeOsintError(error) }); }
+  const latest = useRef(0);
+  // Only the newest request may change the page: a slow earlier response (or one for a case we left) is dropped.
+  // `keep` is for the reload after a correct answer: if it fails, the case and the flag just shown stay on screen.
+  const load = useCallback(async (keep = false) => {
+    latest.current += 1;
+    const mine = latest.current;
+    try {
+      const next = await getCase(track);
+      if (mine === latest.current) { setState({ view: next, error: '' }); }
+    } catch (error) {
+      if (mine === latest.current) { setState((current) => afterCaseLoadFailure(current, describeOsintError(error), keep)); }
+    }
   }, [track]);
-  useEffect(() => { setState({ view: null, error: '' }); void load(); }, [load]);
+  const reload = useCallback(() => load(true), [load]);
+  useEffect(() => {
+    setState({ view: null, error: '' });
+    void load();
+    return () => { latest.current += 1; };
+  }, [load]);
 
   const { view, error } = state;
-  if (error) { return <section className="os-page"><Link className="back-link" to="/osint">Back to the trail</Link><p role="alert" className="error">{error}</p></section>; }
+  if (error && !view) { return <section className="os-page"><Link className="back-link" to="/osint">Back to the trail</Link><p role="alert" className="error">{error}</p></section>; }
   if (!view) { return <section className="os-page"><p role="status">Pulling the case file...</p></section>; }
 
   return <section className={`os-page os-level-${view.difficulty}`}>
     <Link className="back-link" to="/osint">Back to the trail</Link>
+    {error && <p role="alert" className="error">{error} Your answer was saved; <button type="button" className="secondary small" onClick={() => load(true)}>reload the case</button> to refresh the list.</p>}
     <header className="os-case-head">
       <div>
         <p className="os-kicker">{DIFFICULTY_LABEL[view.difficulty]} case · {view.title}</p>
@@ -94,6 +112,6 @@ export default function OsintCase() {
       {view.story.map((line, index) => <p key={index}>{line}</p>)}
       <p className="os-muted">Points are fixed per question and the whole case is worth {view.maxPoints}. There is no first-blood bonus and no time pressure.{view.hintsAllowed ? ' Hints are free; admins can see which ones were opened.' : ' This case gives no hints.'}</p>
     </details>
-    <Desk view={view} canAnswer={user?.role !== 'admin'} onSolved={load} />
+    <Desk view={view} canAnswer={user?.role !== 'admin'} onSolved={reload} />
   </section>;
 }
