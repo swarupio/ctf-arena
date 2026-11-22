@@ -1,6 +1,6 @@
 # Fair play: scraping, AI agents and shared solutions
 
-Mini CTF Arena is a learning event. This file explains what the platform does about people who feed the site to an AI
+CTF Arena is a learning event. This file explains what the platform does about people who feed the site to an AI
 (scrape the page, find the API endpoints, give them to a model, or let an agent play through the API). Code:
 `backend/src/services/integrityService.js`, `integrityBait.js`, `routes/honeypot.js`, `routes/admin/integrity.js`.
 Contract: `docs/API_SPEC.md` ("Fair-play review") and `docs/DATABASE_SCHEMA.md` ("Fair play").
@@ -60,7 +60,7 @@ automated reader will see it and a human will not care.
 `taintedFlagFor({ secret, subjectKey, slug })` = `CTF{<slug_with_underscores>_<12 hex of HMAC-SHA256(FLAG_SECRET,
 'taint:' + subjectKey + ':' + slug)>}`: the same look as a real dynamic flag, deterministic per caller. When one is
 issued only its SHA-256 is stored (`taintedflags`, 90 days, unique on the hash). On every wrong submission (normal
-challenges and the terminal game) the server does one indexed lookup; a hit records `tainted-flag` severity 3 for the
+challenges and the Arena Terminal) the server does one indexed lookup; a hit records `tainted-flag` severity 3 for the
 submitter and the answer is exactly the normal "incorrect flag" response. The lookup never runs for a correct flag, and
 the real comparison and responses are unchanged. A decoy flag can never be correct: it is derived differently from real
 flags.
@@ -143,3 +143,8 @@ with counts only. Read each user's signals in context, then decide:
 - The number of distinct canary `detail` strings per user is bounded in practice by the 50 commands per minute limit and
   the 90 day TTL.
 - Tests: `cd backend && npx vitest run tests/integrity`.
+
+## The index.html comment is deliberate
+
+The `TODO(dev): remove before release` comment in `frontend/index.html` is bait on purpose: it names decoy endpoints so that scrapers
+and obedient agents hit them (see Decoy endpoints above). Leave it in place; it is not a leftover.

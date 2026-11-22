@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useId, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { authMessage } from '../auth/logic.js';
 import { TeamProvider, useTeam } from './TeamContext.jsx';
 import { PixelFlag } from './PixelArt.jsx';
 import CelebrationHost from '../components/CelebrationHost.jsx';
 import AnnouncementBanner from '../components/AnnouncementBanner.jsx';
+import EventBanner from '../components/EventBanner.jsx';
+import ThemeToggle from '../theme/ThemeToggle.jsx';
 
 export default function Layout() {
   const { user } = useAuth();
@@ -18,7 +20,18 @@ function LayoutContent() {
   const [replica, setReplica] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The mobile menu closes on every route change and on Escape.
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
   useEffect(() => {
     const update = (event) => setReplica(event.detail);
     window.addEventListener('api:served-by', update);
@@ -34,19 +47,27 @@ function LayoutContent() {
   return <div className="app">
     <a className="skip-link" href="#main">Skip to content</a>
     <AnnouncementBanner />
+    <EventBanner />
     <header className="site-header">
       <Link className="brand" to="/"><PixelFlag className="brand-flag" /><span>CTF Arena</span></Link>
+      <button type="button" className="secondary small menu-toggle" aria-expanded={menuOpen} aria-controls={menuId} onClick={() => setMenuOpen((open) => !open)}>
+        <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span> Menu
+      </button>
+      <div id={menuId} className={`site-menu${menuOpen ? ' is-open' : ''}`}>
       <nav aria-label="Main navigation">
         <NavLink to="/demo">Demo</NavLink>
         <NavLink to="/challenges">Challenges</NavLink>
-        {user && <NavLink to="/games">Games</NavLink>}
+        {user && <NavLink to="/range">Range</NavLink>}
+        <NavLink to="/skills">Skills</NavLink>
         <NavLink to="/leaderboard">Leaderboard</NavLink>
-        <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>
+        {user?.role !== 'admin' && <NavLink to="/team">{profile?.team?.name ? `Team · ${profile.team.name}` : 'Team'}</NavLink>}
         {user && <NavLink to="/profile">Profile</NavLink>}
         {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
       </nav>
       <div className="account">
         {loading ? <span>Loading…</span> : user ? <><span className="email" title={user.email}>{user.email}</span><button className="secondary small" onClick={logout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button></> : <><span className="session-status">[ Not logged in ]</span><Link className="button secondary small" to="/login">Login</Link><Link className="button small" to="/signup">Sign up</Link></>}
+        <ThemeToggle />
+      </div>
       </div>
     </header>
     <main id="main" tabIndex={-1}>
@@ -55,6 +76,6 @@ function LayoutContent() {
       <Outlet />
     </main>
     <CelebrationHost />
-    <footer className="site-footer"><span>Mini CTF Arena</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><span className="replica">{replica ? `Served by ${replica}` : 'No API response yet'}</span></footer>
+    <footer className="site-footer"><span>CTF Arena · Train on the Range. Compete in the Arena.</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><span className="replica">{replica ? `Served by ${replica}` : 'No API response yet'}</span></footer>
   </div>;
 }

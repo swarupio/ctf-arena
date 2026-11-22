@@ -6,7 +6,7 @@ const SYS_TAG = { error: 'error:', warn: 'warning:', info: 'note:' };
 
 /**
  * One scrollback entry. Kinds: cmd (echoed prompt + command), out (server output, ANSI), sys (client message with
- * an optional link), result (submit result block), banner (ASCII art) and matches (Tab completion list).
+ * an optional link), result (submit result block), and matches (Tab completion list).
  * Entries are immutable and memoised, so typing in the input line never re-renders the history.
  */
 function Entry({ entry, onCopied }) {

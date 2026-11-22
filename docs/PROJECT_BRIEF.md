@@ -1,4 +1,4 @@
-# Project Brief - Mini CTF Arena
+# Project Brief - CTF Arena
 
 ## 1. Problem statement
 Tech clubs and colleges run CTF (Capture The Flag) events, but setting one up is painful:

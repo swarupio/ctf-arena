@@ -13,3 +13,4 @@ export const getOverview = () => apiRequest('/crackme/overview');
 export const getLevel = (id) => apiRequest(level(id));
 export const openHint = (id) => post(`${level(id)}/hints`, {});
 export const submitInput = (id, answer) => post(`${level(id)}/answer`, { answer });
+export const submitPatch = (id, edits) => post(`${level(id)}/patch`, { edits });

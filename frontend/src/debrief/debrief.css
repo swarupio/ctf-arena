@@ -1,0 +1,50 @@
+/* Debrief panel. Colours come only from the custom properties of styles.css. */
+.dbf {
+  margin: var(--space-5) 0;
+  border: var(--border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  max-width: 100%;
+  min-width: 0;
+}
+.dbf[data-mode='preview'] { border-style: dashed; }
+.dbf-head { margin: 0; font-size: 1rem; font-weight: 700; }
+.dbf-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  width: 100%; min-height: 44px; padding: var(--space-2) var(--space-4);
+  background: var(--color-accent-tint); color: var(--color-ink);
+  border: 0; text-align: left; font: inherit; cursor: pointer;
+}
+.dbf-toggle:focus-visible { outline: 3px solid var(--color-ink); outline-offset: -3px; }
+.dbf-chevron { font-size: 1.25rem; line-height: 1; min-width: 1.25rem; text-align: center; }
+.dbf-body { padding: var(--space-4); border-top: var(--border); overflow-wrap: anywhere; }
+.dbf-label { display: flex; flex-direction: column; min-width: 0; }
+.dbf-sub { font-weight: 400; color: var(--color-muted); font-size: 0.8125rem; }
+.dbf-block { margin-bottom: var(--space-4); }
+.dbf-block h3 { margin: 0 0 var(--space-1); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.dbf-block p { margin: 0; line-height: 1.55; max-width: 70ch; }
+.dbf-tools, .dbf-skills { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.dbf-tools li {
+  padding: var(--space-1) var(--space-2); border: 1px solid var(--color-line-soft); background: var(--color-bg);
+}
+.dbf-chip {
+  display: inline-flex; align-items: center; min-height: 44px; padding: var(--space-1) var(--space-3);
+  border: var(--border); background: var(--color-bg); color: var(--color-ink); text-decoration: none; font-size: 0.8125rem;
+}
+.dbf-chip:hover, .dbf-chip:focus-visible { background: var(--color-accent-tint); }
+.dbf-used { margin: 0; color: var(--color-muted); }
+.dbf-list { display: grid; gap: var(--space-2); }
+.dbf-list .dbf { margin: 0; }
+
+@media (max-width: 40rem) {
+  .dbf-body { padding: var(--space-3); }
+  .dbf-chip { width: 100%; }
+  .dbf-skills { flex-direction: column; align-items: stretch; }
+}
+
+@media print {
+  .dbf { border: 1px solid currentColor; break-inside: avoid; }
+  .dbf-body[hidden] { display: block !important; }
+  .dbf-toggle { background: none; }
+  .dbf-chevron { display: none; }
+}

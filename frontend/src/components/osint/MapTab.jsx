@@ -24,7 +24,7 @@ export default function MapTab() {
     {map && <>
       <p className="os-muted">
         Map of <strong>{map.town}</strong>, {map.cells} x {map.cells} grid, cells {COLS[0]}1 to {COLS[MAP_CELLS - 1]}{MAP_CELLS}. Local time: <strong>{map.tz.label}</strong>.
-        Survey bounds: latitude {map.bounds.south} to {map.bounds.north}, longitude {map.bounds.west} to {map.bounds.east}. Click the map to pick a point.
+        Survey bounds: latitude {map.bounds.south} to {map.bounds.north}, longitude {map.bounds.west} to {map.bounds.east}. Tap or click the map to pick a point.
       </p>
       <div className="os-map-layout">
         <svg
@@ -39,7 +39,6 @@ export default function MapTab() {
           }}
         >
           <rect x="0" y="0" width="1000" height="1000" fill="#f3efe0" />
-          <rect x="560" y="0" width="440" height="140" fill="#cfe6f2" opacity="0.0" />
           {Array.from({ length: MAP_CELLS + 1 }, (_, i) => <g key={i} stroke="#b9b39c" strokeWidth="1.5">
             <line x1={i * CELL_SIZE} y1="0" x2={i * CELL_SIZE} y2="1000" /><line x1="0" y1={i * CELL_SIZE} x2="1000" y2={i * CELL_SIZE} />
           </g>)}
@@ -66,7 +65,7 @@ export default function MapTab() {
           <div className="os-paper" aria-live="polite">
             <h3>Picked point</h3>
             {pick ? <dl className="os-kv"><dt>Cell</dt><dd>{pick.cell}</dd><dt>Map units</dt><dd>{pick.x},{pick.y}</dd><dt>Lat / lon</dt><dd>{Object.values(xyToLatLon(pick.x, pick.y, map.bounds)).join(' / ')}</dd></dl>
-              : <p className="os-muted">Click the map (or focus it and use the arrow keys, Shift for big steps).</p>}
+              : <p className="os-muted">Tap or click the map (or focus it and use the arrow keys, Shift for big steps).</p>}
           </div>
           <form className="os-paper os-stack" onSubmit={(e) => e.preventDefault()}>
             <h3>GPS to map</h3>

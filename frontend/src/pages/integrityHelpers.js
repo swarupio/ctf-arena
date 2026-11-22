@@ -39,7 +39,7 @@ export const SIGNAL_KINDS = {
   },
   'terminal-canary': {
     label: 'Followed an AI-bait instruction',
-    help: 'Did what a hidden instruction planted in the terminal game output asked for. '
+    help: 'Did what a hidden instruction planted in the Arena Terminal output asked for. '
       + 'A person reading the screen would not see it; an AI fed the raw text would.',
   },
   'terminal-velocity': {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  challengeErrorMessage, formatCountdown, groupByCategory, isExpired,
+  challengeErrorMessage, formatCountdown, groupByCategory, isExpired, solveCountLabel,
 } from '../src/pages/challengeHelpers.js';
 
 test('challenges group by category in a stable order, easiest first', () => {
@@ -28,4 +28,16 @@ test('documented error codes map to friendly messages and unknown errors keep th
   }
   assert.equal(challengeErrorMessage({ code: 'WEIRD', message: 'Server says no.' }), 'Server says no.');
   assert.match(challengeErrorMessage(undefined), /try again/i);
+});
+
+test('FORBIDDEN maps to the admin preview note', () => {
+  assert.equal(challengeErrorMessage({ code: 'FORBIDDEN', message: 'nope' }), 'Admins can preview only.');
+});
+
+test('the solve count is a neutral dash while the scoreboard is frozen (null from the server)', () => {
+  assert.equal(solveCountLabel(null), '-');
+  assert.equal(solveCountLabel(undefined), '-');
+  assert.equal(solveCountLabel(0), '0 solves');
+  assert.equal(solveCountLabel(1), '1 solve');
+  assert.equal(solveCountLabel(7), '7 solves');
 });

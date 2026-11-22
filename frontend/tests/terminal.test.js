@@ -19,7 +19,6 @@ import {
 import {
   bootLength, bootLines, buildCodeRows, difficultyLevel, formatElapsed, pointsSummary, revealLines,
 } from '../src/terminal/viewModel.js';
-import { FIRST_BLOOD_BANNER, bannerWord } from '../src/terminal/banner.js';
 import { CHEAT_SHEET, COMMANDS, QUICK_CHIPS } from '../src/terminal/data.js';
 import { CATEGORY_ORDER, groupByCategory, splitTerminalChallenges } from '../src/pages/challengeHelpers.js';
 
@@ -172,20 +171,28 @@ test('history navigation walks back, forward and restores the draft', () => {
 test('history persists per mode and tolerates broken storage', () => {
   const store = new Map();
   const storage = { getItem: (key) => (store.has(key) ? store.get(key) : null), setItem: (key, value) => store.set(key, value) };
-  saveHistory(storage, 'easy', ['ls', 'submit CTF{secret}', 'cat a', '  submit x']);
-  assert.deepEqual(JSON.parse(store.get(historyKey('easy'))), ['ls', 'cat a'], 'submit lines are never stored');
-  assert.deepEqual(loadHistory(storage, 'easy'), ['ls', 'cat a']);
-  assert.deepEqual(loadHistory(storage, 'hard'), []);
-  store.set(historyKey('easy'), '{not json');
-  assert.deepEqual(loadHistory(storage, 'easy'), []);
-  store.set(historyKey('easy'), JSON.stringify({ a: 1 }));
-  assert.deepEqual(loadHistory(storage, 'easy'), []);
-  store.set(historyKey('easy'), JSON.stringify(['ok', 5, '', null, 'submit CTF{x}', 'fine']));
-  assert.deepEqual(loadHistory(storage, 'easy'), ['ok', 'fine']);
-  store.set(historyKey('easy'), JSON.stringify(Array.from({ length: 300 }, (_, i) => `c${i}`)));
-  assert.equal(loadHistory(storage, 'easy').length, HISTORY_LIMIT);
-  assert.doesNotThrow(() => saveHistory({ setItem() { throw new Error('quota'); } }, 'easy', ['ls']));
-  assert.deepEqual(loadHistory(null, 'easy'), []);
+  const me = 'Ann@Example.com';
+  saveHistory(storage, me, 'easy', ['ls', 'submit CTF{secret}', 'cat a', '  submit x']);
+  assert.deepEqual(JSON.parse(store.get(historyKey(me, 'easy'))), ['ls', 'cat a'], 'submit lines are never stored');
+  assert.deepEqual(loadHistory(storage, me, 'easy'), ['ls', 'cat a']);
+  assert.deepEqual(loadHistory(storage, 'ann@example.com', 'easy'), ['ls', 'cat a']);
+  assert.deepEqual(loadHistory(storage, me, 'hard'), []);
+  assert.deepEqual(loadHistory(storage, 'bob@example.com', 'easy'), [], 'a second account never sees the first history');
+  assert.notEqual(historyKey(me, 'easy'), historyKey('bob@example.com', 'easy'));
+  assert.equal(historyKey('', 'easy'), '');
+  saveHistory(storage, undefined, 'easy', ['ls']);
+  assert.equal(store.size, 1, 'signed out persists nothing');
+  assert.deepEqual(loadHistory(storage, undefined, 'easy'), []);
+  store.set(historyKey(me, 'easy'), '{not json');
+  assert.deepEqual(loadHistory(storage, me, 'easy'), []);
+  store.set(historyKey(me, 'easy'), JSON.stringify({ a: 1 }));
+  assert.deepEqual(loadHistory(storage, me, 'easy'), []);
+  store.set(historyKey(me, 'easy'), JSON.stringify(['ok', 5, '', null, 'submit CTF{x}', 'fine']));
+  assert.deepEqual(loadHistory(storage, me, 'easy'), ['ok', 'fine']);
+  store.set(historyKey(me, 'easy'), JSON.stringify(Array.from({ length: 300 }, (_, i) => `c${i}`)));
+  assert.equal(loadHistory(storage, me, 'easy').length, HISTORY_LIMIT);
+  assert.doesNotThrow(() => saveHistory({ setItem() { throw new Error('quota'); } }, me, 'easy', ['ls']));
+  assert.deepEqual(loadHistory(null, me, 'easy'), []);
 });
 
 test('history output is numbered', () => {
@@ -466,15 +473,6 @@ test('boot text is typed from the lore and ends with the hint', () => {
   assert.deepEqual(revealLines(lines, 20), ['Welcome, intern.', 'Loo']);
   assert.deepEqual(revealLines(lines, bootLength(lines)), lines);
   assert.deepEqual(revealLines(lines, 9999), lines);
-});
-
-test('the first blood banner is ASCII and fits a phone', () => {
-  assert.equal(FIRST_BLOOD_BANNER.length, 11);
-  assert.ok(FIRST_BLOOD_BANNER.every((line) => /^[ #]*$/.test(line)));
-  assert.ok(Math.max(...FIRST_BLOOD_BANNER.map((line) => line.length)) <= 33);
-  assert.equal(bannerWord('I').length, 5);
-  assert.deepEqual(bannerWord('T'), ['#####', '  #', '  #', '  #', '  #'], 'trailing blanks are trimmed');
-  assert.equal(bannerWord('?').join(''), '');
 });
 
 test('chips and cheat sheet only use known commands', () => {

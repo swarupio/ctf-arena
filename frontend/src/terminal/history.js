@@ -1,7 +1,8 @@
-// Command history: pure helpers plus tolerant localStorage persistence (one list per mode, newest last).
+// Command history: pure helpers plus tolerant localStorage persistence (one list per user and mode, newest last).
+import { scopedKey } from '../storage/userScope.js';
 
 export const HISTORY_LIMIT = 200;
-export const historyKey = (mode) => `arena-terminal:history:${mode}`;
+export const historyKey = (email, mode) => scopedKey('arena-terminal:history:', email, `:${mode}`);
 
 // `submit <flag>` lines stay in memory (so a typo can be fixed with the up arrow) but are never written to storage.
 export const isSubmitLine = (line) => /^\s*submit(\s|$)/.test(String(line));
@@ -38,9 +39,11 @@ export function stepHistory(list, nav, direction, current = '') {
 
 const persistable = (list, limit) => list.filter((line) => !isSubmitLine(line)).slice(-limit);
 
-export function loadHistory(storage, mode, limit = HISTORY_LIMIT) {
+export function loadHistory(storage, email, mode, limit = HISTORY_LIMIT) {
+  const key = historyKey(email, mode);
+  if (!key) return [];
   try {
-    const raw = storage?.getItem(historyKey(mode));
+    const raw = storage?.getItem(key);
     if (!raw) return [];
     const data = JSON.parse(raw);
     if (!Array.isArray(data)) return [];
@@ -50,9 +53,11 @@ export function loadHistory(storage, mode, limit = HISTORY_LIMIT) {
   }
 }
 
-export function saveHistory(storage, mode, list, limit = HISTORY_LIMIT) {
+export function saveHistory(storage, email, mode, list, limit = HISTORY_LIMIT) {
+  const key = historyKey(email, mode);
+  if (!key) return;
   try {
-    storage?.setItem(historyKey(mode), JSON.stringify(persistable(list, limit)));
+    storage?.setItem(key, JSON.stringify(persistable(list, limit)));
   } catch { /* storage full or blocked: history just stays in memory */ }
 }
 

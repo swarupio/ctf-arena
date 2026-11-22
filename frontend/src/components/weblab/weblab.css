@@ -1,5 +1,5 @@
 /* Web Exploit Lab. Everything is prefixed wl-. The four target sites are themed through data-theme. */
-.wl-page-root { display: grid; gap: var(--space-5); min-width: 0; }
+.wl-page-root { position: relative; display: grid; gap: var(--space-5); min-width: 0; }
 .wl-page-root h1 { margin: 0; }
 .wl-page-root p { margin: 0; }
 .wl-lead { max-width: 70ch; }
@@ -16,18 +16,11 @@
 [data-theme='vault'] { --t-bg: #0a0a12; --t-ink: #e6e6ff; --t-accent: #b388ff; --t-head: #17172b; --t-line: #4b3a8f; --t-on-accent: #0a0a12; --t-font: var(--font-body); }
 
 /* overview */
-.wl-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); padding: var(--space-4); background: var(--color-surface); border: var(--border); box-shadow: var(--shadow-hard); }
-.wl-stat { display: grid; gap: 2px; }
-.wl-stat span { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-muted); }
-.wl-stat strong { font-family: var(--font-display); font-size: 2rem; font-weight: 400; line-height: 1; }
-.wl-stat small { font-size: 1rem; color: var(--color-muted); }
-.wl-meter { grid-column: 1 / -1; height: 14px; border: var(--border); background: var(--color-surface-2); }
-.wl-meter span { display: block; height: 100%; background: var(--color-accent); transition: width 0.4s; }
-.wl-overview > p { grid-column: 1 / -1; }
+/* The summary strip, its stats and the bar use the shared overview.css classes. */
 
 /* tracks and cards */
 .wl-track { padding: var(--space-4); border: 2px solid var(--t-line); background: var(--t-bg); color: var(--t-ink); font-family: var(--t-font); display: grid; gap: var(--space-4); }
-.wl-track h2, .wl-track h4 { font-family: var(--font-display); color: var(--t-ink); }
+.wl-track h2, .wl-track h3 { font-family: var(--font-display); color: var(--t-ink); }
 .wl-track .wl-muted { color: var(--t-ink); opacity: 0.8; }
 .wl-track-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); }
 .wl-kicker { margin: 0 0 var(--space-1); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--t-accent); font-weight: 700; }
@@ -35,15 +28,17 @@
 [data-theme='hospital'] .wl-kicker { color: #076472; }
 .wl-track-score { text-align: right; display: grid; }
 .wl-track-score strong { font-family: var(--font-display); font-size: 2.25rem; font-weight: 400; line-height: 1; }
-.wl-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--space-3); }
-.wl-card { display: flex; min-width: 0; }
-.wl-card-link { display: grid; gap: var(--space-2); align-content: start; width: 100%; padding: var(--space-3); color: var(--t-ink); background: var(--t-head); border: 2px solid var(--t-line); text-decoration: none; }
-a.wl-card-link:hover { background: var(--t-accent); color: var(--t-on-accent); border-color: var(--t-ink); }
-a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-accent); }
+/* Lab cards: the grid is .ov-grid; each card spans four rows (top, title, summary, footer) shared through subgrid. */
+.wl-cards { list-style: none; margin: 0; padding: 0; }
+.wl-track .wl-cards.ov-grid { gap: var(--space-4); }
+.wl-card { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; min-width: 0; }
+.wl-card-link { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; row-gap: var(--space-2); align-content: start; width: 100%; padding: var(--space-3); color: var(--t-ink); background: var(--t-head); border: 2px solid var(--t-line); text-decoration: none; }
+@media (hover: hover) { a.wl-card-link:hover { background: var(--t-accent); color: var(--t-on-accent); border-color: var(--t-ink); } }
+@media (hover: hover) { a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-accent); } }
 .wl-card.is-locked .wl-card-link, .wl-card.is-offline .wl-card-link { opacity: 0.6; border-style: dashed; }
 .wl-card.is-solved .wl-card-link { border-color: var(--t-accent); }
 .wl-card.is-boss .wl-card-link { border-width: 3px; }
-.wl-card h4 { margin: 0; font-size: 1.5rem; }
+.wl-card h3 { margin: 0; font-size: 1.5rem; }
 .wl-card p { margin: 0; font-size: 0.875rem; }
 .wl-card-top, .wl-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-2); }
 .wl-chip { padding: 1px 8px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; background: var(--t-accent); color: var(--t-on-accent); }
@@ -53,10 +48,10 @@ a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-
 
 /* bounty badge */
 .wl-badge { display: inline-flex; align-items: center; gap: var(--space-2); padding: 2px 10px; font-size: 0.75rem; border: 2px solid currentColor; background: var(--color-surface); color: var(--color-ink); }
-.wl-badge.is-critical { color: #8a0016; background: #ffe3e6; }
-.wl-badge.is-high { color: #8a3a00; background: #ffe9d2; }
-.wl-badge.is-medium { color: #6b5600; background: #fff6cc; }
-.wl-badge.is-low { color: #1d5a2a; background: #e0f6e4; }
+.wl-badge.is-critical { color: var(--color-diff-insane-text); background: var(--color-diff-insane-tint); }
+.wl-badge.is-high { color: var(--color-diff-hard-text); background: var(--color-diff-hard-tint); }
+.wl-badge.is-medium { color: var(--color-sev-medium); background: var(--color-sev-medium-tint); }
+.wl-badge.is-low { color: var(--color-sev-low); background: var(--color-ok-tint); }
 .wl-badge.is-fresh { animation: wl-stamp 0.5s ease-out; }
 @keyframes wl-stamp { from { transform: scale(2.2) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
@@ -78,7 +73,7 @@ a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-
 .wl-url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 8px; font-size: 0.8125rem; font-family: var(--font-body); background: var(--t-bg); border: 1px solid var(--t-line); }
 .wl-status { font-size: 0.75rem; font-weight: 700; padding: 1px 8px; border: 1px solid var(--t-line); }
 .wl-status.is-2xx { background: var(--t-accent); color: var(--t-on-accent); }
-.wl-status.is-4xx, .wl-status.is-5xx { background: #a8001a; color: #fff; }
+.wl-status.is-4xx, .wl-status.is-5xx { background: var(--color-danger); color: var(--color-ink-contrast); }
 .wl-site-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); background: var(--t-head); border-bottom: 1px solid var(--t-line); }
 .wl-site-head small { display: block; opacity: 0.8; }
 .wl-logo { display: inline-grid; place-items: center; width: 36px; height: 36px; font-weight: 700; font-family: var(--font-display); font-size: 1.5rem; background: var(--t-accent); color: var(--t-on-accent); }
@@ -97,7 +92,7 @@ a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-
 /* shared bits used inside and outside the frame */
 .wl-notice { padding: var(--space-2) var(--space-3); border: 2px solid currentColor; font-size: 0.875rem; background: var(--color-surface); color: var(--color-ink); }
 .wl-notice.is-error { color: var(--color-danger); background: var(--color-danger-tint); }
-.wl-notice.is-success { color: #145c26; background: #e6f9ea; }
+.wl-notice.is-success { color: var(--color-ok-alt); background: var(--color-ok-tint-alt); }
 .wl-frame .wl-notice { background: var(--t-bg); color: var(--t-ink); }
 .wl-frame .wl-notice.is-error { color: #ff7a8a; }
 [data-theme='pizza'] .wl-frame .wl-notice.is-error, [data-theme='hospital'] .wl-frame .wl-notice.is-error { color: #a8001a; }
@@ -117,8 +112,8 @@ a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-
 .wl-inspector { border: var(--border); background: var(--color-surface); box-shadow: var(--shadow-hard); min-width: 0; }
 .wl-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: var(--space-2); border-bottom: var(--border); background: var(--color-surface-2); }
 .wl-tabs button { position: relative; min-height: 36px; padding: 2px var(--space-3); }
-.wl-tabs button.is-active { background: var(--color-accent); color: var(--color-ink); }
-.wl-tabs button:disabled { opacity: 0.5; cursor: not-allowed; }
+.wl-tabs button.is-active { background: var(--color-accent); color: var(--color-on-accent); }
+.wl-tabs button[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
 .wl-ping { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: #d62828; animation: wl-pulse 1s infinite; }
 @keyframes wl-pulse { 50% { transform: scale(1.5); opacity: 0.5; } }
 .wl-panel { padding: var(--space-3); display: grid; gap: var(--space-3); }
@@ -127,23 +122,48 @@ a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-
 .wl-inspector textarea, .wl-inspector input, .wl-inspector select, .wl-flagbox input { width: 100%; padding: var(--space-2); font: 0.8125rem/1.4 var(--font-body); color: var(--color-ink); background: var(--color-surface); border: var(--border); border-radius: 0; }
 .wl-row-method select { width: auto; }
 .wl-quip { padding: var(--space-2) var(--space-3); border: 2px solid var(--color-ink); background: var(--color-surface-2); }
-.wl-quip.is-win { background: var(--color-accent); animation: wl-stamp 0.4s ease-out; }
+.wl-quip.is-win { background: var(--color-accent); color: var(--color-on-accent); animation: wl-stamp 0.4s ease-out; }
 .wl-history { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
 .wl-history button { width: 100%; justify-content: flex-start; gap: var(--space-3); min-height: 36px; }
 .wl-history-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .wl-method { font-weight: 700; }
-.wl-diff span.is-add { background: #d7f7dd; display: block; }
-.wl-diff span.is-del { background: #fddde0; display: block; }
+.wl-diff span.is-add { background: var(--color-diff-add); display: block; }
+.wl-diff span.is-del { background: var(--color-diff-del); display: block; }
 .wl-diff span { display: block; }
-.wl-hints ol { margin: 0 0 var(--space-3); padding-left: var(--space-5); display: grid; gap: var(--space-2); }
 .wl-flagbox { display: grid; gap: var(--space-2); }
 
 @media (prefers-reduced-motion: reduce) {
   .wl-badge.is-fresh, .wl-quip.is-win, .wl-ping { animation: none; }
-  .wl-meter span { transition: none; }
 }
 @media (max-width: 560px) {
   .wl-track-head { display: grid; }
   .wl-track-score { text-align: left; }
   .wl-row-method { flex-wrap: wrap; }
 }
+
+/* Layout polish: the target and the inspector share one grid, and the lower panels reuse its columns */
+.wl-grid { align-items: stretch; }
+.wl-grid > .wl-frame { display: flex; flex-direction: column; align-self: start; }
+.wl-grid > .wl-frame .wl-site-body { flex: 1 1 auto; }
+.wl-lower { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
+.wl-lower > section { min-width: 0; }
+.wl-frame-bar > *, .wl-site-head > div { min-width: 0; }
+.wl-inspector :focus-visible, .wl-flagbox :focus-visible { outline: 3px solid var(--color-ink); outline-offset: 2px; }
+.wl-frame :focus-visible { outline: 3px solid var(--t-accent); outline-offset: 2px; }
+.wl-row-method input, .wl-row-method .wl-grow { min-width: 0; }
+.wl-flagbox .wl-row > button { min-width: 140px; }
+@media (min-width: 901px) { .wl-grid > .wl-frame { position: sticky; top: var(--space-4); } }
+@media (max-width: 900px) { .wl-lower { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .wl-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+  .wl-tabs button { flex: 0 0 auto; white-space: nowrap; }
+  .wl-flagbox .wl-row > button { flex: 1 1 100%; }
+  .wl-site-body { min-height: 120px; }
+}
+@media (min-width: 901px) {
+  .wl-grid > .wl-frame { position: static; align-self: stretch; }
+}
+
+/* The address bar wraps instead of cutting the URL (a hover title is not reachable by touch). */
+.wl-url { overflow: visible; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.wl-locks { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 0.8125rem; color: var(--color-muted); overflow-wrap: anywhere; }

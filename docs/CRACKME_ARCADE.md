@@ -1,13 +1,13 @@
 # Crackme Arcade
 
-A browser-playable reverse-engineering game, fully simulated and safe: four tracks (easy, medium, hard, insane), 16
+A browser-playable reverse-engineering category on The Range, fully simulated and safe: four tracks (easy, medium, hard, insane), 16
 cabinets (levels), each track ends with a boss. Every cabinet is a small program for a made-up stack machine. The
 player reads the disassembly, steps through it in a client-side debugger, works out what the program accepts and
 submits that input. The server runs its own copy of the machine on the submission and then returns the team's flag.
 Nothing real is ever executed: no binaries, no `eval`, no filesystem, network or database access with player data.
 
 Code: `backend/src/games/crackme/**` (VM, assembler, levels, service), `backend/src/routes/crackme.js`,
-`backend/src/models/CrackmeHint.js`, `backend/src/scripts/seedCrackme.js`, `frontend/src/pages/Crackme*.jsx`,
+`backend/src/models/CrackmeHint.js`, `backend/src/models/CrackmePatch.js`, `backend/src/scripts/seedCrackme.js`, `frontend/src/pages/Crackme*.jsx`,
 `frontend/src/components/crackme/`. Endpoints: `docs/API_SPEC.md` "Crackme Arcade". Pages: `/reversing`,
 `/reversing/:levelId`.
 
@@ -83,9 +83,63 @@ Points are fixed. There is **no first-blood bonus**: `scoringService.hasFirstBlo
 | Hard, Attract Mode Basement (hints) | h1 Fortress Serial 80, h2 Anti-Debug Alley 100, h3 Tape Loop 120, h4 Boss: The Warden 200 | 80 + 100 + 120 + 200 | 500 |
 | Insane, Warehouse of Lost ROMs (no hints) | i1 Self-Modifying Cabinet 150, i2 Two-Face Cabinet 200, i3 Ghost in the Machine 250, i4 Final Boss: MEGA-ROM 400 | 150 + 200 + 250 + 400 | 1000 |
 
-Maximum for the whole game: **1905 points** (16 cabinets). The Challenge model has no `insane` difficulty, so insane
+Maximum for the whole category: **1905 points** (16 cabinets). The Challenge model has no `insane` difficulty, so insane
 rows are stored as `hard`; `category` is `pwn` (there is no reversing category). Rows are created by
 `npm run seed:crackme` (slug `crackme-<id>`, `type: 'reversing'`).
+
+## Time-travel debugger
+
+Frontend only (`components/crackme/timeline.js`, `TimeTravel.jsx`, `Debugger.jsx`); the VM is deterministic, so the past is
+rebuilt, not stored. A timeline keeps a full machine copy every 128 steps (at most `maxSteps / 128 + 1`, hard safety cap 800)
+and replays forward from the nearest copy, so memory respects the VM step cap. Features: Step back / Step forward and a
+slider over the executed steps (replaying the past never touches the live machine; Run continues from the furthest step),
+a "What changed" panel (PC, last CMP flag, input pointer, stack removed/added, memory and code cells, branch taken or not),
+"What decided it" after the program stops (the last conditional branch and the CMP feeding it, highlighted in the listing,
+with a "Go to that step" button), and up to 8 pinned "watch" cells (data cells 0-63 or code cells 256+n; tap a memory cell or
+type an address; changes are stated in words). Keys when no text box is focused: S step forward, B step back, R run/pause,
+E run to end, X reset, W focus the watch box (shown on the buttons and in the page text, `aria-keyshortcuts` set).
+
+## Reading tools (cross-references, flow graph, data, navigation)
+
+Frontend only, client side, built from the listing and VM description the player already has (`components/crackme/analysis.js`,
+`AnalysisView.jsx`, `analysis.css`; tests in `frontend/tests/crackmeAnalysis.test.js`). No backend, program, answer, hint or Patch Bay change.
+The analysis reads the program as the viewed machine holds it, so self-decrypting code is analysed again once it has been rewritten, and
+the graph follows the time-travel slider.
+
+- **Cross-references.** Every block start gets a gutter line with its label and `xrefs from 003, 024` (a loop-back is marked with an arrow). Each
+  `JMP`/`JZ`/`JNZ` shows a link to its target. A target outside the listing (packed code before it decrypts) is stated, not followed.
+- **Labels are neutral.** `entry`, `loc_035` (the decimal address, as in the listing) and `exit A`, `exit B`, ... for blocks that end in
+  `ACCEPT`, `REJECT` or `HALT`, lettered in address order. Labels never say which exit is the winning one or whether a branch is a check; a test
+  rejects words such as accept, reject, win, fail or good in a label. The instruction itself is still shown in the listing.
+- **Flow graph.** SVG, deterministic layout (layers by longest path from the entry, columns by address, one right-hand lane per distant target), no
+  library. The executing block is highlighted and kept in view while stepping or travelling back. Blocks are keyboard focusable (Enter or Space
+  shows the block in the listing); a collapsible text list gives every block and its successors. Code no jump reaches has a dotted outline.
+- **Data panel.** Distinct `PUSH` constants (decimal, hex, character, where used), plus strings of 3 or more printable characters from three
+  places: consecutive `PUSH` operands, literal `PUSH value, PUSH cell, STORE` writes, and the memory of the viewed step. Characters compared one at
+  a time (`INPUT`, `PUSH c`, `CMP`) are deliberately not joined into a string.
+- **Navigation.** Go to address (decimal, `0x` hex or a label), Back and Forward through your own jumps, Jump to current PC, and Find instruction
+  by mnemonic (or its start), operand value (decimal, hex or `'A'`) or label, with a match count and Next/Prev (Enter, Shift+Enter).
+- **Phones.** Under 900 px the graph and the data panel become two tabs, the controls are 44 px tall, and the graph and tables scroll inside their own box.
+
+## Patch Bay (bonus mode, hard and insane cabinets h1-h4, i1-i4)
+
+The player edits up to 20 instructions of THEIR team's program and submits the edits. Rules shown in the UI: make the
+cabinet accept every one of 6 hidden test inputs and still accept the team's real serial.
+
+- Whitelist (`backend/src/games/crackme/patch.js`, byte-identical browser copy in `frontend/src/components/crackme/`):
+  `JNZ` to `JZ` or `POP`, `JZ` to `JNZ` or `POP`, `CMP` to `SUB` or `XOR`. Only the opcode changes (a flipped branch keeps its
+  target; `POP` drops it). Everything is stack neutral. Terminals (`ACCEPT`/`REJECT`/`HALT`), `JMP`, `PUSH` etc. are not patchable.
+- The server rebuilds the program from the team seed, applies the edits and runs it with no debugger and the 20 000 step cap.
+  Hidden inputs come from `Rng(secret, teamId, '<level>-patch')` (6 inputs of mixed shape and length up to 32, all rejected by
+  the original program, never the real serial). They are never sent; the reply has only `passed`/`total`/`serialOk`.
+- Valid = all 6 pass and the real serial is still accepted. Reward: a cosmetic badge (collection `crackmepatches`, unique
+  `teamId + levelId`, inserted atomically with `$setOnInsert`). No points, no flag, no Solve, no Submission, so the 1905 maximum
+  is unchanged. Players may debug their patched program locally ("Show my patched program in the debugger").
+- Attempts: 8 per team per level per minute through `consumeAttempt` (`crackme-patch:<team>:<level>`), counted after the
+  structural checks (which cost nothing and run no VM). Locked cabinets 403, easy/medium 404 `NO_PATCH_BAY`, admins 403
+  (preview only), submissions freeze applies.
+- Solvable for every team: the test solver (`tests/crackme/solvers.js` `patchSolution`) turns every check that jumps to
+  REJECT/HALT into `POP` (keygen cabinets also flip the dash test) in at most 18 edits, verified for 1500 seeds per cabinet.
 
 ## Security properties
 
@@ -122,11 +176,11 @@ Not linked from the UI; do not paste into public places. Per-team values differ,
 - **h1** each group is a weighted sum mod a prime; group three starts with group one's first letter plus a constant.
   Search each group (26^4). **h2** `DBG` jumps to a decoy path; use Hide debugger or read the real path: key stream
   `key' = (key * M + A) mod 251`, `c = t xor key`. **h3** ten digits; weights alternate 1 and 3 (weighted sum mod 11),
-  plain digit sum mod 7, digits 1-2 fixed, digit 6 = digit 3 + 3: brute-force the free digits. **h4** keygen:
+  plain digit sum mod 7, digits 1-2 fixed, digit 6 = digit 3 + 3 (1-based), and the loop rejects a missing digit, so exactly ten digits are needed: brute-force the free digits. **h4** keygen:
   `NAME-SERIAL`, name of the compared length, `h = rol(c xor h, r) + a` from the seed, serial = `h mod 100000`.
 - **i1** the start-up code STOREs computed constants into the PUSH placeholders before they run; run to the first
   INPUT in the debugger and read the patched listing, then undo `rol(c xor key, r)`. **i2** operands of the body are
   XORed with a key and a start-up loop decrypts them with LOAD/XOR/STORE; hide the debugger, run to the first INPUT,
-  read the decrypted constants. **i3** the hash seed is `S + DBG * D` (use Hide debugger or add the delta): choose
+  read the decrypted constants. **i3** the hash seed is `S + DBG * D` (use Hide debugger or add the delta; the generator redraws `D` until the debugger run really differs): choose
   four letters with `hash mod 7 = k`, then each of the last four letters is `65 + ((hash * m_j + a_j) mod 26)`.
   **i4** packed keygen like h4 behind the i2 trick.

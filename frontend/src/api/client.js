@@ -1,5 +1,6 @@
 import { getToken } from '../auth/token.js';
 import { createApiCache } from './cache.js';
+import { badResponseError, parseApiResponse } from './response.js';
 
 export async function apiRequest(path, options = {}) {
   const token = await getToken();
@@ -8,14 +9,7 @@ export async function apiRequest(path, options = {}) {
   const response = await fetch(`/api${path}`, { ...options, headers });
   const replica = response.headers.get('X-Served-By');
   if (replica) window.dispatchEvent(new CustomEvent('api:served-by', { detail: replica }));
-  const data = response.status === 204 ? null : await response.json();
-  if (!response.ok) {
-    const error = new Error(data?.error?.message ?? 'The API request failed.');
-    error.status = response.status;
-    error.code = data?.error?.code;
-    throw error;
-  }
-  return data;
+  return parseApiResponse(response);
 }
 
 // Authenticated file download (CSV / JSON exports). The token travels in the Authorization header, never in a URL.
@@ -26,12 +20,8 @@ export async function apiDownload(path) {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const response = await fetch(`/api${path}`, { headers });
   if (!response.ok) {
-    let data = null;
-    try { data = await response.json(); } catch { /* the error body is not JSON */ }
-    const error = new Error(data?.error?.message ?? 'The API request failed.');
-    error.status = response.status;
-    error.code = data?.error?.code;
-    throw error;
+    await parseApiResponse(response); // throws the API error (friendly text when the body is not JSON)
+    throw badResponseError(response.status);
   }
   return { blob: await response.blob(), disposition: response.headers.get('Content-Disposition') ?? '' };
 }

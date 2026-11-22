@@ -7,6 +7,7 @@ import { formatDate, formatNumber, timeAgo } from '../../admin/format.js';
 import {
   EVIDENCE_NOTE, SIGNAL_KINDS, kindHelp, kindLabel, severityLevel, signalCount,
 } from '../integrityHelpers.js';
+import Info from '../../components/Info.jsx';
 import AsyncBlock from '../../components/admin/AsyncBlock.jsx';
 import ConfirmDialog from '../../components/admin/ConfirmDialog.jsx';
 import DataTable from '../../components/admin/DataTable.jsx';
@@ -56,7 +57,7 @@ export default function Integrity() {
         </StatGrid>
         <Panel title="Signals by kind" id="integrity-kinds">
           <ul className="adm-list">{info.byKind.map((row) => <li key={row.kind}>
-            <span title={kindHelp(row.kind)}><strong>{kindLabel(row.kind)}</strong> <span className="adm-muted adm-mono">{row.kind}</span></span>
+            <span title={kindHelp(row.kind)}><strong>{kindLabel(row.kind)}</strong> <span className="adm-muted adm-mono">{row.kind}</span> <Info label={kindLabel(row.kind)}>{kindHelp(row.kind)}</Info></span>
             <span>{formatNumber(row.rows)} users/rows &middot; {formatNumber(row.events)} events &middot; {row.lastAt ? timeAgo(row.lastAt) : 'never'}</span>
           </li>)}</ul>
           <p className="adm-muted">High risk is {threshold} or more (severity times events, up to 5 per signal).</p>

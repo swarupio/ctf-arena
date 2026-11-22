@@ -1,4 +1,4 @@
-# Architecture - Mini CTF Arena
+# Architecture - CTF Arena
 
 ## 1. Big picture
 

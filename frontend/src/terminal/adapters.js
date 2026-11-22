@@ -2,6 +2,7 @@
 // calls these on every response, so a change in a response shape is fixed here and nowhere else.
 
 import { EFFECTS, MODES } from './data.js';
+import { eventMessage } from '../event/messages.js';
 
 const text = (value, fallback = '') => (typeof value === 'string' ? value : fallback);
 const count = (value, fallback = 0) => {
@@ -115,6 +116,7 @@ export function describeError(error, context = 'exec') {
   if (code === 'TEAM_BANNED') {
     return { kind: 'banned', message: 'your team has been banned from the arena.', link: { to: '/team', label: 'open the Team page' } };
   }
+  if (eventMessage(error)) return { kind: 'locked', message: eventMessage(error).toLowerCase() };
   if (code === 'TERMINAL_NOT_SEEDED') {
     return { kind: 'not-seeded', message: 'this terminal is not set up yet - ask an admin to run the terminal seed (npm run seed:terminal).' };
   }

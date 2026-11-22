@@ -1,4 +1,5 @@
 // Pure helpers of the Web Exploit Lab UI (no React, no network): request drafts, encoders, diff, copy, wording.
+import { eventMessage } from '../../event/messages.js';
 export const LIMITS = Object.freeze({ path: 300, body: 2000, headers: 20, cookies: 10, name: 40, value: 500 });
 export const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 export const HISTORY_MAX = 20;
@@ -203,6 +204,7 @@ export function describeError(error) {
   const code = text(error?.code, '');
   if (code === 'NO_TEAM') { return { kind: 'no-team', message: 'You need a team first: flags and bounties are scored per team.' }; }
   if (code === 'TEAM_BANNED') { return { kind: 'banned', message: 'Your team has been banned from the arena.' }; }
+  if (eventMessage(error)) { return { kind: 'locked', message: eventMessage(error) }; }
   if (code === 'WEBLAB_NOT_SEEDED') { return { kind: 'not-seeded', message: 'The lab is not set up yet. Ask an admin to run npm run seed:weblab.' }; }
   if (code === 'LAB_LOCKED') { return { kind: 'locked', message: text(error?.message, 'This lab is locked.') }; }
   if (status === 401) { return { kind: 'auth', message: 'Your session expired. Please log in again.' }; }

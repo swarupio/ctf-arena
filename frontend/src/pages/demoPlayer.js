@@ -207,7 +207,7 @@ export function stepCounter(index, total) {
   return `Step ${Math.max(clampIndex(index, count) + 1, 0)} of ${count}`;
 }
 
-// Game clock label such as "T+12:00". Accepts minutes as a number (12.5 is 12:30) or an "mm:ss" string.
+// Match clock label such as "T+12:00". Accepts minutes as a number (12.5 is 12:30) or an "mm:ss" string.
 export function formatClock(minute) {
   if (typeof minute === 'string') {
     const match = /^(\d+):(\d{2})$/.exec(minute.trim());

@@ -1,74 +1,105 @@
-import { useMemo, useState } from 'react';
-import { hexRows } from '../../forensics/hex.js';
-import { filterPackets, followStream, parseFilter } from '../../forensics/packetFilter.js';
+import { useCallback, useMemo, useState } from 'react';
+import { filterPackets, parseFilter } from '../../forensics/packetFilter.js';
+import { combineFilter } from '../../forensics/packetLayers.js';
+import { normalizePackets } from '../../forensics/packetRows.js';
+import { buildStream, conversationNeighbours, indexConversations } from '../../forensics/packetStream.js';
+import { packetPin } from '../../forensics/timeline.js';
 import { usePagedArtefact } from './hooks.js';
+import PacketDetail from './PacketDetail.jsx';
+import PacketFilterBar from './PacketFilterBar.jsx';
+import PacketStream from './PacketStream.jsx';
 import VirtualList from './VirtualList.jsx';
+import './packets.css';
 
 const PAGE = 250;
-const pick = (page) => page.packets;
-const EXAMPLES = ['proto == dns', 'ip.addr == 10.0.1.21', 'proto == http && info contains "beacon"', 'port == 9001', 'payload contains "x-task"'];
+// Rows are made safe once, here (null protocol or address, string numbers), so nothing below needs to guard each field.
+const pick = (page) => normalizePackets(page.packets);
 
-export default function PacketTable({ track, artefact }) {
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall through to the textarea copy */ }
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    return ok;
+  } catch { return false; }
+}
+
+export default function PacketTable({ track, artefact, timeline }) {
   const { items, total, loading, error } = usePagedArtefact({ track, artefact: artefact.id, pageSize: PAGE, pick });
   const [source, setSource] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [stream, setStream] = useState(null);
+  const [selectedN, setSelectedN] = useState(null);
+  const [followN, setFollowN] = useState(null);
+  const [view, setView] = useState('list');
+  const [notice, setNotice] = useState(null);
+  const [order, setOrder] = useState('capture');
   const parsed = useMemo(() => parseFilter(source), [source]);
   const shown = useMemo(() => (parsed.ok ? filterPackets(items, parsed) : items), [items, parsed]);
-  const packet = selected === null ? null : shown[selected] ?? null;
-  // The dump only changes with the selected packet, not with every keystroke in the filter box.
-  const dump = useMemo(() => (packet?.hex
-    ? hexRows(packet.hex).map((row) => `${row.offset.toString(16).padStart(4, '0')}  ${row.hex.join(' ').padEnd(47)}  ${row.ascii}`).join('\n')
-    : null), [packet]);
+  const byNumber = useMemo(() => new Map(items.map((p) => [p.n, p])), [items]);
+  const conversations = useMemo(() => indexConversations(items), [items]);
+  const packet = selectedN === null ? null : byNumber.get(selectedN) ?? null;
+  const selectedIndex = packet ? shown.findIndex((p) => p.n === packet.n) : -1;
+  const neighbours = useMemo(() => (packet ? conversationNeighbours(conversations, packet) : null), [conversations, packet]);
+  const stream = useMemo(() => {
+    const followed = followN === null ? null : byNumber.get(followN);
+    return followed ? buildStream(conversations, followed, { order }) : null;
+  }, [conversations, byNumber, followN, order]);
 
-  return <section className="fx-tool" aria-label="Packet viewer">
-    <form className="fx-controls" onSubmit={(event) => event.preventDefault()} role="search">
-      <label className="fx-grow">Display filter
-        <input
-          value={source} onChange={(event) => { setSource(event.target.value); setSelected(null); }} maxLength={200} spellCheck="false"
-          autoComplete="off" placeholder='e.g. proto == dns && ip.src == 10.0.1.21' aria-invalid={!parsed.ok} aria-describedby="fx-pkt-help" list="fx-pkt-examples"
+  const select = useCallback((n) => { setSelectedN(n); setNotice(null); setView('detail'); }, []);
+  const edit = (value) => { setSource(value); setNotice(null); };
+  const step = (delta) => {
+    if (shown.length === 0) { return; }
+    const at = selectedIndex < 0 ? (delta > 0 ? 0 : shown.length - 1) : Math.min(shown.length - 1, Math.max(0, selectedIndex + delta));
+    select(shown[at].n);
+  };
+  const jump = (n) => {
+    select(n);
+    if (parsed.ok && !shown.some((p) => p.n === n)) { setNotice(`Packet ${n} is hidden by the current filter. Clear the filter to find it in the list.`); }
+  };
+  const copy = async (text) => { setNotice((await copyText(text)) ? 'Copied to the clipboard.' : 'Copy is not available in this browser. Select the text and copy it by hand.'); };
+  const filterOn = (expression) => { setSource((current) => combineFilter(parsed.ok ? current : '', expression)); setNotice(`Filter set: ${expression}`); setView('list'); };
+
+  return <section className="fx-tool fxp" data-view={view} aria-label="Packet viewer">
+    <div className="fxp-listpane">
+      <PacketFilterBar value={source} onChange={edit} parsed={parsed} shown={shown.length} loaded={items.length} total={total} loading={loading} />
+      {error && <p role="alert" className="error">{error}</p>}
+      <div className="fx-pkt-wrap">
+        <div className="fx-pkt-head" aria-hidden="true">
+          <span>No.</span><span>Time</span><span>Source</span><span>Destination</span><span>Proto</span><span>Len</span><span>Info</span>
+        </div>
+        <VirtualList
+          count={shown.length} rowHeight={24} label="Captured packets" className="fx-pkt" selected={selectedIndex < 0 ? null : selectedIndex}
+          revealSelected onActivate={(i) => select(shown[i].n)}
+          renderRow={(i) => {
+            const p = shown[i];
+            return <><span>{p.n}</span><span>{p.t}</span><span>{p.src}{p.sp ? `:${p.sp}` : ''}</span><span>{p.dst}{p.dp ? `:${p.dp}` : ''}</span>
+              <span className={`fx-proto fx-proto-${String(p.proto ?? '').toLowerCase()}`}>{p.proto}</span><span>{p.len}</span><span className="fx-info">{p.info}</span></>;
+          }}
         />
-        <datalist id="fx-pkt-examples">{EXAMPLES.map((example) => <option key={example} value={example} />)}</datalist>
-      </label>
-      <button type="button" className="secondary" onClick={() => { setSource(''); setSelected(null); }} disabled={source === ''}>Clear</button>
-    </form>
-    <p id="fx-pkt-help" className="fx-status" role="status">
-      {!parsed.ok ? <span className="fx-bad">{parsed.error}</span>
-        : `${shown.length.toLocaleString()} of ${items.length.toLocaleString()} packets${loading ? ` (loading ${items.length}/${total || '?'})` : ''}`}
-      {' · fields: ip.addr ip.src ip.dst port proto frame.len info payload'}
-    </p>
-    {error && <p role="alert" className="error">{error}</p>}
-    <div className="fx-pkt-wrap">
-      <div className="fx-pkt-head" aria-hidden="true">
-        <span>No.</span><span>Time</span><span>Source</span><span>Destination</span><span>Proto</span><span>Len</span><span>Info</span>
       </div>
-      <VirtualList
-        count={shown.length} rowHeight={24} label="Captured packets" className="fx-pkt" selected={selected} onActivate={setSelected}
-        renderRow={(i) => {
-          const p = shown[i];
-          return <><span>{p.n}</span><span>{p.t}</span><span>{p.src}{p.sp ? `:${p.sp}` : ''}</span><span>{p.dst}{p.dp ? `:${p.dp}` : ''}</span>
-            <span className={`fx-proto fx-proto-${p.proto.toLowerCase()}`}>{p.proto}</span><span>{p.len}</span><span className="fx-info">{p.info}</span></>;
-        }}
-      />
     </div>
-    <div className="fx-detail">
+    <div className="fx-detail fxp-detail" role="region" aria-label="Selected packet">
       <div className="fx-row-buttons">
-        <button type="button" className="secondary small" disabled={selected === null || shown.length === 0}
-          onClick={() => setSelected((s) => Math.max(0, (s ?? 0) - 1))}>Previous</button>
-        <button type="button" className="secondary small" disabled={shown.length === 0}
-          onClick={() => setSelected((s) => Math.min(shown.length - 1, (s ?? -1) + 1))}>Next</button>
-        <button type="button" className="small" disabled={!packet || !packet.hex} onClick={() => setStream(followStream(items, packet))}>Follow stream</button>
+        <button type="button" className="secondary small fxp-back" onClick={() => setView('list')}>Back to packet list</button>
+        <button type="button" className="secondary small" disabled={shown.length === 0} onClick={() => step(-1)}>Previous</button>
+        <button type="button" className="secondary small" disabled={shown.length === 0} onClick={() => step(1)}>Next</button>
+        <button type="button" className="small" disabled={!packet} onClick={() => setFollowN(packet.n)}>Follow stream</button>
+        {timeline && <button type="button" className="small" disabled={!packet || timeline.has(`packet:${packet.n}`)} onClick={() => timeline.pin(packetPin(packet))}>
+          {packet && timeline.has(`packet:${packet.n}`) ? 'Pinned' : 'Pin packet'}
+        </button>}
       </div>
       {packet ? <>
         <h3>Packet {packet.n}</h3>
         <p className="fx-meta">{packet.src}:{packet.sp} {'->'} {packet.dst}:{packet.dp} · {packet.proto} · {packet.len} bytes · t={packet.t}s</p>
-        {packet.hex ? <pre className="fx-hex" aria-label="Payload hex dump">{dump}</pre>
-          : <p className="fx-muted">No payload.</p>}
-      </> : <p className="fx-muted">Select a packet (click a row) to inspect its payload.</p>}
-      {stream && <div className="fx-stream" role="region" aria-label="Followed stream">
-        <div className="fx-row-buttons"><h3>Stream ({stream.length} packets)</h3><button type="button" className="secondary small" onClick={() => setStream(null)}>Close</button></div>
-        <pre>{stream.map((s) => `${s.outbound ? '>> ' : '<< '}[${s.n}] ${s.text}`).join('\n')}</pre>
-      </div>}
+        <PacketDetail packet={packet} onFilter={filterOn} onCopy={copy} neighbours={neighbours} onJump={jump} notice={notice} />
+      </> : <p className="fx-muted">Tap or click a row to select a packet and inspect its layers and payload.</p>}
+      {stream && <PacketStream stream={stream} loading={loading} onClose={() => setFollowN(null)} onCopy={copy} onSelect={select} order={order} onOrder={setOrder} />}
     </div>
   </section>;
 }

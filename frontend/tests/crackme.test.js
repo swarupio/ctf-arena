@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import {
-  charComment, confettiPieces, crackmeErrorMessage, hex, listingRows, memoryRows, nextLevel, pad, percent, rowsOfMachine, runBatch,
+  afterLoadFailure, charComment, confettiPieces, crackmeErrorMessage, hex, inputProblem, listingRows, memoryRows, nextLevel, pad, percent, rowsOfMachine, runBatch,
   runToStop, stackRows, streakText, verdictText,
 } from '../src/components/crackme/helpers.js';
 import {
@@ -106,4 +106,19 @@ test('next level and error messages', () => {
   assert.match(crackmeErrorMessage({ code: 'CRACKME_NOT_SEEDED' }), /seed:crackme/);
   assert.equal(crackmeErrorMessage({ message: 'boom' }), 'boom');
   assert.match(crackmeErrorMessage(null), /Something went wrong/);
+});
+
+test('input validation mirrors the server: printable ASCII only', () => {
+  assert.equal(inputProblem('PACMAN42'), '');
+  assert.equal(inputProblem('NAME-12345 x~'), '');
+  assert.match(inputProblem(''), /Type an input/);
+  assert.match(inputProblem('caf\u00e9'), /printable ASCII/);
+  assert.match(inputProblem('tab\there'), /printable ASCII/);
+  assert.match(inputProblem('line\nbreak'), /printable ASCII/);
+});
+
+test('a failed reload keeps the puzzle on screen, a failed first load does not', () => {
+  const current = { puzzle: { id: 'e1' }, error: '' };
+  assert.deepEqual(afterLoadFailure(current, 'down', true), { puzzle: { id: 'e1' }, error: 'down' });
+  assert.deepEqual(afterLoadFailure(current, 'down', false), { puzzle: null, error: 'down' });
 });

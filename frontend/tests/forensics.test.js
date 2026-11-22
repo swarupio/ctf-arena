@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { checkPattern, compileSafeRegex } from '../src/forensics/safeRegex.js';
 import { filterLines, highlightParts, makeLineMatcher, windowRange } from '../src/forensics/logFilter.js';
-import { filterPackets, followStream, parseFilter, streamKey } from '../src/forensics/packetFilter.js';
-import { decodeBase64, decodeHexText, hexRows, hexToBytes, hexToText, rot13 } from '../src/forensics/hex.js';
+import { filterPackets, parseFilter } from '../src/forensics/packetFilter.js';
+import { buildStream, conversationKey, indexConversations } from '../src/forensics/packetStream.js';
+import { decodeBase64, decodeHexText, findMatches, hexRows, matchRows, hexToBytes, hexToText, rot13 } from '../src/forensics/hex.js';
 import { extractLsb, renderPixels } from '../src/forensics/stego.js';
 import {
-  clearStart, describeForensicsError, evidenceCards, formatElapsed, nextOpenStage, progressPercent, readStart, timerBadge, writeStart,
+  clearStart, describeForensicsError, earnedBadge, evidenceCards, formatElapsed, nextOpenStage, progressPercent, readStart, timerBadge, timerKey, writeStart,
 } from '../src/forensics/caseHelpers.js';
 
 test('safe regex accepts ordinary patterns and rejects catastrophic ones', () => {
@@ -83,11 +84,11 @@ test('follow stream returns the conversation in order, in both directions', () =
   const a = packet({ n: 1 });
   const b = packet({ n: 2, src: '185.1.2.3', sp: 8443, dst: '10.0.1.21', dp: 40000, hex: Buffer.from('HTTP/1.1 200 OK\r\n').toString('hex') });
   const other = packet({ n: 3, sp: 41000 });
-  assert.equal(streamKey(a), streamKey(b));
-  assert.notEqual(streamKey(a), streamKey(other));
-  const stream = followStream([a, other, b], a);
-  assert.deepEqual(stream.map((s) => [s.n, s.outbound]), [[1, true], [2, false]]);
-  assert.match(stream[1].text, /200 OK/);
+  assert.equal(conversationKey(a), conversationKey(b));
+  assert.notEqual(conversationKey(a), conversationKey(other));
+  const stream = buildStream(indexConversations([a, other, b]), a);
+  assert.deepEqual(stream.segments.map((s) => [s.n, s.side]), [[1, 'client'], [2, 'server']]);
+  assert.match(Buffer.from(stream.segments[1].bytes).toString('latin1'), /200 OK/);
   assert.equal(filterPackets([a, b, other], parseFilter('port == 41000')).length, 1);
   assert.equal(filterPackets([a, b, other], parseFilter(''), 2).length, 2);
 });
@@ -145,13 +146,23 @@ test('timer helpers format, badge and persist without touching the server', () =
   assert.equal(timerBadge('insane', 9 * 3_600_000).id, 'cold-case');
   const store = new Map();
   const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
-  assert.equal(readStart(storage, 'easy', 1000), null);
-  writeStart(storage, 'easy', 500);
-  assert.equal(readStart(storage, 'easy', 1000), 500);
-  assert.equal(readStart(storage, 'easy', 100), null);
-  clearStart(storage, 'easy');
-  assert.equal(readStart(storage, 'easy', 1000), null);
-  assert.equal(readStart({ getItem() { throw new Error('blocked'); } }, 'easy'), null);
+  const me = 'Ann@Example.com';
+  assert.equal(readStart(storage, me, 'easy', 1000), null);
+  writeStart(storage, me, 'easy', 500);
+  assert.equal(readStart(storage, me, 'easy', 1000), 500);
+  assert.equal(readStart(storage, 'ann@example.com', 'easy', 1000), 500, 'the email is case-insensitive');
+  assert.equal(readStart(storage, 'bob@example.com', 'easy', 1000), null, 'a second account does not see the first clock');
+  assert.notEqual(timerKey(me, 'easy'), timerKey('bob@example.com', 'easy'));
+  assert.equal(readStart(storage, me, 'easy', 100), null);
+  clearStart(storage, me, 'easy');
+  assert.equal(readStart(storage, me, 'easy', 1000), null);
+  assert.equal(timerKey('', 'easy'), '');
+  assert.equal(timerKey(undefined, 'easy'), '');
+  const before = store.size;
+  assert.equal(writeStart(storage, undefined, 'easy', 500), 500);
+  assert.equal(store.size, before, 'signed out writes nothing');
+  assert.equal(readStart(storage, undefined, 'easy', 1000), null);
+  assert.equal(readStart({ getItem() { throw new Error('blocked'); } }, me, 'easy'), null);
 });
 
 test('progress, next stage, evidence cards and error messages', () => {
@@ -167,4 +178,27 @@ test('progress, next stage, evidence cards and error messages', () => {
   assert.match(describeForensicsError({ status: 429 }), /Too many/);
   assert.match(describeForensicsError({ code: 'FORENSICS_NOT_SEEDED' }), /seed:forensics/);
   assert.equal(describeForensicsError({ message: 'boom' }), 'boom');
+});
+
+test('a rank is only earned by closing the case in this session with a genuine start', () => {
+  const base = { trackId: 'easy', closed: true, reviewed: false, hasStart: true, elapsed: 60_000 };
+  assert.equal(earnedBadge(base).id, 'ace');
+  assert.equal(earnedBadge({ ...base, closed: false }), null);
+  assert.equal(earnedBadge({ ...base, reviewed: true }), null);
+  assert.equal(earnedBadge({ ...base, hasStart: false }), null);
+  assert.equal(earnedBadge({ ...base, elapsed: 0 }), null);
+  assert.equal(earnedBadge({ ...base, elapsed: Number.NaN }), null);
+});
+
+test('hex find searches the whole file, so matches may straddle a row', () => {
+  const bytes = new Uint8Array(40).fill(0x41);
+  bytes.set([0x4a, 0x46, 0x49, 0x46], 14); // JFIF across the 16-byte boundary
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  const text = findMatches(hex, 'jfif');
+  assert.deepEqual(text, [{ offset: 14, length: 4 }]);
+  assert.deepEqual(matchRows(text[0]), [0, 1]);
+  assert.deepEqual(findMatches(hex, '4a 46 49 46'), [{ offset: 14, length: 4 }]);
+  assert.equal(findMatches(hex, 'AA').length, 34);
+  assert.deepEqual(findMatches(hex, 'x'), []);
+  assert.deepEqual(findMatches(hex, 'zzzz'), []);
 });

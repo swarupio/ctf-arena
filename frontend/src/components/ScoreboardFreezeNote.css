@@ -1,0 +1,7 @@
+/* Frozen / final scoreboard note on the Leaderboard page. Text carries the meaning; the edge colour is a second cue. */
+.lb-frozen {
+  margin: 0 0 var(--space-3, 12px); padding: var(--space-2, 8px) var(--space-3, 12px);
+  background: var(--color-info-tint); color: var(--color-ink); border: var(--border); border-left: 8px solid var(--color-info-border);
+}
+.lb-frozen p { margin: 0; }
+.lb-frozen p + p { margin-top: var(--space-1, 4px); }

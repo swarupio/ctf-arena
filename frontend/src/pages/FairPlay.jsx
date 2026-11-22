@@ -6,7 +6,7 @@ const RULES = [
   {
     title: 'Play it yourself',
     text: 'Use your own head, your teammates, your browser, a terminal, your notes, documentation and search engines. '
-      + 'Reading up on how a technique works in general is part of the game.',
+      + 'Reading up on how a technique works in general is part of the training.',
   },
   {
     title: 'Keep challenges away from AI and automated solvers',
@@ -30,7 +30,7 @@ const RULES = [
   },
   {
     title: 'We keep an eye out',
-    text: 'To keep the game fair, the arena records signs of suspicious activity for admin review: unusual request rates and timing patterns, '
+    text: 'To keep the Arena fair, the arena records signs of suspicious activity for admin review: unusual request rates and timing patterns, '
       + 'signs of automation, and access to debug or internal endpoints that players have no reason to touch. '
       + 'A signal is not a verdict. An admin looks at the evidence before anything happens.',
   },

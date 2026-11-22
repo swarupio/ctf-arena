@@ -1,6 +1,6 @@
-# Arena Terminal (terminal game) - design and contract
+# Arena Terminal (range category) - design and contract
 
-A terminal-style CTF mode for Mini CTF Arena, inspired by Unix-terminal club CTFs
+A terminal-style CTF mode for CTF Arena, inspired by Unix-terminal club CTFs
 (prompt `guest@arena:~$`, status "● ONLINE · GUEST"). Players type Unix commands to explore a **virtual** filesystem
 and find hidden **codes** (flags). Three modes: **easy**, **medium**, **hard**. Every code is worth points on
 the normal leaderboard.
@@ -176,7 +176,7 @@ All routes need `Authorization: Bearer <ID token>`; player or admin; mounted at 
 |---|---|---|
 | `GET /modes` | - | `[{ mode, title, tagline, difficulty, codes, solved, points, pointsEarned, lore }]` (`solved` = my team's count; no flags, no code titles of unsolved codes) |
 | `GET /:mode/progress` | - | `{ mode, total, solved: [{ n, title, points, firstBlood }], remaining }` |
-| `POST /:mode/exec` | `{ command: string<=300, cwd: string<=200 }` | `{ output, cwd, exit, effect? }` (cwd normalized; invalid cwd falls back to home) |
+| `POST /:mode/exec` | `{ command: string<=300, cwd: string<=200, mailSeen?: int 0..4095 }` (`mailSeen` is the cosmetic read marker of section 18) | `{ output, cwd, exit, effect? }` (cwd normalized; invalid cwd falls back to home) |
 | `POST /:mode/complete` | `{ partial: string<=200, cwd }` | `{ matches: string[] }` (<= 50) |
 | `POST /:mode/submit` | `{ flag: string<=200 }` | `{ correct, code?, title?, pointsAwarded, firstBlood, message, solved, total }` |
 
@@ -185,7 +185,7 @@ A player without a team gets `NO_TEAM` (409/403 as the existing `getTeamContext`
 Admins may call `modes`, `progress`, `exec`, `complete` (preview flags) but not `submit`.
 Submit rules: validate with zod `.strict()`; compare against the expected flags of **all** the mode's codes the team has
 not solved yet using the same constant-time comparison as `verifyFlag`; rate limit **10 attempts / minute / team / mode**
-counted in MongoDB (`Submission`); wrong attempts are stored against the mode's first code; correct -> `recordSolve`
+consumed atomically in MongoDB (`attemptLimiter`, key `terminal:<team>:<mode>`) BEFORE the flag is evaluated, so over the limit every outcome is 429, a correct flag included (re-submitting an already captured code is idempotent and never limited); wrong attempts are stored against the mode's first code; correct -> `recordSolve`
 (scoring and leaderboard like other challenges, but with NO first-blood bonus, see section 17). Already solved code -> `{ correct:true, alreadySolved:true,
 pointsAwarded:0 }` (no error). Never echo the submitted flag or the expected flag.
 
@@ -198,7 +198,7 @@ Terminal challenges are created by `npm run seed:terminal` (idempotent upsert ke
 `terminal-<mode>-<n>`; title `Terminal <Mode> #<n>`, description generic, `visible: true`, points from the mode
 definition) and are **not** creatable from the admin UI. They may be hidden/edited (points, visible) by admins.
 Normal challenge list/detail summaries hide nothing server-side; the frontend filters `type === 'terminal'` out of the
-card grid and shows one promo card for the terminal game instead.
+card grid and shows one promo card for the Arena Terminal instead.
 
 ## 10. Frontend (frontend agent)
 
@@ -208,12 +208,13 @@ accent, JetBrains Mono): title strip with three squares, `CTF Arena · Terminal`
 `● ONLINE · <TEAM NAME>` (admins: `● ONLINE · ADMIN (preview)`), prompt `guest@arena:<cwd>$` (cwd shown with `~`).
 Must have: boot sequence (typed lore + "type help to begin"), command history (up/down, kept per mode in
 `localStorage`), Tab completion (commands client-side, paths via `/complete`), Ctrl+L, Ctrl+C, copy-friendly output,
-client-side `clear`, `history`, `submit <flag>` (calls submit endpoint, prints a result block, big ASCII banner on
-first blood), ANSI SGR rendering (parse to React nodes, never `dangerouslySetInnerHTML`), highlighted flag-looking
+client-side `clear`, `history`, `submit <flag>` (calls submit endpoint, prints a result block; first blood does not exist in this category, so there is no banner), `exit` (prints
+`logout` and navigates to `/terminal`), ANSI SGR rendering (parse to React nodes, never `dangerouslySetInnerHTML`), highlighted flag-looking
 strings, a side HUD (codes progress with `???` until solved, points, session timer, cheat-sheet of common commands,
 mode switcher), mobile layout (HUD collapses under the terminal, quick-command chips), `effect` handling
-(`clear`, `matrix` canvas rain for ~4 s respecting reduced motion, `confetti` pure CSS), a11y (`role="log"` output,
+(`clear`, `matrix` canvas rain for ~4 s respecting reduced motion, `confetti` pure CSS), a11y (`role="log"` output with a polite status line such as `Output received, N lines.` for new command output,
 labelled input, focus returns to the input on click, `prefers-reduced-motion`).
+Hints control: a toolbar row under the log (`HintBar.jsx`, helpers in `hintBar.js`) with `Hints` (runs `hint`) and, once a reply such as `[hint 1/3 for code 4] ...` was seen, `Next hint` (runs `hint 2`, `hint 3`, up to the printed total). The buttons run exactly the command a player could type, through the normal exec path (echoed in the log, same pacing and fair-play rules, 44 px on coarse pointers, focus returns to the input, half-typed text is kept). It also shows `Hint N of M`, `Hints used: N` (session only, hidden for admins) and the cost line from `hints/config.js`. No keyboard shortcut; the typed `hint [n]` command is unchanged.
 Error states: network error prints `connection lost, retrying...` style lines in the terminal, 429 and `NO_TEAM`
 produce friendly terminal messages with a link to the Team page.
 
@@ -222,7 +223,7 @@ produce friendly terminal messages with a link to the Team page.
 Progression (each code needs the commands taught before it):
 
 - **easy** (Intern's Laptop, 4 codes): `ls`, `cd`, `pwd`, `cat`, `ls -a` hidden files, `head`/`tail`, plain `grep`. A
-  `README`/`welcome` file teaches the game. At most 2 steps per code. Never needs pipes.
+  `README`/`welcome` file teaches the category. At most 2 steps per code. Never needs pipes.
 - **medium** (NovaCorp Server Room, 5 codes): `find` by name/size/type, `grep -r`, `wc`, `sort | uniq -c`, `cut`,
   `base64 -d`, `tr` rot13, `diff`, `ls -l` permissions, symlinks, `.bash_history`-style clues, chaining 2-4 commands
   with pipes. Mix one multi-stage code where code N's file location is revealed by code N-1's text.
@@ -373,3 +374,47 @@ puzzles count, sort or diff) and must be harmless and slightly funny to humans.
 - Bug fixed: the bonus used to apply, so a team first on all four easy codes got 4 x 44 = 176 of 160. Stored rows from before
   the fix are repaired by `repairTerminalSolves()` (idempotent; run once via `node src/scripts/repairTerminalScores.js`), and the mode
   views clamp each solve to the listed points meanwhile.
+
+## 18. The living story (mail, log, Easter eggs)
+
+The three modes form one plot: **easy** (the intern's laptop) -> **medium** (the NovaCorp server room, incident INC-2024-0311) ->
+**hard** (the Vault, ghost's own box). When a team solves a code, new content appears in that team's virtual filesystem.
+Everything is a pure function of the team's seed and `ctx.progress()`: no new state, no database write, any replica builds
+the same bytes. Code: `backend/src/terminal/story.js` (content and overlay), `commands/story.js` (`mail`, `make`, `novi`).
+
+**What appears** (applied by `execute()` before each command line through `storyContext`, only for modes that have a story):
+- `/var/mail/<user>`: the mailbox as an mbox file (`cat` and `grep` work on it; mode 0600, read-only like the rest). In hard the
+  existing SOC briefing stays message 1, word for word.
+- `/var/log/novi.log` (easy), `incident-desk.log` (medium), `soc-escalation.log` (hard): a few log lines, plus one line per
+  solved code that quotes its title and the seeded names.
+- Mail ids are **stable**: 1 = welcome, `n + 1` = the reaction to code `n` (appears when code `n` is solved, in any order),
+  `N + 2` = the epilogue once all `N` codes are solved. A locked id answers `mail: no such message`, exactly like a missing one.
+- Completion (`complete()`) uses the story without progress (the files always exist), so it never reads the database.
+
+**Commands**: `mail` (list, `N` = unread), `mail N [M ...]` (read, up to 5), `mail -h`; `motd` adds "You have N unread
+messages" when there are some; `whoami -v` (seeded name and role; plain `whoami` is unchanged); `novi` (the bot, per mode).
+Easter eggs, all text only: `make me a sandwich` ("What? Make it yourself."), `sudo make me a sandwich` ("Okay."),
+`rm -rf --no-preserve-root /` (a NOVI joke; without the override the real fail-safe text stays; nothing is ever touched).
+`ai-verify` is deliberately **not** an engine command: it stays the fair-play canary trapped in `routes/terminal.js`.
+
+**Cast** (`ctx.storySeed` = `HMAC-SHA256(FLAG_SECRET, 'terminal-story:' + teamId)`, the same in all three modes, a different
+derivation from the puzzle seed, never sent to the browser; admins use the preview team id): the new intern (the player's persona),
+the boss, the SOC analyst, the ghost sender alias (`g+<word><4 digits>@h.ost`) and a ticket number, all from `seedValue` slots
+901..993 (puzzles use 1..9). Fixed lore names stay fixed (Jordan, Priya, alice, bob, ghost, nova-adm): the story extends the lore and never
+renames anybody. The extras agent's ctx has no `flag`, `seed` or `storySeed`.
+
+**Hard rules for story content** (tests enforce them for many seeds and every mode): no flag token or code shape, no puzzle seed value
+(addresses, passphrases, kids), no title or path of an unsolved code, ASCII only; hints inside mail are not used (atmosphere and
+foreshadowing only), so the hint system stays the only help. Titles quoted in a mail are those of codes the team already solved.
+
+**Unread count** (cosmetic, no server state): the browser derives the unlocked ids from `/progress` (same rule as above), remembers
+the read ones in `localStorage` (bit `n` of a mask = message `n` read, key `arena.terminal.mail.<mode>`) and sends the mask as the
+optional `mailSeen` of `exec` so `mail` can print `N`. A forged mask only changes those letters. The browser shows the count in the
+boot text, on a `mail` chip, in the HUD summary and prints "You have new mail" after a correct code.
+
+**Par badge** (client only): the browser counts the commands sent to the server since the previous solve (`localStorage`
+`arena.terminal.commands.<mode>`) and adds "Minimalist: solved in N commands" to the solve block when N <= par (easy 6, medium 10,
+hard 14), otherwise "Solved in N commands". It needs no schema change and is not anti-cheat; it is easy to fake and worth nothing.
+
+Tests: `backend/tests/terminal/story.test.js` (unlock rules, seeded names, leakage scans over 150 seeds, containment, Easter eggs),
+`api.test.js` (`mailSeen`, `storySeed`), `frontend/tests/terminalStory.test.js`.

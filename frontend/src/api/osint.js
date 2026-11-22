@@ -22,3 +22,20 @@ export const openHint = (track, n) => apiRequest(`${base(track)}/questions/${n}/
   headers: { 'Content-Type': 'application/json' },
   body: '{}',
 });
+
+// The team's shared case board (docs/OSINT_TRAIL.md "Case board"). Saves carry the version the edit started from.
+export const getBoard = (track) => apiRequest(`${base(track)}/board`);
+// `keepalive` lets the last save finish while the page is being left.
+export const saveBoard = (track, payload, { keepalive = false } = {}) => apiRequest(`${base(track)}/board`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload),
+  ...(keepalive ? { keepalive: true } : {}),
+});
+// Exact N of M for the SAVED board; strictly rate limited by the server (3 a minute, 10 an hour).
+export const checkBoard = (track) => apiRequest(`${base(track)}/board/check`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: '{}',
+});
+export const listEvidence = (track, params = {}, { signal } = {}) => apiRequest(`${base(track)}/board/evidence${query(params)}`, { signal });

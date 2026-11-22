@@ -1,8 +1,28 @@
 // A small Wireshark-like display filter. No eval and no regular expressions from the player.
 //   ip.addr == 10.0.1.21        ip.src != x     ip.dst == x     port == 443     proto == dns
+//   eth.addr == 02:aa:bb:cc:dd:ee   eth.src == x   eth.dst == x   (simulated MAC addresses)
 //   frame.len > 100             info contains "beacon"          payload contains "X-Task"
+//   dns  http  tls  tcp  udp  icmp  ntp (protocol tests)      frame contains "text" (info and payload)
 //   a bare word searches every column;  terms combine with && (or "and"), || (or "or") and ! / not.
 import { hexToText } from './hex.js';
+
+// Payload text is decoded once per packet, not once per evaluation.
+const textCache = new WeakMap();
+const textOf = (p) => {
+  let text = textCache.get(p);
+  if (text === undefined) { text = hexToText(p.hex ?? '').toLowerCase(); textCache.set(p, text); }
+  return text;
+};
+const UDP_LABELS = new Set(['DNS', 'NTP', 'UDP']);
+const PROTO_WORDS = {
+  dns: (p) => p.proto === 'DNS',
+  http: (p) => p.proto === 'HTTP',
+  tls: (p) => p.proto === 'TLS',
+  icmp: (p) => p.proto === 'ICMP',
+  ntp: (p) => p.proto === 'NTP',
+  udp: (p) => UDP_LABELS.has(p.proto),
+  tcp: (p) => p.proto !== 'ICMP' && !UDP_LABELS.has(p.proto),
+};
 
 const FIELDS = {
   'ip.addr': (p) => [p.src, p.dst],
@@ -11,11 +31,15 @@ const FIELDS = {
   port: (p) => [String(p.sp), String(p.dp)],
   'tcp.port': (p) => (p.proto === 'UDP' || p.proto === 'DNS' || p.proto === 'NTP' ? [] : [String(p.sp), String(p.dp)]),
   'udp.port': (p) => (p.proto === 'DNS' || p.proto === 'NTP' ? [String(p.sp), String(p.dp)] : []),
-  proto: (p) => [p.proto.toLowerCase()],
+  'eth.addr': (p) => [p.sm, p.dm].filter(Boolean),
+  'eth.src': (p) => (p.sm ? [p.sm] : []),
+  'eth.dst': (p) => (p.dm ? [p.dm] : []),
+  proto: (p) => [String(p.proto ?? '').toLowerCase()],
   'frame.len': (p) => [String(p.len)],
   'frame.number': (p) => [String(p.n)],
-  info: (p) => [p.info.toLowerCase()],
-  payload: (p) => [hexToText(p.hex).toLowerCase()],
+  info: (p) => [String(p.info ?? '').toLowerCase()],
+  payload: (p) => [textOf(p)],
+  frame: (p) => [`${String(p.info ?? '').toLowerCase()} ${textOf(p)}`],
 };
 
 const TOKEN = /\s*(?:("(?:[^"\\]|\\.)*")|(&&|\|\||!=|==|>=|<=|[!()<>])|([^\s()!=<>&|"]+))/y;
@@ -28,10 +52,18 @@ function tokenize(source) {
     const match = TOKEN.exec(source);
     if (!match) {
       if (source.slice(start).trim() === '') { break; }
-      throw new Error(`Unexpected character near "${source.slice(start, start + 8).trim()}"`);
+      const rest = source.slice(start).trimStart();
+      if (rest.startsWith('"')) { throw new Error('Unterminated quote: add the closing ".'); }
+      if (rest[0] === '&' || rest[0] === '|') { throw new Error(`Use ${rest[0]}${rest[0]} to combine terms.`); }
+      if (rest[0] === '=') { throw new Error('Use == to compare.'); }
+      throw new Error(`Unexpected character near "${rest.slice(0, 8)}"`);
     }
     if (tokens.length > 60) { throw new Error('Filter too long.'); }
-    if (match[1] !== undefined) { tokens.push({ type: 'str', value: JSON.parse(match[1]) }); }
+    if (match[1] !== undefined) {
+      let value;
+      try { value = JSON.parse(match[1]); } catch { throw new Error('Bad escape inside the quoted text.'); }
+      tokens.push({ type: 'str', value });
+    }
     else if (match[2] !== undefined) { tokens.push({ type: 'op', value: match[2] }); }
     else {
       const word = match[3];
@@ -96,6 +128,8 @@ export function parseFilter(source) {
       return (p) => compare(read(p), next.value, value.value);
     }
     const bare = token.value.toLowerCase();
+    if (Object.hasOwn(PROTO_WORDS, bare)) { return PROTO_WORDS[bare]; }
+    if (Object.hasOwn(FIELDS, bare)) { fail(`"${token.value}" needs a comparison, for example ${bare} == 80 or ${bare} contains "text".`); }
     return (p) => haystack(p).includes(bare);
   }
   function andExpr() {
@@ -115,7 +149,7 @@ export function parseFilter(source) {
   } catch (error) { return { ok: false, error: error.message }; }
 }
 
-const haystack = (p) => `${p.n} ${p.src} ${p.dst} ${p.sp} ${p.dp} ${p.proto} ${p.info} ${hexToText(p.hex)}`.toLowerCase();
+const haystack = (p) => `${p.n} ${p.src} ${p.dst} ${p.sp} ${p.dp} ${p.proto} ${String(p.info ?? '').toLowerCase()} ${textOf(p)}`.toLowerCase();
 
 export function filterPackets(packets, parsed, limit = 5000) {
   const out = [];
@@ -123,17 +157,4 @@ export function filterPackets(packets, parsed, limit = 5000) {
     if (parsed.test(packet)) { out.push(packet); if (out.length >= limit) { break; } }
   }
   return out;
-}
-
-// "Follow stream": every packet of the conversation the clicked packet belongs to, in capture order.
-export const streamKey = (p) => {
-  const a = `${p.src}:${p.sp}`;
-  const b = `${p.dst}:${p.dp}`;
-  return `${p.proto === 'UDP' ? 'u' : 't'}|${a < b ? `${a}|${b}` : `${b}|${a}`}`;
-};
-
-export function followStream(packets, packet) {
-  const key = streamKey(packet);
-  const mine = packets.filter((p) => p.hex && streamKey(p) === key);
-  return mine.map((p) => ({ n: p.n, from: `${p.src}:${p.sp}`, outbound: p.src === packet.src && p.sp === packet.sp, text: hexToText(p.hex) }));
 }

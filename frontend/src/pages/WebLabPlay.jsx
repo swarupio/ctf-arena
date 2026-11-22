@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getHint, getLab, sendLabRequest, submitLabFlag } from '../api/weblab.js';
+import { getLab, sendLabRequest, submitLabFlag } from '../api/weblab.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import RequestInspector from '../components/weblab/RequestInspector.jsx';
 import TargetFrame from '../components/weblab/TargetFrame.jsx';
-import { BountyBadge, FlagBox, HintList } from '../components/weblab/Widgets.jsx';
+import { BountyBadge, FlagBox } from '../components/weblab/Widgets.jsx';
+import WebLabHints from '../components/weblab/WebLabHints.jsx';
+import { HintsUsed } from '../hints/HintLadder.jsx';
+import Debrief from '../debrief/Debrief.jsx';
+import { keyById } from '../debrief/levels.js';
 import {
   applyForm, applySetCookies, buildPayload, describeError, draftFromRequest, formDefaults, pushHistory,
 } from '../components/weblab/helpers.js';
@@ -23,6 +27,7 @@ function Play({ slug }) {
   const [busy, setBusy] = useState(false);
   const [sendError, setSendError] = useState('');
   const [won, setWon] = useState(null);
+  const [hintsUsed, setHintsUsed] = useState(0);
   const alive = useRef(true);
   const counter = useRef(0);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -112,6 +117,7 @@ function Play({ slug }) {
       {won && <div className="wl-win" role="status">
         <strong>{won.alreadySolved ? 'Already cashed' : 'BOUNTY PAID'}</strong>
         <span>{won.message}</span>
+        {lab.hintCount > 0 && <HintsUsed count={hintsUsed} />}
         <BountyBadge severity={won.severity} bountyUsd={won.bountyUsd} fresh />
         <Link className="button small" to="/weblab">Pick the next target</Link>
       </div>}
@@ -132,7 +138,7 @@ function Play({ slug }) {
     <div className="wl-lower">
       <section aria-labelledby="wl-hints-title">
         <h2 id="wl-hints-title">Hints</h2>
-        <HintList key={slug} count={lab.hintCount} loadHint={(level) => getHint(slug, level)} />
+        <WebLabHints key={slug} slug={slug} user={user} count={lab.hintCount} onCount={setHintsUsed} />
       </section>
       <section aria-labelledby="wl-flag-title">
         <h2 id="wl-flag-title">Submit the flag</h2>
@@ -141,6 +147,7 @@ function Play({ slug }) {
           : <FlagBox onSubmit={submit} solved={lab.solved} response={response} />}
       </section>
     </div>
+    <Debrief levelKey={keyById('weblab', slug.replace(/^weblab-/, ''))} captured={Boolean(lab.solved || won)} hintsUsed={isAdmin || lab.hintCount === 0 ? null : hintsUsed} />
   </section>;
 }
 

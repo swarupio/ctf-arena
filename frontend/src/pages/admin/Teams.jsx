@@ -99,9 +99,9 @@ function TeamDetail({ id, onChanged, onGone }) {
           : <button type="button" className="adm-danger" disabled={act.busy} onClick={() => setDialog('ban')}>Ban team</button>}
         <button type="button" className="secondary" disabled={act.busy} onClick={() => { setName(team.name); setDialog('rename'); }}>Rename</button>
         <button type="button" className="secondary" disabled={act.busy} onClick={() => setDialog('regenerate')}>New invite code</button>
-        <button type="button" className="secondary" disabled={act.busy || !empty} title={empty ? '' : 'Only teams without members can be deleted'} onClick={() => setDialog('delete')}>Delete team</button>
+        <button type="button" className="secondary" disabled={act.busy || !empty} title={empty ? '' : 'Only teams without members can be deleted'} aria-describedby={empty ? undefined : 'team-delete-why'} onClick={() => setDialog('delete')}>Delete team</button>
       </div>
-      {!empty && <p className="adm-muted">Remove every member before deleting the team.</p>}
+      {!empty && <p id="team-delete-why" className="adm-muted">Remove every member before deleting the team.</p>}
 
       <h4 className="adm-h4">Members ({team.members.length})</h4>
       {team.members.length === 0 ? <p className="adm-muted">This team has no members.</p>

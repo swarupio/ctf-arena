@@ -4,15 +4,18 @@ import { STATUS_LABEL, TRACK_BLURB, speedrunText } from './helpers.js';
 
 export default function TrackCard({ track }) {
   const run = speedrunText(track.speedrun);
-  return <article className={`cl-track cl-track-${track.id}${track.complete ? ' is-done' : ''}`} aria-labelledby={`cl-track-${track.id}`}>
-    <header>
+  return <article className={`ov-card cl-track cl-track-${track.id}${track.complete ? ' is-done' : ''}`} data-tone={track.id} aria-labelledby={`cl-track-${track.id}`}>
+    <header className="ov-card-head">
       <p className="cl-kicker">{track.difficulty} · {TRACK_BLURB[track.id]}</p>
       <h2 id={`cl-track-${track.id}`}>{track.title}</h2>
-      <p className="cl-story">{track.story}</p>
+      <p className="cl-story ov-card-desc">{track.story}</p>
     </header>
-    <ProgressBar done={track.solved} total={track.total} label={`${track.title}: ${track.solved} of ${track.total} levels solved`} />
-    <p className="cl-points"><strong>{track.pointsEarned}</strong> / {track.maxPoints} points{!track.hintsAllowed && ' · no hints'}</p>
-    {run && <p className={`cl-badge cl-badge-${track.speedrun.badge ?? 'plain'}`}>{run}</p>}
+    <div className="ov-card-mid">
+      <ProgressBar done={track.solved} total={track.total} label={`${track.title}: ${track.solved} of ${track.total} flags captured`} />
+      <p className="cl-points"><strong>{track.pointsEarned}</strong> / {track.maxPoints} points{!track.hintsAllowed && ' · no hints'}</p>
+      {run && <p className={`cl-badge cl-badge-${track.speedrun.badge ?? 'plain'}`}>{run}</p>}
+    </div>
+    <div className="ov-card-low">
     <ol className="cl-ladder">
       {track.levels.map((level) => {
         const body = <>
@@ -27,5 +30,6 @@ export default function TrackCard({ track }) {
         </li>;
       })}
     </ol>
+    </div>
   </article>;
 }

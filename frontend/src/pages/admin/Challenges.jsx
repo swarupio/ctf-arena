@@ -17,12 +17,14 @@ import Drawer from '../../components/admin/Drawer.jsx';
 import FilterBar from '../../components/admin/FilterBar.jsx';
 import PageHeader, { Badge } from '../../components/admin/PageHeader.jsx';
 
-const opts = (values) => [{ value: '', label: 'Any' }, ...values.map((value) => ({ value, label: value }))];
+const TYPE_LABELS = { game: 'Range level' };
+const typeLabel = (value) => TYPE_LABELS[value] ?? value;
+const opts = (values) => [{ value: '', label: 'Any' }, ...values.map((value) => ({ value, label: typeLabel(value) }))];
 const FILTERS = [
   { name: 'q', label: 'Search title or slug', type: 'search', maxLength: 100, initial: '' },
   { name: 'category', label: 'Category', type: 'select', options: opts([...CATEGORIES, 'terminal']), initial: '' },
   { name: 'difficulty', label: 'Difficulty', type: 'select', options: opts(DIFFICULTIES), initial: '' },
-  { name: 'type', label: 'Type', type: 'select', options: opts(['static', 'docker', 'terminal']), initial: '' },
+  { name: 'type', label: 'Type', type: 'select', options: opts(['static', 'docker', 'terminal', 'game', 'weblab', 'forensics', 'reversing', 'osint']), initial: '' },
   { name: 'visible', label: 'Visibility', type: 'select', options: [{ value: '', label: 'Any' }, { value: 'true', label: 'Published' }, { value: 'false', label: 'Hidden' }], initial: '' },
 ];
 
@@ -42,7 +44,7 @@ export default function Challenges() {
 
   const columns = [
     { key: 'title', header: 'Challenge', sortKey: 'title', render: (item) => <><strong>{item.title}</strong><br /><span className="adm-muted adm-mono">{item.slug}</span></> },
-    { key: 'type', header: 'Type', render: (item) => <Badge tone={isReadOnlyType(item.type) ? 'muted' : ''}>{item.type}</Badge> },
+    { key: 'type', header: 'Type', render: (item) => <Badge tone={isReadOnlyType(item.type) ? 'muted' : ''}>{typeLabel(item.type)}</Badge> },
     { key: 'category', header: 'Category', render: (item) => `${item.category}, ${item.difficulty}` },
     { key: 'points', header: 'Points', sortKey: 'points', align: 'right', render: (item) => formatNumber(item.points) },
     { key: 'solveCount', header: 'Solves', sortKey: 'solveCount', align: 'right', render: (item) => formatNumber(item.solveCount) },
@@ -114,7 +116,7 @@ function ChallengeForm({ challenge, onSaved }) {
       {field('difficulty', 'Difficulty', <select value={form.difficulty} onChange={set('difficulty')}>{DIFFICULTIES.map((value) => <option key={value}>{value}</option>)}</select>)}
       {field('points', 'Points', <input type="number" min="1" max="10000" value={form.points} onChange={set('points')} required aria-invalid={Boolean(err('points'))} />)}
       {field('type', 'Type', <select value={form.type} onChange={set('type')} disabled={editing}>
-        {['static', 'docker', ...(isReadOnlyType(form.type) ? [form.type] : [])].map((value) => <option key={value}>{value}</option>)}</select>)}
+        {['static', 'docker', ...(isReadOnlyType(form.type) ? [form.type] : [])].map((value) => <option key={value} value={value}>{typeLabel(value)}</option>)}</select>)}
       {form.type === 'docker'
         ? <>
           {field('image', 'Image (must start with ctf/)', <input value={form.image} onChange={set('image')} placeholder="ctf/cookie-monster" aria-invalid={Boolean(err('image'))} />)}
@@ -144,7 +146,7 @@ function ManageChallenge({ challenge, onChanged, onGone }) {
   const terminal = challenge.type === 'terminal';
 
   return <>
-    <p>{challenge.visible ? <Badge tone="ok">Published</Badge> : <Badge tone="muted">Hidden</Badge>} <Badge>{challenge.type}</Badge> {challenge.type === 'static' && (challenge.hasFlag ? <Badge>Flag set</Badge> : <Badge tone="danger">No flag</Badge>)}</p>
+    <p>{challenge.visible ? <Badge tone="ok">Published</Badge> : <Badge tone="muted">Hidden</Badge>} <Badge>{typeLabel(challenge.type)}</Badge> {challenge.type === 'static' && (challenge.hasFlag ? <Badge>Flag set</Badge> : <Badge tone="danger">No flag</Badge>)}</p>
 
     <h4 className="adm-h4">Statistics</h4>
     <AsyncBlock loading={stats.loading} error={stats.error} hasData={Boolean(info)} onRetry={stats.reload} label="statistics" lines={3}>

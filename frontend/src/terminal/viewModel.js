@@ -70,8 +70,8 @@ export function revealLines(lines, count) {
 
 export const bootLength = (lines) => lines.reduce((sum, line) => sum + line.length + 1, 0);
 
-/** The text typed on boot: the mode's lore, then the closing hint. */
-export function bootLines(lore) {
+/** The text typed on boot: the mode's lore, an optional notice (unread mail), then the closing hint. */
+export function bootLines(lore, notice = null) {
   const lines = Array.isArray(lore) ? lore : [];
-  return [...lines, ...(lines.length > 0 ? [''] : []), 'Type help to begin.'];
+  return [...lines, ...(lines.length > 0 ? [''] : []), ...(typeof notice === 'string' && notice !== '' ? [notice] : []), 'Type help to begin.'];
 }

@@ -1,4 +1,5 @@
 // Pure view helpers for the Cipher Lab pages (tested in tests/cipherlab.test.js).
+import { eventMessage } from '../../event/messages.js';
 
 export const TRACK_ORDER = ['easy', 'medium', 'hard', 'insane'];
 export const TRACK_BLURB = { easy: 'Warm up', medium: 'Keys and maths', hard: 'Stacked puzzles', insane: 'No hints' };
@@ -24,7 +25,7 @@ export function speedrunText(speedrun) {
   return speedrun.badge ? `${BADGE_LABEL[speedrun.badge]} · ${time}` : `Cleared in ${time}`;
 }
 
-export const STATUS_LABEL = { solved: 'Solved', open: 'Open', locked: 'Locked' };
+export const STATUS_LABEL = { solved: 'Captured', open: 'Open', locked: 'Locked' };
 
 // First level a player can work on: the earliest open level of the easiest track that is not complete.
 export function nextLevel(overview) {
@@ -41,6 +42,12 @@ export function streakText(streak) {
   return `${streak} in a row`;
 }
 
+// Feedback for a wrong answer: the server answers streak 0, so a streak only counts as lost when one was running.
+export const STREAK_LOST = 'Streak lost.';
+export function missText(previousStreak, streak) {
+  return previousStreak > 0 && streak === 0 ? STREAK_LOST : '';
+}
+
 const MESSAGES = {
   NO_TEAM: 'Join or create a team first. Your puzzles are unique to your team.',
   TEAM_BANNED: 'Your team has been banned from the arena.',
@@ -54,6 +61,8 @@ const MESSAGES = {
 };
 
 export function cipherErrorMessage(error) {
+  const event = eventMessage(error);
+  if (event) { return event; }
   if (error?.code && MESSAGES[error.code]) { return MESSAGES[error.code]; }
   return error?.message || 'Something went wrong. Please try again.';
 }

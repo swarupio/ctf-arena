@@ -37,11 +37,14 @@ export default function Toolbox({ tools, puzzle }) {
         onKeyDown={(event) => move(event, index)}
       >{tool.unlocked ? tool.name : `Locked · ${tool.unlockedBy.toUpperCase()}`}</button>)}
     </div>
+    {tools.some((tool) => !tool.unlocked) && <ul className="cl-locks" aria-label="Locked decoder tools">
+      {tools.filter((tool) => !tool.unlocked).map((tool) => <li key={tool.id} className="cl-note">{tool.name} unlocks when you clear level {tool.unlockedBy.toUpperCase()}.</li>)}
+    </ul>}
     <div id="cl-tool-panel" role="tabpanel" aria-labelledby={active ? `cl-tab-${active}` : undefined} className="cl-panel">
       <label>Working text
         <textarea value={text} onChange={(event) => setText(event.target.value)} rows={3} spellCheck="false" />
       </label>
-      {Tool ? <Tool text={text} setText={setText} puzzle={puzzle} /> : <p className="cl-note">Clear levels to unlock decoder tools.</p>}
+      {Tool ? <Tool text={text} setText={setText} puzzle={puzzle} unlocked={tools.filter((tool) => tool.unlocked).map((tool) => tool.id)} /> : <p className="cl-note">Clear levels to unlock decoder tools.</p>}
     </div>
   </section>;
 }

@@ -11,7 +11,7 @@
   gap: var(--space-2, 8px) var(--space-3, 12px);
   min-width: 0;
   font-family: var(--font-body, ui-monospace, Consolas, monospace);
-  color: var(--color-ink, #0a0a0a);
+  color: var(--color-ink);
   /* no box of its own (transparent): the page decides where it sits and wraps it if needed */
 }
 
@@ -24,7 +24,7 @@
   letter-spacing: 0.08em;
   line-height: 1.5;
   text-transform: uppercase;
-  color: var(--color-muted, #55554f);
+  color: var(--color-muted);
 }
 
 .demo-hops .demo-hops__list {
@@ -56,7 +56,7 @@
   margin: 0 var(--space-2, 8px);
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
-  border-left: 7px solid var(--color-ink, #0a0a0a);
+  border-left: 7px solid var(--color-ink);
 }
 
 .demo-hops .demo-hops__chip {
@@ -70,9 +70,9 @@
   font-weight: 700;
   line-height: 1.25;
   text-align: left;
-  color: var(--color-ink, #0a0a0a);
-  background: var(--color-surface, #fff);
-  border: var(--border, 1px solid #0a0a0a);
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: var(--border);
   box-shadow: none;
 }
 
@@ -85,9 +85,9 @@
   font-size: 0.75rem;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--color-ink, #0a0a0a);
-  background: var(--color-surface-2, #e9e9e4);
-  border: var(--border, 1px solid #0a0a0a);
+  color: var(--color-ink);
+  background: var(--color-surface-2);
+  border: var(--border);
 }
 
 .demo-hops .demo-hops__title {
@@ -99,47 +99,55 @@
 
 /* done: black fill, white text */
 .demo-hops .demo-hops__chip.is-done {
-  color: var(--color-ink-contrast, #fff);
-  background: var(--color-ink, #0a0a0a);
+  color: var(--color-ink-contrast);
+  background: var(--color-ink);
 }
 
 .demo-hops .demo-hops__chip.is-done .demo-hops__num {
-  color: var(--color-ink-contrast, #fff);
+  color: var(--color-ink-contrast);
   background: transparent;
-  border-color: var(--color-ink-contrast, #fff);
+  border-color: var(--color-ink-contrast);
 }
 
 /* current: lime fill, black text, hard shadow */
 .demo-hops .demo-hops__chip.is-current {
-  color: var(--color-ink, #0a0a0a);
-  background: var(--color-accent, #b5f23d);
-  box-shadow: 3px 3px 0 var(--color-ink, #0a0a0a);
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  box-shadow: 3px 3px 0 var(--color-shadow);
 }
 
 .demo-hops .demo-hops__chip.is-current .demo-hops__num {
-  color: var(--color-accent, #b5f23d);
-  background: var(--color-ink, #0a0a0a);
+  color: var(--color-on-ink-accent);
+  background: var(--color-ink);
 }
 
 /* hover: beat the global button:hover:not(:disabled) rule, keep each state readable */
-.demo-hops .demo-hops__chip.is-upcoming:hover {
-  color: var(--color-ink, #0a0a0a);
-  background: var(--color-accent-tint, #eefbcc);
+@media (hover: hover) {
+  .demo-hops .demo-hops__chip.is-upcoming:hover {
+    color: var(--color-ink);
+    background: var(--color-accent-tint);
+  }
 }
 
-.demo-hops .demo-hops__chip.is-done:hover {
-  color: var(--color-ink, #0a0a0a);
-  background: var(--color-accent, #b5f23d);
+@media (hover: hover) {
+  .demo-hops .demo-hops__chip.is-done:hover {
+    color: var(--color-on-accent);
+    background: var(--color-accent);
+  }
 }
 
-.demo-hops .demo-hops__chip.is-done:hover .demo-hops__num {
-  color: var(--color-ink, #0a0a0a);
-  border-color: var(--color-ink, #0a0a0a);
+@media (hover: hover) {
+  .demo-hops .demo-hops__chip.is-done:hover .demo-hops__num {
+    color: var(--color-on-accent);
+    border-color: var(--color-on-accent);
+  }
 }
 
-.demo-hops .demo-hops__chip.is-current:hover {
-  color: var(--color-ink, #0a0a0a);
-  background: var(--color-accent, #b5f23d);
+@media (hover: hover) {
+  .demo-hops .demo-hops__chip.is-current:hover {
+    color: var(--color-on-accent);
+    background: var(--color-accent);
+  }
 }
 
 @media (max-width: 560px) {
@@ -159,4 +167,9 @@
   .demo-hops .demo-hops__arrow {
     margin: 0 6px;
   }
+}
+
+/* Touch: hop titles wrap so the whole name is readable without a hover title. */
+@media (pointer: coarse) {
+  .demo-hops .demo-hops__title { max-width: none; overflow: visible; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
 }

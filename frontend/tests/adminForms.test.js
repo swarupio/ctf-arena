@@ -59,7 +59,7 @@ test('terminal and game challenges are read-only with an explanation', () => {
   assert.equal(isReadOnlyType('game'), true);
   assert.equal(isReadOnlyType('static'), false);
   assert.match(readOnlyNote('terminal'), /seed script/);
-  assert.match(readOnlyNote('game'), /managed by their game/);
+  assert.match(readOnlyNote('game'), /managed by their category/);
   assert.equal(readOnlyNote('static'), '');
 });
 

@@ -20,6 +20,7 @@ export function teamErrorMessage(error, action) {
     case 'TEAM_FULL': return 'That team already has 3 members. Ask for an invite to another team.';
     case 'NOT_FOUND': return 'No team matches that invite code. Check the code and try again.';
     case 'VALIDATION_ERROR': return 'Check your details: team names need 3–24 characters and invite codes need 6 valid letters or digits.';
+    case 'FORBIDDEN': return 'Admins do not join teams. Use the Admin area.';
     case 'NO_TEAM': return 'You are not in a team yet. Create a team or join with an invite code.';
     default: return error?.message || 'Unable to reach the arena. Please try again.';
   }

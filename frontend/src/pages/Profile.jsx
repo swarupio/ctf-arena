@@ -11,7 +11,7 @@ import './Profile.css';
 function BadgeGrid({ badges }) {
   return <ul className="pf-badges" aria-label="Badges">
     {sortBadges(badges).map((badge) => <li key={badge.key} className={badge.unlocked ? 'pf-badge is-open' : 'pf-badge is-locked'}>
-      <span className="pf-icon" aria-hidden="true">{badge.unlocked ? badge.icon : '??'}</span>
+      <span className="pf-icon" aria-hidden="true">{badge.unlocked ? badge.icon : '\u{1F512}'}</span>
       <strong>{badge.name}</strong>
       <span className="pf-desc">{badge.description}</span>
       <span className="pf-state">{badge.unlocked ? `Unlocked ${timeAgo(badge.awardedAt)}` : 'Locked'}</span>
@@ -89,7 +89,7 @@ export default function Profile() {
       {profile.recentSolves.length === 0
         ? <p className="fx-note">No solves yet.</p>
         : <ul className="pf-recent">
-          {profile.recentSolves.map((solve) => <li key={solve.solvedAt}>
+          {profile.recentSolves.map((solve, index) => <li key={`${solve.solvedAt}-${index}`}>
             <span className={`tag pf-cat-${categoryTone(solve.category)}`}>{solve.category}</span>
             {solve.difficulty && <span className={`tag tag-${solve.difficulty}`}>{solve.difficulty}</span>}
             {solve.firstBlood && <span className="tag tag-points">first blood</span>}

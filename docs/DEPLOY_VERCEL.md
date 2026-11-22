@@ -18,6 +18,10 @@ repo root
    - Install: `npm ci --prefix backend && npm ci --prefix frontend`
    - Build: `npm run build --prefix frontend`
    - Output directory: `frontend/dist`
+   - Routing: `/api/*` goes to the function; any other path that is not under `/assets/` or `/fonts/` falls back to
+     `index.html` (client-side routes such as `/range`, `/skills`, `/games`). A missing hashed asset is a real 404, so a
+     stale tab can never cache an HTML page as JavaScript.
+   - `api/package.json` only sets `"type": "module"` so the function's ES module syntax loads on Node.
 4. Node.js version: 20.x or newer (Project Settings > General).
 5. Add the environment variables (section 2) **before** the first deploy: `VITE_*` values are compiled into the frontend
    at build time, so changing them needs a redeploy.
@@ -60,7 +64,9 @@ Seed the database from your laptop against the same Atlas cluster (never from Ve
 cd backend && MONGODB_URI='<atlas uri>' npm run db:indexes       # unique/TTL indexes (autoIndex is off on Vercel); repeat after schema changes
 MONGODB_URI='<atlas uri>' npm run seed:terminal                  # Arena Terminal challenges
 MONGODB_URI='<atlas uri>' npm run seed:challenges                # static + docker challenge entries
+for s in cipherlab weblab forensics crackme osint; do MONGODB_URI='<atlas uri>' npm run seed:$s; done   # Range categories (idempotent: update in place)
 ```
+Release steps in order, with a smoke test and rollback: `docs/RELEASE_CHECKLIST.md`.
 Create an admin as in `docs/SETUP.md` section 7 (Cognito group `admin`).
 
 **Index guard.** With autoIndex off, a database that never had `npm run db:indexes` run silently loses its unique

@@ -1,6 +1,6 @@
 # OSINT Trail
 
-An open-source-intelligence investigation game played entirely inside a **fully fictional, generated world**: invented
+An open-source-intelligence investigation category played entirely inside a **fully fictional, generated world**: invented
 people, an invented town, a pretend company and social network. Four cases (tracks), each with a story, four or five
 questions and a final "who / where" question that stays locked until the others are solved. Code:
 `backend/src/osint/*` (world, plots, cases, sources), `services/osintService.js`, `routes/osint.js`,
@@ -23,7 +23,7 @@ never from the database row, and tests prove a team can never exceed the maximum
 | `hard` | Tidewatch | 1 person missing from the archived staff page (70), 2 other domain on the same IP (80), 3 local time of the last photo (90), 4 landmark at the street-sign corner (100), 5 decoded codeword (110), final: where at dawn (200) | 650 | none |
 | `insane` | Nightjar | 1 person behind the alias (120), 2 IP of the mirror after the CNAME chain (140), 3 true UTC time of the photo (160), 4 true landmark (180), 5 companion at that place and instant (200), final: the drop point on the map (400) | 1200 | none |
 
-Whole game: 22 questions, **2300 points**. Difficulty rises through the data:
+Whole category: 22 questions, **2300 points**. Difficulty rises through the data:
 
 - **easy**: one handle, one time zone (UTC), no look-alike data except a few colleagues' posts, hints on every question.
 - **medium**: hidden e-mail with a pattern to infer, near-miss verification codes, photos of other days, a document with
@@ -75,6 +75,48 @@ milliseconds and paged out; nothing is stored or cached in the process (Vercel-s
   flag as an answer raises the usual integrity signal and is simply wrong.
 - **Hints** (easy, medium): `POST .../questions/:n/hints` opens the next hint for free, one row per
   `(team, question, index)` in `osinthints`, listed for admins at `GET /osint/admin/hints`.
+
+## 3b. Case board (red-string pinboard)
+
+Each team has one shared **case board** per case (tab "Case board"). Players pin evidence (posts, profiles, pages, documents,
+domains, photos, pastes, map places) and draw links between pins with a relation type. The **final question stays locked**
+(403 `BOARD_LOCKED`) until the other questions are solved **and** the board has held the hidden chain once. The unlock is sticky
+(`unlocked` is never cleared). Existing questions, points and solvability are unchanged.
+
+- **Evidence ids**: `<source>:<id>` with source in feed, cast, pages, docs, registry (domain name), photos, pastes, map (landmark id).
+  Every id exists in the team's own world; invented ids are refused (400 `BAD_EVIDENCE`). Labels are built from public fields only.
+- **Relations**: `posted`, `at`, `owns`, `mentions`, `linked` (labels and help texts are sent to the browser).
+  A link is an unordered pair plus a relation.
+- **Hidden chain** (`chain` returned by each plot next to `pub` and `ans`, never sent out): M links, easy 4, medium 5, hard 5, insane 6.
+  Only evidence ids and relation types are compared. Board responses (GET and every autosave) give a coarse
+  `progress: { level, total }` and one generic nudge, never an exact count and never which links are missing. Levels: `complete`
+  (sticky unlock), `close` (found >= total - 1), `started` (found * 2 >= total, i.e. at least half) and `none`. `started` starts at
+  half, not at one link, so none -> started is not a "does this set contain any chain link" test. The exact `{ found, total }`
+  of the SAVED board is only returned by the explicit `POST /osint/cases/:track/board/check` (3 a minute, 10 an hour per team and
+  case; read-only, never unlocks). Why: an exact count after every save let an attacker who knows the evidence (but not the chain)
+  recover the chain by group testing (about 75 saves for the easy case, measured in `docs/SECURITY_REVIEW_2.md`).
+- **Caps** (anti-guessing): at most 40 pins and at most **2 x M links** (`LINKS_PER_REQUIRED` in `osint/board.js`); over-cap boards are
+  refused with 422 `BOARD_LIMIT` and nothing is stored. Links must join pinned items, no self links, no duplicates. Saves are budgeted
+  per team and case (30 a minute, 200 an hour, MongoDB-backed). `tests/osint/solvers.js` re-derives every chain from public data only.
+- **Concurrency**: whole-board replacement guarded by `version`. One atomic `findOneAndUpdate({ teamId, track, version }, { $set, $inc: { version: 1 } }, { upsert: version === 0 })`;
+  a stale version meets the unique `(teamId, track)` index (or matches nothing) and answers 409 `BOARD_CONFLICT`. The browser keeps its
+  edits as operations, reloads on 409 and replays them on the teammate's board; it also polls every 20 s.
+- **Admins** (and players without a team) see an empty read-only board of the preview world and cannot save (PUT is player-only);
+  a banned team's board is read-only too. Edits are saved as you work (debounced); the page also sends pending edits when it is left,
+  warns before closing with unsaved edits, and shows "Not saved yet, retrying" or "Could not reach the server, retrying" instead of
+  claiming success when a save or the reload after a teammate's conflict fails.
+  Saves respect the submissions freeze.
+- **UI**: drag a pin (pointer events, works by touch), or focus it and use arrow keys (Shift = 50 units), Enter to select for linking,
+  Delete to remove. A "Draw a link" form with selects and a link list give a fully keyboard and screen-reader path. The board scrolls
+  sideways inside its own region on small screens (390 px).
+- Code: `osint/evidence.js`, `osint/board.js`, `services/osintBoardService.js`, `models/OsintBoard.js`; frontend
+  `components/osint/BoardTab.jsx`, `useBoard.js`, `src/osint/board.js`.
+
+**Owner-only chains.** easy: suspect and lead both posted in the depot chat (paste), the lead posted the evening post, which was at the
+tagged place. medium: creator and last editor of Q3 Route Plan, last editor linked to the code domain, last editor's untagged photo post
+and its GPS landmark. hard: person linked to the blog, blog linked to the same-IP domain, the sign photo post, its corner landmark,
+the reminder paste mentioning that post. insane: alias linked to the same-instant domain, registrant owns it, alias posted the mirror
+note that mentions the domain, alias photo post at the true (GPS) landmark.
 
 ## 4. Seeding and playing
 

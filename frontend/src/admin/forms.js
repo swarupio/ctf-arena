@@ -5,7 +5,7 @@ export const CATEGORIES = ['web', 'crypto', 'forensics', 'misc', 'pwn'];
 export const DIFFICULTIES = ['easy', 'medium', 'hard'];
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// Types the API refuses to edit through the form: terminal challenges are seeded, `game` ones belong to their game.
+// Types the API refuses to edit through the form: terminal challenges are seeded, `game` ones belong to their category.
 export const READ_ONLY_TYPES = ['terminal', 'game'];
 export const isReadOnlyType = (type) => READ_ONLY_TYPES.includes(type);
 
@@ -14,7 +14,7 @@ export function readOnlyNote(type) {
     return 'Arena Terminal challenges are created by the seed script. Only points, title, visibility and similar fields can be changed through the API, '
       + 'and never the slug, type or flag, so the form is read-only. Use the publish/hide toggle for visibility.';
   }
-  if (type === 'game') return 'Game challenges are managed by their game, so the API rejects edits from the form. Use the publish/hide toggle for visibility.';
+  if (type === 'game') return 'Range challenges are managed by their category, so the API rejects edits from the form. Use the publish/hide toggle for visibility.';
   return '';
 }
 

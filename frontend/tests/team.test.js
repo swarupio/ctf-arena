@@ -66,3 +66,8 @@ test('an explicit null profile membership takes precedence over a stale team res
   assert.equal(state.team, null);
   assert.equal(state.profile.team, null);
 });
+
+test('FORBIDDEN explains that admins do not join teams', async () => {
+  const { teamErrorMessage } = await import('../src/pages/teamHelpers.js');
+  assert.equal(teamErrorMessage({ code: 'FORBIDDEN' }, 'create'), 'Admins do not join teams. Use the Admin area.');
+});

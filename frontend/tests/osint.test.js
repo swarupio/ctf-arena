@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  MAX_NOTES, addFreeNote, describeOsintError, formatStamp, gpsToXY, highlightParts, isPinned, latLonToXY, loadNotes, minutesBetween,
+  MAX_NOTES, addFreeNote, afterCaseLoadFailure, notesScope, describeOsintError, formatStamp, gpsToXY, highlightParts, isPinned, latLonToXY, loadNotes, minutesBetween,
   nextOpenQuestion, parseStamp, pinItem, pointFromClick, progressPercent, removeNote, safeColour, saveNotes, sceneShapes, toCell, xyToLatLon,
 } from '../src/osint/helpers.js';
 
@@ -120,4 +120,17 @@ test('messages, progress and the next open question', () => {
   assert.equal(nextOpenQuestion(questions), 'question 2: B');
   assert.equal(nextOpenQuestion([{ n: 1, title: 'A', solved: true }]), null);
   assert.equal(nextOpenQuestion([{ n: 3, title: 'Final', final: true, solved: false, locked: false }]), 'the final question: Final');
+});
+
+test('notes are scoped by account and case, and a failed reload keeps the case on screen', () => {
+  const store = new Map();
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+  saveNotes(storage, notesScope('Alice@Example.com', 'easy'), addFreeNote([], 'alice secret', 1));
+  assert.equal(loadNotes(storage, notesScope('alice@example.com ', 'easy')).length, 1);
+  assert.equal(loadNotes(storage, notesScope('bob@example.com', 'easy')).length, 0);
+  assert.equal(loadNotes(storage, notesScope('alice@example.com', 'hard')).length, 0);
+  assert.notEqual(notesScope('', 'easy'), notesScope('bob@example.com', 'easy'));
+  const current = { view: { id: 'easy' }, error: '' };
+  assert.deepEqual(afterCaseLoadFailure(current, 'down', true), { view: { id: 'easy' }, error: 'down' });
+  assert.deepEqual(afterCaseLoadFailure(current, 'down', false), { view: null, error: 'down' });
 });

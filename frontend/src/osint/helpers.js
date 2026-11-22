@@ -1,5 +1,6 @@
 // Pure helpers of the OSINT Trail pages: time zones, map maths, the evidence notebook, safe scene drawing and messages.
 // Nothing here touches the network; the notebook lives in this browser (localStorage) and never reaches the server.
+import { eventMessage } from '../event/messages.js';
 export const DIFFICULTY_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard', insane: 'Insane' };
 export const DIFFICULTY_LEVEL = { easy: 1, medium: 2, hard: 3, insane: 4 };
 
@@ -7,10 +8,13 @@ export const progressPercent = (done, total) => (total > 0 ? Math.min(100, Math.
 
 export function describeOsintError(error) {
   const code = error?.code;
+  const event = eventMessage(error);
+  if (event) { return event; }
   if (code === 'NO_TEAM') { return 'Join or create a team first: cases are scored per team.'; }
   if (code === 'TEAM_BANNED') { return 'Your team has been banned from the arena.'; }
   if (code === 'OSINT_NOT_SEEDED') { return 'OSINT Trail is not set up yet. Ask an admin to run npm run seed:osint.'; }
   if (code === 'STAGE_LOCKED') { return 'Answer the other questions of this case before the final one.'; }
+  if (code === 'BOARD_LOCKED') { return 'Connect a valid chain on the Case board before the final question.'; }
   if (code === 'NO_MORE_HINTS') { return 'No more hints for this question.'; }
   if (code === 'NO_HINTS') { return 'This case gives no hints.'; }
   if (code === 'RATE_LIMITED' || error?.status === 429) { return 'Too many attempts on this question. Take a break and think it over.'; }
@@ -110,6 +114,13 @@ export function sceneShapes(scene) {
 
 // ---- evidence notebook (localStorage) ---------------------------------------------------------------------
 export const NOTES_PREFIX = 'osint-notes:';
+// Notes live in this browser, so on a shared computer they are scoped by the signed-in account as well as the case.
+export const notesScope = (email, track) => `${String(email ?? '').trim().toLowerCase() || 'anonymous'}:${track}`;
+
+// A failed reload after a correct answer must not wipe the case: keep the last view and only show the error.
+export function afterCaseLoadFailure(current, message, keep) {
+  return { view: keep ? current.view : null, error: message };
+}
 export const MAX_NOTES = 100;
 export const MAX_NOTE_TEXT = 400;
 const clip = (text, n) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, n);

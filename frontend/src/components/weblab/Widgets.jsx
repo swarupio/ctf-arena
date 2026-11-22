@@ -15,17 +15,19 @@ export function BountyBadge({ severity, bountyUsd, fresh = false }) {
 
 export function ProgressOverview({ totals, inspector }) {
   const pct = percent(totals.pointsEarned, totals.points);
-  return <section className="wl-overview" aria-label="Your bug bounty progress">
-    <div className="wl-stat"><span>labs cleared</span><strong>{totals.solved}/{totals.labs}</strong></div>
-    <div className="wl-stat"><span>points</span><strong>{totals.pointsEarned}<small>/{totals.points}</small></strong></div>
-    <div className="wl-stat"><span>bounty earned</span><strong>{formatBounty(totals.bountyUsd)}</strong></div>
-    <div className="wl-stat"><span>inspector level</span><strong>{inspector.level}/{inspector.features.length}</strong></div>
-    <div className="wl-meter" role="progressbar" aria-label="Points earned" aria-valuemin={0} aria-valuemax={totals.points} aria-valuenow={totals.pointsEarned}>
-      <span style={{ width: `${pct}%` }} />
+  return <section className="wl-overview ov-summary" aria-label="Your bug bounty progress">
+    <div className="wl-stat ov-stat"><span>labs cleared</span><strong>{totals.solved}/{totals.labs}</strong></div>
+    <div className="wl-stat ov-stat"><span>points</span><strong>{totals.pointsEarned}<small>/{totals.points}</small></strong></div>
+    <div className="wl-stat ov-stat"><span>bounty earned</span><strong>{formatBounty(totals.bountyUsd)}</strong></div>
+    <div className="wl-stat ov-stat"><span>inspector level</span><strong>{inspector.level}/{inspector.features.length}</strong></div>
+    <div className="ov-progress ov-span-all">
+      <div className="ov-bar" role="progressbar" aria-label="Points earned" aria-valuemin={0} aria-valuemax={totals.points} aria-valuenow={totals.pointsEarned}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
     </div>
     {inspector.next
-      ? <p className="wl-muted">Next inspector upgrade: <strong>{inspector.next.label}</strong> after {inspector.next.solvesNeeded} more solved lab{inspector.next.solvesNeeded === 1 ? '' : 's'}.</p>
-      : <p className="wl-muted">Inspector fully upgraded. Nothing left to unlock but glory.</p>}
+      ? <p className="wl-muted ov-span-all">Next inspector upgrade: <strong>{inspector.next.label}</strong> after {inspector.next.solvesNeeded} more solved lab{inspector.next.solvesNeeded === 1 ? '' : 's'}.</p>
+      : <p className="wl-muted ov-span-all">Inspector fully upgraded. Nothing left to unlock but glory.</p>}
   </section>;
 }
 
@@ -36,7 +38,7 @@ export function LabCard({ lab }) {
       <span className="wl-chip">{lab.boss ? 'BOSS' : 'lab'}</span>
       <span className="wl-pts">{lab.pointsEarned > 0 ? lab.pointsEarned : lab.points} pts</span>
     </div>
-    <h4>{lab.title}</h4>
+    <h3>{lab.title}</h3>
     <p>{lab.summary}</p>
     <div className="wl-card-foot">
       {lab.solved && <BountyBadge severity={lab.severity} bountyUsd={lab.bountyUsd} />}
@@ -68,32 +70,8 @@ export function TrackSection({ track }) {
         <small>{track.solved}/{track.total} labs</small>
       </div>
     </header>
-    <ul className="wl-cards">{track.labs.map((lab) => <LabCard key={lab.id} lab={lab} />)}</ul>
+    <ul className="wl-cards ov-grid ov-grid--compact" data-count={track.labs.length}>{track.labs.map((lab) => <LabCard key={lab.id} lab={lab} />)}</ul>
   </section>;
-}
-
-export function HintList({ count, loadHint, disabled }) {
-  const [hints, setHints] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState('');
-  if (count === 0) { return <p className="wl-muted">No hints in this lab. You are on your own.</p>; }
-  const next = hints.length + 1;
-  const reveal = async () => {
-    setBusy(true);
-    setProblem('');
-    try { const hint = await loadHint(next); setHints((current) => [...current, hint.text]); }
-    catch { setProblem('Could not load that hint. Try again.'); }
-    finally { setBusy(false); }
-  };
-  return <div className="wl-hints">
-    {hints.length > 0 && <ol>{hints.map((hint, index) => <li key={index}>{hint}</li>)}</ol>}
-    {problem && <p className="wl-notice is-error" role="alert">{problem}</p>}
-    {hints.length < count
-      ? <button type="button" className="secondary small" disabled={busy || disabled} onClick={reveal}>
-        {hints.length === 0 ? 'Reveal a hint' : 'Reveal the next hint'} ({hints.length}/{count})
-      </button>
-      : <p className="wl-muted">That was every hint.</p>}
-  </div>;
 }
 
 // Flag box: submits to the server, which decides correctness. Detected flags in the response can be pasted in one click.

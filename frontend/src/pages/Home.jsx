@@ -4,12 +4,15 @@ import { useTeam } from '../layout/TeamContext.jsx';
 import { PixelBlocks, PixelFlag } from '../layout/PixelArt.jsx';
 import ActivityTicker from '../components/ActivityTicker.jsx';
 import DailySpotlight from '../components/DailySpotlight.jsx';
+import { GAMES as RANGE_CATEGORIES } from '../games/registry.js';
+import HomeWelcome from '../onboarding/HomeWelcome.jsx';
 
 const STEPS = [
-  ['01', 'Pick a challenge', 'Browse web, crypto, forensics, pwn and misc puzzles, from easy to hard.'],
+  ['01', 'Pick a challenge', 'Choose a target on the Challenges board or a category on the Range, from easy to hard.'],
   ['02', 'Start an instance', 'Some challenges run in a private container that only your team can reach.'],
   ['03', 'Capture the flag', 'Submit the flag you find and earn points for your whole team.'],
 ];
+
 
 export default function Home() {
   const { user, loading, profileError: error, retryProfile } = useAuth();
@@ -21,11 +24,11 @@ export default function Home() {
       <div className="hero-content">
         <PixelFlag className="hero-flag" />
         <h1 className="hero-title">CTF Arena</h1>
-        <p className="hero-tagline">Practice your skills. Solve challenges. Play as a team.</p>
+        <p className="hero-tagline">Train on the Range. Compete in the Arena.</p>
         {loading ? <p role="status" className="hero-status">Restoring your session…</p> : <div className="hero-actions">
           {user ? <>
             <Link className="button" to="/challenges">Challenges</Link>
-            <Link className="button secondary" to="/team">Team</Link>
+            {user.role === 'admin' ? <Link className="button secondary" to="/admin">Admin</Link> : <Link className="button secondary" to="/team">Team</Link>}
           </> : <>
             <Link className="button" to="/login">Login</Link>
             <Link className="button secondary" to="/signup">Sign up</Link>
@@ -35,7 +38,16 @@ export default function Home() {
       </div>
     </section>
 
-    {!loading && user && <p className="hero-actions"><span>Play now:</span> <Link className="button" to="/games">Games hub</Link> <Link className="button secondary" to="/terminal">Terminal</Link> <Link className="button secondary" to="/cipherlab">Cipher Lab</Link> <Link className="button secondary" to="/weblab">Web Lab</Link> <Link className="button secondary" to="/forensics">Forensics</Link></p>}
+    <HomeWelcome />
+
+    {!loading && user && <nav className="play-now" aria-label="Jump in">
+      <span className="play-now-label">Jump in:</span>
+      <Link className="button" to="/range">The Range</Link>
+      <Link className="button secondary" to="/terminal">Terminal</Link>
+      <Link className="button secondary" to="/cipherlab">Cipher Lab</Link>
+      <Link className="button secondary" to="/weblab">Web Lab</Link>
+      <Link className="button secondary" to="/forensics">Forensics</Link>
+    </nav>}
 
     {!loading && user && <section className="home-account" aria-labelledby="account-heading">
       <h2 id="account-heading">Your arena account</h2>
@@ -44,7 +56,7 @@ export default function Home() {
         <dl>
           <dt>Display name</dt><dd>{profile.displayName}</dd>
           <dt>Role</dt><dd>{profile.role}</dd>
-          <dt>Team</dt><dd><Link to="/team">{profile.team?.name ?? 'No team yet'}</Link></dd>
+          {user.role !== 'admin' && <><dt>Team</dt><dd><Link to="/team">{profile.team?.name ?? 'No team yet'}</Link></dd></>}
         </dl>
       </> : error ? <>
         <p role="alert" className="error">{error}</p>
@@ -64,5 +76,25 @@ export default function Home() {
         </li>)}
       </ol>
     </section>
+
+    <section className="steps categories" aria-labelledby="categories-heading">
+      <h2 id="categories-heading">Range categories</h2>
+      <ul className="category-list">
+        {RANGE_CATEGORIES.map((category) => <li key={category.id} className="category-card">
+          <span className="tag">{category.title}</span>
+          <p>{category.pitch}</p>
+          <Link to={category.path} aria-label={`Open ${category.title}`}>Open</Link>
+        </li>)}
+      </ul>
+    </section>
+
+    {!loading && <section className="home-cta" aria-label="Get started">
+      <PixelFlag className="home-cta-flag" />
+      <div className="hero-actions">
+        {user
+          ? <><Link className="button" to="/challenges">Challenges</Link><Link className="button secondary" to="/range">The Range</Link><Link className="button secondary" to="/leaderboard">Leaderboard</Link></>
+          : <><Link className="button" to="/signup">Sign up</Link><Link className="button secondary" to="/login">Login</Link></>}
+      </div>
+    </section>}
   </>;
 }

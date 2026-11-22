@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
+import PageFallback from './components/PageFallback.jsx';
+import { RouteErrorBoundary } from './components/ErrorBoundary.jsx';
 
 // Every page is its own chunk, loaded when its route is first visited.
 const AuthPage = lazy(() => import('./pages/AuthPages.jsx'));
@@ -14,6 +16,7 @@ const TerminalPlay = lazy(() => import('./pages/TerminalPlay.jsx'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
 const FairPlay = lazy(() => import('./pages/FairPlay.jsx'));
+const Skills = lazy(() => import('./pages/Skills.jsx'));
 
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 
@@ -22,9 +25,10 @@ const CipherLab = lazy(() => import('./pages/CipherLab.jsx'));
 const Games = lazy(() => import('./pages/Games.jsx'));
 const WebLab = lazy(() => import('./pages/WebLab.jsx'));
 const WebLabPlay = lazy(() => import('./pages/WebLabPlay.jsx'));
-const lazyPage = (element) => <Suspense fallback={<p role="status">Loading...</p>}>{element}</Suspense>;
+// One boundary per page (an error boundary too, reset on route change, so one bad field cannot blank the app): the layout (header, nav) stays mounted while a page chunk loads, and a fast load never flashes the fallback.
+const lazyPage = (element) => <RouteErrorBoundary><Suspense fallback={<PageFallback />}>{element}</Suspense></RouteErrorBoundary>;
 
-// Forensics Desk is lazy-loaded: its viewers and helpers only download when a player opens the game.
+// Forensics Desk is lazy-loaded: its viewers and helpers only download when a player opens the desk.
 const ForensicsDesk = lazy(() => import('./pages/ForensicsDesk.jsx'));
 const ForensicsCase = lazy(() => import('./pages/ForensicsCase.jsx'));
 // The admin area: a layout chunk plus one chunk per section, none of it in the entry bundle.
@@ -44,30 +48,32 @@ const AdminExports = lazy(() => import('./pages/admin/Exports.jsx'));
 const CrackmeArcade = lazy(() => import('./pages/CrackmeArcade.jsx'));
 const CrackmeLevel = lazy(() => import('./pages/CrackmeLevel.jsx'));
 
-// OSINT Trail: lazy-loaded like the other games.
+// OSINT Trail: lazy-loaded like the other range categories.
 const OsintTrail = lazy(() => import('./pages/OsintTrail.jsx'));
 const OsintCase = lazy(() => import('./pages/OsintCase.jsx'));
 
-function Placeholder({ title }) {
-  return <section className="placeholder"><h1>{title}</h1><p>This part of the arena is coming soon.</p></section>;
+function NotFound() {
+  return <section className="placeholder"><h1>Page not found</h1><p>That page does not exist.</p><Link className="button" to="/">Back to home</Link></section>;
 }
 
 export default function App() {
-  return <Suspense fallback={<p role="status">Loading…</p>}><Routes>
+  return <Suspense fallback={<PageFallback />}><Routes>
     <Route element={<Layout />}>
-      <Route index element={<Home />} />
-      {['signup', 'confirm', 'login', 'mfa-setup', 'mfa'].map((mode) => (
-        <Route key={mode} path={mode} element={<AuthPage key={mode} mode={mode} />} />
+      <Route index element={lazyPage(<Home />)} />
+      {['signup', 'confirm', 'login', 'mfa-setup', 'mfa', 'forgot'].map((mode) => (
+        <Route key={mode} path={mode} element={lazyPage(<AuthPage key={mode} mode={mode} />)} />
       ))}
-      <Route path="demo" element={<Demo />} />
-      <Route path="fair-play" element={<FairPlay />} />
+      <Route path="demo" element={lazyPage(<Demo />)} />
+      <Route path="fair-play" element={lazyPage(<FairPlay />)} />
+      <Route path="skills" element={lazyPage(<Skills />)} />
+      <Route path="games/*" element={<Navigate to="/range" replace />} />
       <Route element={<ProtectedRoute />}>
-        <Route path="challenges" element={<ChallengeList />} />
-        <Route path="challenges/:id" element={<ChallengeDetail />} />
-        <Route path="games" element={lazyPage(<Games />)} />
-        <Route path="terminal" element={<Terminal />} />
-        <Route path="terminal/:mode" element={<TerminalPlay />} />
-        <Route path="cipherlab/*" element={<Suspense fallback={<p role="status">Loading…</p>}><CipherLab /></Suspense>} />
+        <Route path="challenges" element={lazyPage(<ChallengeList />)} />
+        <Route path="challenges/:id" element={lazyPage(<ChallengeDetail />)} />
+        <Route path="range" element={lazyPage(<Games />)} />
+        <Route path="terminal" element={lazyPage(<Terminal />)} />
+        <Route path="terminal/:mode" element={lazyPage(<TerminalPlay />)} />
+        <Route path="cipherlab/*" element={lazyPage(<CipherLab />)} />
         <Route path="weblab" element={lazyPage(<WebLab />)} />
         <Route path="weblab/:slug" element={lazyPage(<WebLabPlay />)} />
         <Route path="forensics" element={lazyPage(<ForensicsDesk />)} />
@@ -76,27 +82,27 @@ export default function App() {
         <Route path="reversing/:levelId" element={lazyPage(<CrackmeLevel />)} />
         <Route path="osint" element={lazyPage(<OsintTrail />)} />
         <Route path="osint/:track" element={lazyPage(<OsintCase />)} />
-        <Route path="leaderboard" element={<Leaderboard />} />
-        <Route path="team" element={<Team />} />
-        <Route path="profile" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
-        <Route path="profile/:id" element={<Suspense fallback={<p role="status">Loading…</p>}><Profile /></Suspense>} />
+        <Route path="leaderboard" element={lazyPage(<Leaderboard />)} />
+        <Route path="team" element={lazyPage(<Team />)} />
+        <Route path="profile" element={lazyPage(<Profile />)} />
+        <Route path="profile/:id" element={lazyPage(<Profile />)} />
       </Route>
       <Route element={<ProtectedRoute admin />}>
-        <Route path="admin" element={<AdminLayout />}>
-          <Route index element={<AdminOverview />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="teams" element={<AdminTeams />} />
-          <Route path="challenges" element={<AdminChallenges />} />
-          <Route path="activity" element={<AdminActivity />} />
-          <Route path="integrity" element={<AdminIntegrity />} />
-          <Route path="instances" element={<AdminInstances />} />
-          <Route path="audit" element={<AdminAudit />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="exports" element={<AdminExports />} />
+        <Route path="admin" element={lazyPage(<AdminLayout />)}>
+          <Route index element={lazyPage(<AdminOverview />)} />
+          <Route path="users" element={lazyPage(<AdminUsers />)} />
+          <Route path="teams" element={lazyPage(<AdminTeams />)} />
+          <Route path="challenges" element={lazyPage(<AdminChallenges />)} />
+          <Route path="activity" element={lazyPage(<AdminActivity />)} />
+          <Route path="integrity" element={lazyPage(<AdminIntegrity />)} />
+          <Route path="instances" element={lazyPage(<AdminInstances />)} />
+          <Route path="audit" element={lazyPage(<AdminAudit />)} />
+          <Route path="settings" element={lazyPage(<AdminSettings />)} />
+          <Route path="exports" element={lazyPage(<AdminExports />)} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
       </Route>
-      <Route path="*" element={<Placeholder title="Page not found" />} />
+      <Route path="*" element={<NotFound />} />
     </Route>
   </Routes></Suspense>;
 }

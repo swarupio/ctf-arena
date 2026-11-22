@@ -10,7 +10,7 @@ export default function PixelGrid({ track, artefact }) {
   const [view, setView] = useState('color');
   const [channel, setChannel] = useState(0);
   const [lsbFirst, setLsbFirst] = useState(false);
-  const [hover, setHover] = useState(null);
+  const [picked, setPicked] = useState(null);
   const { data, loading, error } = useArtefact(track, artefact.id, { image });
   const canvas = useRef(null);
   const pixels = useMemo(() => (data ? base64ToBytes(data.pixels) : null), [data]);
@@ -27,16 +27,23 @@ export default function PixelGrid({ track, artefact }) {
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, node.width, node.height);
     context.drawImage(small, 0, 0, data.width * CELL, data.height * CELL);
-  }, [data, pixels, view, channel]);
+    if (picked !== null && picked < data.width * data.height) {
+      // keep the chosen pixel visible after a tap: a dark box with a light inner edge
+      const x = (picked % data.width) * CELL;
+      const y = Math.floor(picked / data.width) * CELL;
+      context.lineWidth = 2; context.strokeStyle = '#0a0a0a'; context.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      context.lineWidth = 1; context.strokeStyle = '#ffffff'; context.strokeRect(x + 2.5, y + 2.5, CELL - 5, CELL - 5);
+    }
+  }, [data, pixels, view, channel, picked]);
 
   const onMove = (event) => {
     if (!data) { return; }
     const box = event.currentTarget.getBoundingClientRect();
     const scale = (data.width * CELL) / box.width;
     const index = pixelAt((event.clientX - box.left) * scale, (event.clientY - box.top) * scale, CELL, data.width);
-    if (index >= 0 && index < data.width * data.height) { setHover(index); }
+    if (index >= 0 && index < data.width * data.height) { setPicked(index); }
   };
-  const info = hover !== null && pixels ? `pixel ${hover} (x ${hover % data.width}, y ${Math.floor(hover / data.width)}): R ${pixels[hover * 3]} G ${pixels[hover * 3 + 1]} B ${pixels[hover * 3 + 2]}` : 'Hover the picture to read a pixel.';
+  const info = picked !== null && pixels ? `pixel ${picked} (x ${picked % data.width}, y ${Math.floor(picked / data.width)}): R ${pixels[picked * 3]} G ${pixels[picked * 3 + 1]} B ${pixels[picked * 3 + 2]}` : 'Tap or hover the picture to read a pixel. A tap keeps it selected.';
 
   return <section className="fx-tool" aria-label="Pixel grid">
     <div className="fx-controls">
@@ -61,7 +68,7 @@ export default function PixelGrid({ track, artefact }) {
     {error && <p role="alert" className="error">{error}</p>}
     {data && <div className="fx-pixels">
       <canvas
-        ref={canvas} width={data.width * CELL} height={data.height * CELL} className="fx-canvas" onMouseMove={onMove}
+        ref={canvas} width={data.width * CELL} height={data.height * CELL} className="fx-canvas" onPointerMove={onMove} onPointerDown={onMove}
         role="img" aria-label={`Generated ${data.width} by ${data.height} pixel picture. Use the controls to read its hidden bits as text.`}
       />
       <div className="fx-readout">

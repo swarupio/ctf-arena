@@ -145,7 +145,7 @@ test('stepCounter reads like the control bar label', () => {
   assert.equal(stepCounter(99, TOTAL), 'Step 20 of 20');
 });
 
-test('formatClock renders the game clock', () => {
+test('formatClock renders the match clock', () => {
   assert.equal(formatClock(12), 'T+12:00');
   assert.equal(formatClock(0), 'T+00:00');
   assert.equal(formatClock(5), 'T+05:00');
