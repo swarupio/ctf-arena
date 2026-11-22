@@ -10,8 +10,10 @@ import {
   CASE_CLOSED, TRACKS, TRACK_IDS, answerFormat, answerMatches, buildCase, rightMessage, wrongMessage,
 } from '../osint/cases.js';
 import { sourceCounts } from '../osint/sources.js';
+import { chainProgress } from '../osint/board.js';
 import { PREVIEW_TEAM } from '../osint/world.js';
 import { consumeAttempt } from './attemptLimiter.js';
+import { boardUnlocked } from './osintBoardService.js';
 import { expectedFlagFor, hashSubmission } from './flagService.js';
 import { integrityService } from './integrityService.js';
 import { recordSolve } from './scoringService.js';
@@ -52,8 +54,30 @@ export async function teamSolves(team, rows) {
   return result;
 }
 
+// One read for every track (the picker lists them all): Map of track id -> Map(stage -> solve). Replaces one read per track.
+export async function teamSolvesByTrack(team, byTrack) {
+  const result = new Map([...byTrack.keys()].map((id) => [id, new Map()]));
+  const all = [...byTrack.values()].flatMap((rows) => [...rows.values()]);
+  if (!team || all.length === 0) { return result; }
+  const solves = await Solve.find({ teamId: team._id, challengeId: { $in: all.map((row) => row._id) } }, 'challengeId points').lean();
+  const byRow = new Map(solves.map((solve) => [String(solve.challengeId), solve]));
+  for (const [id, rows] of byTrack) {
+    for (const [n, row] of rows) {
+      if (byRow.has(String(row._id))) { result.get(id).set(n, byRow.get(String(row._id))); }
+    }
+  }
+  return result;
+}
+
 const earned = (solved) => [...solved.values()].reduce((total, solve) => total + solve.points, 0);
 const othersSolved = (track, solved) => track.stages.filter((stage) => !stage.final).every((stage) => solved.has(stage.n));
+
+// The final question opens when the other questions are solved AND the team's board has held the hidden chain.
+export const BOARD_LOCKED_MESSAGE = 'Pin the evidence and connect a valid chain on the case board before the final question.';
+async function assertFinalOpen({ track, team, solved, others = 'Answer the other questions of this case before the final one.' }) {
+  if (!othersSolved(track, solved)) { throw new AppError(403, 'STAGE_LOCKED', others); }
+  if (!(await boardUnlocked(team, track.id))) { throw new AppError(403, 'BOARD_LOCKED', BOARD_LOCKED_MESSAGE); }
+}
 
 export function summarizeTrack(track, rows, solved) {
   return {
@@ -75,8 +99,10 @@ async function openedHints(team, track) {
 
 // Everything the case page needs. Unsolved questions carry no answer and no flag; hints only as far as the team opened them.
 export async function caseView({ track, rows, solved, team }) {
-  const { world, pub, ans } = buildCase(env.FLAG_SECRET, teamKey(team), track.id);
-  const unlocked = othersSolved(track, solved);
+  const { world, pub, ans, chain } = buildCase(env.FLAG_SECRET, teamKey(team), track.id);
+  const boardOpen = await boardUnlocked(team, track.id);
+  const questionsDone = othersSolved(track, solved);
+  const unlocked = questionsDone && boardOpen;
   const used = await openedHints(team, track);
   const questions = track.stages.map((stage) => {
     const done = solved.has(stage.n);
@@ -84,6 +110,7 @@ export async function caseView({ track, rows, solved, team }) {
     const view = {
       n: stage.n, title: stage.title, prompt: stage.prompt(pub), points: stage.points, format: answerFormat(stage), kind: stage.kind,
       final: stage.final, solved: done, locked: stage.final && !unlocked, available: rows.has(stage.n),
+      ...(stage.final && !unlocked && !done ? { lockedBy: questionsDone ? 'board' : 'questions' } : {}),
       hintsTotal: track.hintsAllowed ? stage.hints.length : 0,
       hints: track.hintsAllowed ? stage.hints.slice(0, opened) : [],
     };
@@ -101,6 +128,7 @@ export async function caseView({ track, rows, solved, team }) {
     town: world.meta.town, company: world.meta.company.name,
     solved: solved.size, total: track.stages.length, pointsEarned: earned(solved),
     caseClosed: track.stages.every((stage) => solved.has(stage.n)),
+    board: { required: chainProgress(chain, []).total, unlocked: boardOpen },
   };
 }
 
@@ -116,9 +144,7 @@ export async function submitAnswer({ track, rows, team, user, stageNo, answer })
     message: 'Your team already closed this question.',
   });
   if (solved.has(stageNo)) { return already(solved.size); }
-  if (stage.final && !othersSolved(track, solved)) {
-    throw new AppError(403, 'STAGE_LOCKED', 'Answer the other questions of this case before the final one.');
-  }
+  if (stage.final) { await assertFinalOpen({ track, team, solved }); }
 
   const budgets = stage.final ? LIMITS.final : LIMITS.normal;
   const message = 'Too many attempts on this question. Take a break and think it over.';
@@ -153,7 +179,7 @@ export async function openHint({ track, rows, team, user, stageNo }) {
   if (!rows.has(stageNo)) { throw notSeeded(); }
   const solved = await teamSolves(team, rows);
   if (solved.has(stageNo)) { throw new AppError(409, 'NO_MORE_HINTS', 'This question is already solved.'); }
-  if (stage.final && !othersSolved(track, solved)) { throw new AppError(403, 'STAGE_LOCKED', 'Answer the other questions of this case first.'); }
+  if (stage.final) { await assertFinalOpen({ track, team, solved, others: 'Answer the other questions of this case first.' }); }
   const key = hintKey(track, stageNo);
   const index = await OsintHint.countDocuments({ teamId: team._id, key });
   if (index >= stage.hints.length) { throw new AppError(409, 'NO_MORE_HINTS', 'No more hints for this question.'); }

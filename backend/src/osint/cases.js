@@ -22,7 +22,7 @@ export const TRACKS = {
     story: (pub) => [
       `The depot ledger of ${pub.company} vanished the night before the audit. Your only lead is a social account, @${pub.handle}, that belongs to the courier who was last seen carrying it.`,
       'Everything you need is public: the Social Feed, the company Web Archive, the Registry and the Map. Pin what matters in your Notes, then name who has the ledger.',
-      'Nothing here is real: the town, the company and everyone in it are invented for this game.',
+      'Nothing here is real: the town, the company and everyone in it are invented for this exercise.',
     ],
     stages: [
       q(1, 'name', 'Behind the handle', (p) => `Who is the person behind the account @${p.handle}? (full name)`, 20, [
@@ -57,7 +57,7 @@ export const TRACKS = {
     story: (pub) => [
       `A confidential document, the "Q3 Route Plan", has leaked from ${pub.company}. The trail runs through ${pub.name}, ${pub.role}, who is either the leaker or the unlucky last editor.`,
       'Sort the facts from the decoys: look-alike codes, photos from other days and documents with the same title style.',
-      'Nothing here is real: the town, the company and everyone in it are invented for this game.',
+      'Nothing here is real: the town, the company and everyone in it are invented for this exercise.',
     ],
     stages: [
       q(1, 'email', 'The work address', (p) => `What is ${p.name}'s work e-mail address?`, 40, [
@@ -89,7 +89,7 @@ export const TRACKS = {
     story: (pub) => [
       `Someone left ${pub.company} without saying goodbye, and ${pub.town} has not heard from them since. They left a trail: archived web pages, a blog on shared hosting, photos and a few encoded notes.`,
       `Careful with clocks: the town runs on ${pub.tzLabel}, while their camera does not. No hints for this case.`,
-      'Nothing here is real: the town, the company and everyone in it are invented for this game.',
+      'Nothing here is real: the town, the company and everyone in it are invented for this exercise.',
     ],
     stages: [
       q(1, 'name', 'The empty chair', (p) => `One person is on the archived staff page (${p.snapshotDate}) but missing from the current one. Who? (full name)`, 70),
@@ -110,7 +110,7 @@ export const TRACKS = {
     story: (pub) => [
       `An anonymous account, ${pub.alias}, mirrors stolen files from ${pub.town}. It lies about when and where it posts. Every answer needs at least three sources, and the obvious one is often the decoy.`,
       'Time stamps carry offsets. Camera clocks can be wrong, posters can lie, satellites cannot. Two pastes disagree: only the newest instant counts.',
-      'No hints. Nothing here is real: the town, the company and everyone in it are invented for this game.',
+      'No hints. Nothing here is real: the town, the company and everyone in it are invented for this exercise.',
     ],
     stages: [
       q(1, 'name', 'Behind the alias', (p) => `Who is behind the alias ${p.alias}? (full name)`, 120),
@@ -145,8 +145,8 @@ export const FORMATS = {
 export function buildCase(secret, teamId, trackId) {
   const seed = caseSeed(secret, teamId, trackId);
   const world = buildBase(seed, trackId);
-  const { pub, ans } = PLOTS[trackId](world);
-  return { world, pub, ans };
+  const { pub, ans, chain } = PLOTS[trackId](world);
+  return { world, pub, ans, chain };
 }
 
 // ---- answer matching ------------------------------------------------------------------------------------

@@ -1,8 +1,9 @@
 // The four plots of OSINT Trail. A plot takes the generic world (cast, feed, pages, registry, map...), places the clues of
-// one case in it, and returns { pub, ans }: `pub` is what the briefing and the questions may show, `ans` holds the secret
-// answers (never sent to the browser). Clues live in the same public data a player can browse, so every question is
+// one case in it, and returns { pub, ans, chain }: `pub` is what the briefing and the questions may show, `ans` holds the secret
+// answers (never sent to the browser); `chain` lists the evidence links of the case board (osint/board.js). Clues live in the same public data a player can browse, so every question is
 // answerable from the served corpus alone; the tests re-solve each one with an independent solver.
 import { int, pick } from '../terminal/gen.js';
+import { ev } from './evidence.js';
 import { WORDS } from '../terminal/seedwords.js';
 import {
   DAY, addDoc, addDomain, addPaste, addPost, cellOf, clockAt, dateAt, distinct, docIp, finalize, landmarkAt,
@@ -49,7 +50,7 @@ export function plotEasy(w) {
   const [L, L1, L2] = distinct(r, w.map.landmarks, 3);
   clearRegistrant(w, r, T);
   removePosts(w, (p) => p.author === T.id && Math.abs(p.ms - at(w, 3, 12, 0)) < 2.5 * DAY);
-  addPost(w, { author: T, ms: at(w, 3, 20, 12), off: w.meta.tz, text: 'Evening stroll. Good light tonight.', place: L, tags: [] });
+  const evening = addPost(w, { author: T, ms: at(w, 3, 20, 12), off: w.meta.tz, text: 'Evening stroll. Good light tonight.', place: L, tags: [] });
   addPost(w, { author: T, ms: at(w, 4, 20, 5), off: w.meta.tz, text: 'Another evening, another walk.', place: L1, tags: [] });
   addPost(w, { author: T, ms: at(w, 2, 19, 40), off: w.meta.tz, text: 'Quiet night in.', place: L2, tags: [] });
   const dd = freshDomain(w, r);
@@ -57,7 +58,7 @@ export function plotEasy(w) {
   addDomain(w, { name: freshDomain(w, r), registrant: personRegistrant(C) });
   addDomain(w, { name: freshDomain(w, r), registrant: privacy(w) });
   const t = (hh, mm) => clockAt(at(w, 1, hh, mm), 0);
-  addPaste(w, {
+  const chat = addPaste(w, {
     title: 'depot-chat.txt',
     ms: at(w, 1, 9, 0),
     body: [
@@ -71,6 +72,13 @@ export function plotEasy(w) {
   return {
     pub: { handle: T.handle, date: dateAt(at(w, 3, 12, 0)), company: w.meta.company.name },
     ans: { 1: T.name, 2: L.name, 3: dd, 4: dateAt(created.createdMs), 5: C.name },
+    // The suspect and the lead meet in the depot chat; the lead's evening post ties them to a place.
+    chain: [
+      [ev('cast', C.id), ev('pastes', chat.id), 'posted'],
+      [ev('cast', T.id), ev('pastes', chat.id), 'posted'],
+      [ev('cast', T.id), ev('feed', evening.id), 'posted'],
+      [ev('feed', evening.id), ev('map', L.id), 'at'],
+    ],
   };
 }
 
@@ -104,13 +112,20 @@ export function plotMedium(w) {
   addPost(w, { author: X, ms: at(w, 11, 18, 5), off: 0, text: 'Quiz night.', place: D1, tags: [T], photo: { gps: false } });
   addPost(w, { author: Y, ms: at(w, 7, 18, 5), off: 0, text: 'Pub lunch.', place: D2, tags: [T], photo: { gps: false } });
   // final: who created the leaked document
-  addDoc(w, { title: 'Q3 Route Plan', date: dateAt(w.baseMs - 7 * DAY), author: local(X), lastModifiedBy: local(T), body: 'Route plan draft for the third quarter. Internal only. Do not circulate.' });
+  const leak = addDoc(w, { title: 'Q3 Route Plan', date: dateAt(w.baseMs - 7 * DAY), author: local(X), lastModifiedBy: local(T), body: 'Route plan draft for the third quarter. Internal only. Do not circulate.' });
   addDoc(w, { title: 'Q2 Route Plan', date: dateAt(w.baseMs - 90 * DAY), author: local(T), lastModifiedBy: local(X), body: 'Route plan for the second quarter. Internal only.' });
   finalize(w);
   const spot = w.photos.find((p) => p.id === photoPost.photo).spot;
   return {
     pub: { name: T.name, role: T.role, photoDate: dateAt(photoPost.ms), tagDate: dateAt(at(w, 9, 18, 5)), company: w.meta.company.name },
     ans: { 1: T.email, 2: names[0], 3: cellOf(spot.x, spot.y), 4: Cm.name, 5: X.name },
+    chain: [
+      [ev('cast', X.id), ev('docs', leak.id), 'posted'],
+      [ev('cast', T.id), ev('docs', leak.id), 'posted'],
+      [ev('cast', T.id), ev('registry', names[0]), 'linked'],
+      [ev('cast', T.id), ev('feed', photoPost.id), 'posted'],
+      [ev('feed', photoPost.id), ev('map', L3.id), 'at'],
+    ],
   };
 }
 
@@ -157,19 +172,26 @@ export function plotHard(w) {
   addPost(w, { author: E, ms: lastTaken + int(r, 20, 45) * 60_000, off: tz, text: 'Last light over the water. Goodbye for now.', place: null, tags: [], photoLandmark: LD, photo: { gps: true, takenMs: lastTaken, clockOff: 0, comment: 'Camera clock runs on UTC.' } });
   // 4. the corner photo: location stripped, a street sign left in the picture
   const sign = `${w.map.rows[L4.cj].name} / ${w.map.cols[L4.ci].name}`;
-  addPost(w, { author: E, ms: at(w, 3, 17, 30, tz), off: tz, text: 'Found the old corner again.', place: null, tags: [], photoLandmark: L4, photo: { gps: false, signs: [sign], takenMs: at(w, 3, 17, 20, tz), clockOff: 0, comment: 'Camera clock runs on UTC.' } });
+  const signPost = addPost(w, { author: E, ms: at(w, 3, 17, 30, tz), off: tz, text: 'Found the old corner again.', place: null, tags: [], photoLandmark: L4, photo: { gps: false, signs: [sign], takenMs: at(w, 3, 17, 20, tz), clockOff: 0, comment: 'Camera clock runs on UTC.' } });
   const other = pick(r, w.cast.filter((c) => c.id !== E.id && !c.alias));
   addPost(w, { author: other, ms: at(w, 5, 14, 0, tz), off: tz, text: 'Lost again. Which way is the harbour?', place: null, tags: [], photoLandmark: A1, photo: { gps: false, signs: [`${w.map.rows[A1.cj].name} / ${w.map.cols[A1.ci].name}`] } });
   // 5. a dead drop in base64, and the final instruction
   const word = pick(r, WORDS);
   addPaste(w, { title: 'dead-drop.txt', ms: at(w, 2, 6, 0, tz), author: 'anonymous', body: [`drop-1: ${b64('sorry, wrong number')}`, `drop-2: ${b64(`codeword: ${word}`)}`, `drop-3: ${b64('nothing to see here')}`].join('\n') });
-  addPaste(w, { title: 'reminder.txt', ms: at(w, 2, 6, 5, tz), author: 'anonymous', body: `From the corner in my last street-sign photo, walk ${kk} blocks east and ${mm} blocks south (a block is the distance to the next street). Be at the building on that corner at dawn.` });
+  const reminder = addPaste(w, { title: 'reminder.txt', ms: at(w, 2, 6, 5, tz), author: 'anonymous', body: `From the corner in my last street-sign photo, walk ${kk} blocks east and ${mm} blocks south (a block is the distance to the next street). Be at the building on that corner at dawn.` });
   const old = distinct(r, w.map.landmarks.filter((lm) => lm.id !== L4.id), 1)[0];
   addPaste(w, { title: 'old-plan.txt', ms: at(w, 9, 6, 5, tz), author: 'anonymous', body: `OLD PLAN, cancelled: from ${old.name} walk 1 block east and 1 block south.` });
   finalize(w);
   return {
     pub: { snapshotDate, town: w.meta.town, tzLabel: w.meta.tzLabel, company: w.meta.company.name },
     ans: { 1: E.name, 2: twin, 3: clockAt(lastTaken, tz), 4: L4.name, 5: word, 6: target.name },
+    chain: [
+      [ev('cast', E.id), ev('registry', blog), 'linked'],
+      [ev('registry', blog), ev('registry', twin), 'linked'],
+      [ev('cast', E.id), ev('feed', signPost.id), 'posted'],
+      [ev('feed', signPost.id), ev('map', L4.id), 'at'],
+      [ev('pastes', reminder.id), ev('feed', signPost.id), 'mentions'],
+    ],
   };
 }
 
@@ -207,13 +229,13 @@ export function plotInsane(w) {
   const dnsOf = (name) => w.domains.find((d) => d.name === name).dns;
   dnsOf(dp).push({ host: `files.${dp}`, type: 'CNAME', value: `edge.${hc}`, ttl: 60 });
   dnsOf(dx).push({ host: `files.${dx}`, type: 'CNAME', value: `edge-old.${hc}`, ttl: 60 });
-  addPaste(w, { title: 'mirror-notes.txt', ms: at(w, 5, 2, 10, aOff), off: aOff, author: `@${a1.handle}`, body: `leak mirror is up: files.${dp}\nrotate the keys after the drop` });
+  const mirror = addPaste(w, { title: 'mirror-notes.txt', ms: at(w, 5, 2, 10, aOff), off: aOff, author: `@${a1.handle}`, body: `leak mirror is up: files.${dp}\nrotate the keys after the drop` });
   addPaste(w, { title: 'mirror-old.txt', ms: at(w, 14, 2, 10, aOff), off: aOff, author: `@${a2.handle}`, body: `mirror: files.${dx}\n(testing, ignore)` });
   // 3 + 4. the alias claims to be at home; the satellite clock and the GPS tags say otherwise
   const claimed = at(w, 4, 22, 10, aOff);
   const trueMs = claimed - (2 * 60 + int(r, 10, 170)) * 60_000;
   removePosts(w, (p) => p.filler && p.place === L4.id && Math.abs(p.ms - trueMs) < 4 * 3_600_000);
-  addPost(w, {
+  const aliasPost = addPost(w, {
     author: a1, ms: claimed, off: aOff, text: `Home, bad wifi, ${clockAt(claimed, aOff)} by my clock. Nowhere near anything interesting.`, place: LD, tags: [],
     photoLandmark: L4, photo: { gps: true, takenMs: claimed - 2 * 60_000, clockOff: aOff, gpsStampMs: trueMs },
   });
@@ -234,6 +256,14 @@ export function plotInsane(w) {
   return {
     pub: { alias: `@${a1.handle}`, town: w.meta.town, company: w.meta.company.name },
     ans: { 1: P.name, 2: ipTrue, 3: clockAt(trueMs, 0), 4: L4.name, 5: Cm.name, 6: `${mid.x},${mid.y}` },
+    chain: [
+      [ev('cast', a1.id), ev('registry', dp), 'linked'],
+      [ev('cast', P.id), ev('registry', dp), 'owns'],
+      [ev('cast', a1.id), ev('pastes', mirror.id), 'posted'],
+      [ev('pastes', mirror.id), ev('registry', dp), 'mentions'],
+      [ev('cast', a1.id), ev('feed', aliasPost.id), 'posted'],
+      [ev('feed', aliasPost.id), ev('map', L4.id), 'at'],
+    ],
   };
 }
 
