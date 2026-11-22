@@ -3,4 +3,7 @@
 import './amplify.js';
 
 export { Hub } from 'aws-amplify/utils';
-export { confirmResetPassword, confirmSignIn, confirmSignUp, fetchAuthSession, resendSignUpCode, resetPassword, signIn, signOut, signUp } from 'aws-amplify/auth';
+export {
+  confirmResetPassword, confirmSignIn, confirmSignUp, fetchAuthSession, fetchMFAPreference, resendSignUpCode, resetPassword,
+  setUpTOTP, signIn, signOut, signUp, updateMFAPreference, verifyTOTPSetup,
+} from 'aws-amplify/auth';

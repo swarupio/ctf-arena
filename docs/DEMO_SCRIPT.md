@@ -16,7 +16,7 @@ owner-only, so they are not written here).
 
 | Role | Device | Account (you create it) | Team | What it is used for |
 |------|--------|--------------------------|------|---------------------|
-| Player A | **phone** (authenticator app) and the presenting laptop | `<player-a email>` (Cognito sign-up, TOTP) | Team Red | live sign-in with MFA, Arena Terminal, Crackme, OSINT, Forensics |
+| Player A | **phone** (authenticator app) and the presenting laptop | `<player-a email>` (Cognito sign-up, TOTP turned on in Profile -> Two-step sign-in beforehand) | Team Red | live sign-in with MFA, Arena Terminal, Crackme, OSINT, Forensics |
 | Player B | second device or second browser profile | `<player-b email>` | Team Blue | joins the leaderboard moment, captures one flag live |
 | Admin | laptop, private window | `<admin email>` in the Cognito group `admin` | none (admins have no team) | `/admin`, event settings, previews of locked tools |
 
@@ -105,10 +105,11 @@ Total 11:45 with Segment L, 10:30 without it. Times are the clock on the slide t
   cloud services carry it: Cognito for identity and MFA, MongoDB Atlas for data, Docker with Nginx for scaling, Vercel for hosting."
 - **Cloud service shown:** all four (`README.md`, The four cloud services).
 
-### 0:45 to 2:00 - Sign-in with MFA on the phone (IAM + MFA)
+### 0:45 to 2:00 - Sign-in on the phone, with the optional two-step code (IAM + MFA)
 - **Do:** on the phone, open `<URL>/login`, sign in as Player A with the password, then enter the 6-digit code from the
-  authenticator app. Show the laptop mirror or a second camera on the phone screen.
-- **Say:** "No password is stored by us. Cognito does sign-up, e-mail verification, the password policy and the TOTP code. Our backend
+  authenticator app (Player A turned two-step sign-in on beforehand; for a player without it, sign-in ends after the password and the
+  Profile page shows the opt-in card instead). Show the laptop mirror or a second camera on the phone screen.
+- **Say:** "No password is stored by us. Cognito does sign-up, e-mail verification, the password policy and the optional TOTP code. Our backend
   only verifies the signed token and reads the group from it."
 - **Show on phone:** the Home page, the dark theme switch (moon icon in the header), the Range hub. This is the **device support**
   moment: 44 px touch targets, no sideways scrolling (`docs/DEVICE_COMPATIBILITY.md`).
@@ -248,7 +249,7 @@ real capture. Start it before the demo, from the repository root (needs the fron
 cd docs/harness
 PORT=5480 node ../../frontend/node_modules/vite/bin/vite.js --config vite.config.js
 ```
-Open `http://127.0.0.1:5480/`. Add `?as=admin` to act as the admin, `?as=player` (default) as a player, `?as=mfa` or `?as=mfa-setup` for
+Open `http://127.0.0.1:5480/`. Add `?as=admin` to act as the admin, `?as=player` (default, no MFA step) as a player, `?as=admin-nomfa` for the admin gate, `?tfa=on|off` for the Profile "Two-step sign-in" card state, `?as=mfa` or `?as=mfa-setup` for
 the MFA screens (`docs/harness/stubAuth.jsx`). What works and what does not:
 
 | Works with the stub | Does not work with the stub |

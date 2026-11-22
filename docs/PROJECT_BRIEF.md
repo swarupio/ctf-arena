@@ -29,7 +29,7 @@ Roles come from **Cognito groups** (`player`, `admin`). Users with no group are 
 ## 5. Feature list
 
 **Must have (MVP)**
-- Sign up, email verification, login with password + TOTP code (MFA mandatory)
+- Sign up, email verification, login with password + TOTP code (MFA optional for players and required for admins since the owner decision in docs/SECURITY.md section 1a)
 - Create a team, join with an invite code (max 3 members)
 - Challenge list by category with points and solve counts
 - Static challenges (flag in a file or text) and Docker challenges (live container)

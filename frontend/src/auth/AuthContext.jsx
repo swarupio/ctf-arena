@@ -127,6 +127,22 @@ export function AuthProvider({ children }) {
         throw error;
       }
     },
+    // Opt-in two-step sign-in for a signed-in user (profile page). Preference shape: { enabled: ['TOTP'], preferred: 'TOTP' }.
+    async fetchMfaPreference() {
+      return (await getAuth()).fetchMFAPreference();
+    },
+    async startTotpEnrolment() {
+      return (await getAuth()).setUpTOTP();
+    },
+    async finishTotpEnrolment(code) {
+      if (!/^\d{6}$/.test(code)) throw Object.assign(new Error(), { name: 'CodeMismatchException' });
+      const amplify = await getAuth();
+      await amplify.verifyTOTPSetup({ code });
+      await amplify.updateMFAPreference({ totp: 'PREFERRED' });
+    },
+    async turnOffTotp() {
+      return (await getAuth()).updateMFAPreference({ totp: 'DISABLED' });
+    },
     confirmTotpSetup: confirmTotp,
     confirmTotpCode: confirmTotp,
     async resetPassword(email) {

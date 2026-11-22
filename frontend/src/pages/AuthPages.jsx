@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { authMessage, copyStatusText, copyText, returnPath, signInPath } from '../auth/logic.js';
+import TotpSetupPanel from '../auth/TotpSetupPanel.jsx';
+import { authMessage, returnPath, signInPath } from '../auth/logic.js';
 
 export default function AuthPage({ mode }) {
   const auth = useAuth();
@@ -18,17 +18,15 @@ export default function AuthPage({ mode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState(location.state?.message ?? '');
-  const [copied, setCopied] = useState('');
-  const keyRef = useRef(null);
   const from = location.state?.from;
   const mfa = mode === 'mfa' || mode === 'mfa-setup';
   const titles = { signup: 'Create your account', confirm: 'Confirm your email', login: 'Log in', 'mfa-setup': 'Set up authenticator', forgot: 'Reset your password', mfa: 'Authenticator code' };
   const descriptions = {
-    signup: 'Join CTF Arena with your email and a password. You will also set up a free authenticator app (Google Authenticator, Microsoft Authenticator, Authy or 1Password); it takes about a minute. The app makes a short code that proves it is really you, so a stolen password alone is not enough.',
+    signup: 'Join CTF Arena with your email and a password; that is all you need to start playing. You can turn on an optional authenticator-app code later in your profile settings for extra protection. Admin accounts must use one.',
     confirm: 'Enter the verification code sent to your email.',
     forgot: 'Enter your email and we will send a reset code.',
-    login: 'Use your email and password, then verify with your authenticator app.',
-    'mfa-setup': 'This one-time step protects your account. It takes about a minute.',
+    login: 'Use your email and password. If you turned on two-step sign-in, you will be asked for your authenticator code next.',
+    'mfa-setup': 'This one-time step adds a second check to your sign-in. It takes about a minute.',
     mfa: 'Enter the latest six-digit code from your authenticator app.',
   };
 
@@ -90,18 +88,6 @@ export default function AuthPage({ mode }) {
     }
   }
 
-  async function copyKey() {
-    const result = await copyText(setup?.sharedSecret, navigator.clipboard);
-    setCopied(result);
-    if (result === 'failed' && keyRef.current) {
-      const range = document.createRange();
-      range.selectNodeContents(keyRef.current);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  }
-
   async function resend() {
     if (!email.trim()) { setError('Enter your email before requesting a new code.'); return; }
     setBusy(true);
@@ -119,20 +105,7 @@ export default function AuthPage({ mode }) {
     <p>{descriptions[mode]}</p>
     {error && <p role="alert" className="error">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
-    {setup && <div className="totp-setup">
-      <ol className="auth-steps">
-        <li>Install an authenticator app on your phone (Google Authenticator, Microsoft Authenticator, Authy or 1Password).</li>
-        <li>Scan this QR code with the app.</li>
-        <li>Type the 6-digit code the app shows into the box below.</li>
-      </ol>
-      <QRCodeSVG value={setup.getSetupUri('CTF Arena', auth.email).toString()} size={208} marginSize={4} title="Scan to add CTF Arena to your authenticator" />
-      <p>No camera or on this phone? Enter this key in your app (choose enter a setup key).</p>
-      <p className="shared-secret" ref={keyRef}>{setup.sharedSecret}</p>
-      <div className="copy-row">
-        <button type="button" className="secondary" onClick={copyKey}>Copy key</button>
-        <span className="copy-status" role="status" aria-live="polite">{copyStatusText(copied)}</span>
-      </div>
-    </div>}
+    {setup && <TotpSetupPanel setup={setup} email={auth.email} />}
     <form onSubmit={submit}>
       <fieldset disabled={busy || Boolean(auth.configurationError)}>
         {!mfa && <label>Email

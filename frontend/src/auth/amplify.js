@@ -11,7 +11,8 @@ if (!configurationError) {
         userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
         userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
         loginWith: { email: true },
-        mfa: { status: 'required', totpEnabled: true, smsEnabled: false },
+        // MFA is optional for players (owner decision); the user pool setting decides, this only names TOTP as the one method.
+        mfa: { status: 'optional', totpEnabled: true, smsEnabled: false },
       },
     },
   });

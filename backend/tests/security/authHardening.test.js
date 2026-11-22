@@ -50,7 +50,19 @@ describe('ID token verification (real library, production options)', () => {
   it('accepts a correctly signed ID token and derives identity from its claims', async () => {
     const response = await whoami(sign(claims()));
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ cognitoSub: 'user-1', email: 'user1@example.com', role: 'player' });
+    expect(response.body).toEqual({ cognitoSub: 'user-1', email: 'user1@example.com', role: 'player', mfa: null });
+  });
+
+  // amr is signed by Cognito, so a client cannot add or edit it: the signature check above is what makes this claim trustworthy.
+  it('reads the signed amr claim: an admin token with mfa passes, one with only pwd gets ADMIN_MFA_REQUIRED, a forged amr fails the signature', async () => {
+    const adminClaims = { 'cognito:groups': ['admin'] };
+    expect((await whoami(sign(claims({ ...adminClaims, amr: ['pwd', 'otp', 'mfa'] })), '/admin-only')).status).toBe(200);
+    const noMfa = await whoami(sign(claims({ ...adminClaims, amr: ['pwd'] })), '/admin-only');
+    expect(noMfa.status).toBe(403);
+    expect(noMfa.body.error.code).toBe('ADMIN_MFA_REQUIRED');
+    const [head, , signature] = sign(claims({ ...adminClaims, amr: ['pwd'] })).split('.');
+    const forged = `${head}.${b64(claims({ ...adminClaims, amr: ['pwd', 'otp', 'mfa'] }))}.${signature}`;
+    expect((await whoami(forged, '/admin-only')).status).toBe(401);
   });
 
   it.each([

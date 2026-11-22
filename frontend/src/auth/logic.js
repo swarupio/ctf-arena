@@ -4,7 +4,18 @@ export function roleFromGroups(groups) {
 
 export function userFromSession(session) {
   const payload = session?.tokens?.idToken?.payload;
-  return payload ? { email: payload.email ?? '', role: roleFromGroups(payload['cognito:groups']) } : null;
+  return payload ? { email: payload.email ?? '', role: roleFromGroups(payload['cognito:groups']), mfa: mfaFromAmr(payload.amr) } : null;
+}
+
+// Cognito's `amr` claim lists the sign-in methods and holds 'mfa' after a password + authenticator-app sign-in. It is
+// documented as rolling out gradually, so a missing claim is null (unknown), never false. Only the backend's check counts.
+export function mfaFromAmr(amr) {
+  return Array.isArray(amr) ? amr.includes('mfa') : null;
+}
+
+// fetchMFAPreference() resolves { enabled: ['TOTP'], preferred: 'TOTP' }; anything else means two-step sign-in is off.
+export function totpEnabled(preference) {
+  return Array.isArray(preference?.enabled) && preference.enabled.includes('TOTP');
 }
 
 export function signInPath(step) {
@@ -31,6 +42,8 @@ export function authMessage(error) {
     CodeMismatchException: 'That code is incorrect. Check the latest code and try again.',
     ExpiredCodeException: 'That code has expired. Request a new email code, or use the latest code in your authenticator app.',
     EnableSoftwareTokenMFAException: 'That authenticator code could not be verified. Check your phone’s automatic time and try the latest code.',
+    SoftwareTokenMFANotFoundException: 'Two-step sign-in is not set up for this account yet.',
+    ForbiddenException: 'Two-step sign-in cannot be changed for this account. Admin accounts must keep it on.',
     LimitExceededException: 'Too many attempts. Please wait a few minutes before trying again.',
     TooManyRequestsException: 'Too many attempts. Please wait a few minutes before trying again.',
     TooManyFailedAttemptsException: 'Too many attempts. Please wait a few minutes before trying again.',

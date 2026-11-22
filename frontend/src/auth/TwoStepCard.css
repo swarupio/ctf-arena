@@ -1,0 +1,14 @@
+/* Profile "Two-step sign-in" card (also the admin gate). Prefix ts-; tokens come from styles.css. */
+.ts-card { display: grid; gap: var(--space-3); justify-items: start; }
+.ts-card > p, .ts-card .totp-setup { margin: 0; max-width: 100%; }
+.ts-card .totp-setup { justify-self: stretch; }
+.ts-card > h2 { justify-self: stretch; }
+.ts-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ts-on { background: var(--color-accent-tint); }
+.ts-off { background: var(--color-surface-2); }
+.ts-form { display: grid; gap: var(--space-3); justify-self: stretch; }
+.ts-form label { display: grid; gap: var(--space-1); }
+.ts-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ts-actions:empty { display: none; }
+.ts-gate { width: min(100%, 40rem); margin: 0 auto; display: grid; gap: var(--space-4); }
+.ts-gate h1, .ts-gate p { margin: 0; }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getPlayerProfile } from '../api/social.js';
+import TwoStepCard from '../auth/TwoStepCard.jsx';
 import { useTeam } from '../layout/TeamContext.jsx';
 import {
   FIRST_BLOOD_NOTE, categoryTone, shareText, socialErrorMessage, sortBadges, streakLabel, timeAgo, unlockedBadges,
@@ -99,5 +100,6 @@ export default function Profile() {
     </section>
 
     <ShareCard profile={profile} />
+    {(!params.id || params.id === me?.id) && <TwoStepCard />}
   </section>;
 }

@@ -59,6 +59,10 @@ domain if any) to **Allowed callback URLs** and **Allowed sign-out URLs**, next 
 Use exact URLs, no wildcards. Preview deployments get new domains; add them only if you need to sign in on previews.
 
 ## 5. First data and admin
+Before the first admin signs in: the Cognito pool must have MFA set to **Optional** with **Authenticator apps** enabled (`docs/SETUP.md` section 4), and
+the admin must have turned on an authenticator app (see `docs/SECURITY.md` section 1a). Optional backend variable `ADMIN_REQUIRE_MFA_CLAIM` (off by default) is
+explained there; set it in the Vercel project settings only after you have confirmed that your tokens carry the `amr` claim.
+
 Seed the database from your laptop against the same Atlas cluster (never from Vercel):
 ```bash
 cd backend && MONGODB_URI='<atlas uri>' npm run db:indexes       # unique/TTL indexes (autoIndex is off on Vercel); repeat after schema changes

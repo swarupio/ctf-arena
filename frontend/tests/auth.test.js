@@ -1,6 +1,7 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { copyText, copyStatusText, roleFromGroups, userFromSession, signInPath, returnPath, authMessage, missingAuthVariables } from '../src/auth/logic.js';
+import { copyText, copyStatusText, mfaFromAmr, totpEnabled, roleFromGroups, userFromSession, signInPath, returnPath, authMessage, missingAuthVariables } from '../src/auth/logic.js';
 import createViteConfig from '../vite.config.js';
 
 test('Vite reads the root env while retaining the browser prefix restriction', () => {
@@ -19,7 +20,7 @@ test('only an exact admin group in an array grants admin', () => {
 
 test('identity comes from the ID token, never the access token', () => {
   assert.equal(userFromSession({ tokens: { accessToken: { payload: { email: 'access@example.com', 'cognito:groups': ['admin'] } } } }), null);
-  assert.deepEqual(userFromSession({ tokens: { idToken: { payload: { email: 'player@example.com', 'cognito:groups': ['player'] } } } }), { email: 'player@example.com', role: 'player' });
+  assert.deepEqual(userFromSession({ tokens: { idToken: { payload: { email: 'player@example.com', 'cognito:groups': ['player'] } } } }), { email: 'player@example.com', role: 'player', mfa: null });
   assert.equal(userFromSession(null), null);
 });
 
@@ -57,4 +58,31 @@ test('copyText reports copied or failed without throwing', async () => {
   assert.equal(copyStatusText('copied'), 'Copied');
   assert.match(copyStatusText('failed'), /Ctrl\+C/);
   assert.equal(copyStatusText(''), '');
+});
+
+test('the amr claim only ever reports MFA as proven or unknown, never guessed', () => {
+  assert.equal(mfaFromAmr(['pwd', 'otp', 'mfa']), true);
+  assert.equal(mfaFromAmr(['pwd']), false);
+  for (const amr of [undefined, null, 'mfa', { mfa: true }]) assert.equal(mfaFromAmr(amr), null);
+  const payload = (amr) => ({ tokens: { idToken: { payload: { email: 'a@example.com', 'cognito:groups': ['admin'], amr } } } });
+  assert.equal(userFromSession(payload(['pwd', 'otp', 'mfa'])).mfa, true);
+  assert.equal(userFromSession(payload(['pwd'])).mfa, false);
+});
+
+test('two-step status reads the Cognito preference and treats anything unexpected as off', () => {
+  assert.equal(totpEnabled({ enabled: ['TOTP'], preferred: 'TOTP' }), true);
+  for (const preference of [undefined, null, {}, { enabled: [] }, { enabled: ['SMS'] }, { enabled: 'TOTP' }]) assert.equal(totpEnabled(preference), false);
+});
+
+test('sign-up copy no longer requires an authenticator app, mentions the profile setting and that admins need one', () => {
+  const page = readFileSync(new URL('../src/pages/AuthPages.jsx', import.meta.url), 'utf8');
+  const signup = page.match(/signup: '(Join[^']+)'/)[1];
+  assert.match(signup, /optional/i);
+  assert.match(signup, /profile settings/);
+  assert.match(signup, /Admin accounts must use one/);
+  assert.doesNotMatch(signup, /will also set up|a stolen password alone/);
+});
+
+test('amplify is told MFA is optional (the pool setting decides, not the client)', () => {
+  assert.match(readFileSync(new URL('../src/auth/amplify.js', import.meta.url), 'utf8'), /status: 'optional'/);
 });

@@ -4,7 +4,7 @@ This file is read by AI coding tools (Codex CLI reads `AGENTS.md` automatically;
 copy it to `CLAUDE.md`). Humans should read it too: it is the shortest summary of how this repo works.
 
 ## 1. Project in one paragraph
-**CTF Arena** is a cloud-hosted Capture-The-Flag platform. Players sign in with Cognito (password + TOTP MFA),
+**CTF Arena** is a cloud-hosted Capture-The-Flag platform. Players sign in with Cognito (password; authenticator-app MFA is optional for players and required for admins),
 join a team, start a private Docker container per challenge, submit flags, and appear on a live leaderboard.
 Backend replicas run behind Nginx; data lives in MongoDB Atlas. Three people build it in order:
 **Swarup (Phase 1) -> Gururaj (Phase 2) -> Shubham (Phase 3)**.
@@ -93,7 +93,7 @@ docker build -t ctf/cookie-monster challenges/cookie-monster
 3. **Never return flags or flag hashes** to players, not even in admin-only fields exposed to the player routes.
 4. **Backend replicas must stay stateless.** No in-memory sessions, counters or locks that matter across replicas. Use MongoDB atomic operations (`findOneAndUpdate`, unique indexes).
 5. **Every Docker challenge container** must be created with memory limit, CPU limit, pids limit, `CapDrop: ['ALL']`, `no-new-privileges`, a TTL and the `ctf.*` labels.
-6. **Do not weaken security to make a demo pass** (no disabling MFA, no wildcard roles).
+6. **Do not weaken security to make a demo pass** (no wildcard roles; MFA is optional for players by owner decision and required for admins).
 7. Do not add new dependencies without a one-line reason in the PR.
 8. Do not edit files outside your phase's ownership without telling the owner.
 9. Keep responses and docs in sync: if you change an endpoint or model, update `docs/`.

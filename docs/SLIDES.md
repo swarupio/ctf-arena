@@ -9,7 +9,7 @@ window, "390" means a 390 x 844 phone viewport. Hosted URL placeholder: `https:/
 
 ## 1. CTF Arena: Train on the Range. Compete in the Arena.
 - A cloud-hosted capture-the-flag platform for clubs and classes.
-- Sign in with a password and an authenticator code, join a team, capture flags, climb a live leaderboard.
+- Sign in with a password (an authenticator-app code is optional for players, required for admins), join a team, capture flags, climb a live leaderboard.
 - Two sides: the Arena (competition) and The Range (six categories of practice).
 - Team: Swarup, Gururaj, Shubham; course: Cloud Computing.
 
@@ -31,7 +31,7 @@ Docker scaling and cloud deployment in one website. This is the slide where you 
 then one challenge's detail page, light, 1440, showing the submit box.
 
 ## 3. The four cloud services
-- IAM + MFA: AWS Cognito with TOTP; roles `player` and `admin` from groups.
+- IAM + MFA: AWS Cognito, optional TOTP for players and required for admins; roles `player` and `admin` from groups.
 - Database as a Service: MongoDB Atlas free tier: teams, challenges, solves, submissions.
 - Docker and scaling: Docker Compose, Nginx and three backend replicas (local mode).
 - Deployment: Vercel (static frontend plus one serverless function) and GitHub Actions CI.
@@ -54,7 +54,7 @@ Point at Cognito on both pictures because it is the one service that stays on AW
 **Visual.** Two diagrams drawn from `docs/ARCHITECTURE.md` (ASCII in the doc): hosted and local. Optional screenshot `S04-demo-architecture-dark`: `<URL>/demo`, dark, 1440.
 
 ## 5. Identity and roles: MFA on a phone
-- Password plus a six-digit authenticator code, mandatory; Cognito handles sign-up, e-mail confirmation and tokens.
+- Password sign-in, with an optional six-digit authenticator code players can turn on in their profile (required for admins); Cognito handles sign-up, e-mail confirmation and tokens.
 - The backend verifies the signed ID token and reads the role only from the token's groups.
 - A player opening `/admin` is redirected and the API answers 403; an admin has no team and cannot submit.
 - If Cognito's keys cannot be fetched the API answers 503, not 401, so valid sessions are not lost.

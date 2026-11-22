@@ -5,7 +5,7 @@ current AWS / MongoDB docs. Do the cloud setup once (Swarup) and share values pr
 
 ## 1. Prerequisites (everyone)
 - Git, Node.js 20+, Docker Desktop (or Docker Engine on Linux) with Compose v2
-- A phone with Google Authenticator or Microsoft Authenticator
+- A phone with Google Authenticator or Microsoft Authenticator (needed for the admin account; optional for players)
 - GitHub account added to the repo, an AWS account (Cognito only), a Vercel account (free) for hosting, a MongoDB Atlas account
 
 Check:
@@ -36,7 +36,10 @@ Fill `.env` using sections 3 and 4. Never commit it.
    The template region is `ap-south-1`; use the actual pool region consistently
    in backend/frontend settings and match it to the pool ID prefix.
 3. Sign-in identifier: **Email**. Self-registration: **enabled**. Email verification: **enabled**.
-4. **Multi-factor authentication: Required.** MFA methods: **Authenticator apps only** (turn SMS off, it costs money).
+4. **Multi-factor authentication: Optional.** MFA methods: **Authenticator apps** enabled, SMS off (it costs money). Players sign in with a
+   password and may turn on an authenticator app in their profile ("Two-step sign-in"); admins must use one (see section 7 and
+   `docs/SECURITY.md` section 1a). Console path for an existing pool: **Cognito -> User pools -> your pool -> Authentication -> Sign-in ->
+   Multi-factor authentication -> Edit**, choose **Optional MFA**, keep **Authenticator apps** ticked, save.
 5. Create the pool, then note:
    - **User pool ID** -> `COGNITO_USER_POOL_ID` and `VITE_COGNITO_USER_POOL_ID`
    - **App client ID** -> `COGNITO_CLIENT_ID` and `VITE_COGNITO_CLIENT_ID`
@@ -44,7 +47,8 @@ Fill `.env` using sections 3 and 4. Never commit it.
 6. **Groups:** create `player` and `admin`. Add your own account to `admin` after you sign up.
 7. Check the pool's pricing tier and free allowance in the console when you create it, and confirm that
    TOTP MFA is available on that tier.
-8. Test: sign up in the React app, confirm the email, scan the QR code, log in again with a code.
+8. Test: sign up in the React app, confirm the email and log in with the password. Then open Profile -> Two-step sign-in, scan the QR code,
+   log out and log in again with a code.
 
 **Fallback if Cognito blocks us:** implement TOTP in the backend with `otplib` + `qrcode`, store the secret
 encrypted in `users`, and sign our own JWT. Tell the team before switching.

@@ -3,7 +3,7 @@
 *Train on the Range. Compete in the Arena.*
 
 CTF Arena is a cloud-hosted Capture-The-Flag platform built for our Cloud Computing (CC) project.
-Players sign in with a password and an authenticator code (MFA), join a team, capture flags and climb a live leaderboard.
+Players sign in with a password (authenticator-app MFA is optional for players and required for admins), join a team, capture flags and climb a live leaderboard.
 The **Arena** is the competition (teams, scoreboard, scheduled events, admin); **The Range** is practice: six categories of
 simulated flags that play in the browser with no Docker. Docker challenges (one container per team) run in local mode only.
 
@@ -60,7 +60,7 @@ and run in local mode only.
 
 | # | Service | Tool | Where it shows up |
 |---|---------|------|-------------------|
-| 1 | IAM + MFA | AWS Cognito (TOTP authenticator app) | Sign up, login, 6-digit code, `player` / `admin` roles |
+| 1 | IAM + MFA | AWS Cognito (optional TOTP authenticator app; admins must use it) | Sign up, login, optional two-step sign-in, `player` / `admin` roles |
 | 2 | Database as a Service | MongoDB Atlas (free tier) | Teams, challenges, solves, submissions, leaderboard |
 | 3 | Docker + scaling | Docker, Docker Compose, Nginx | One container per team per challenge, 3 backend replicas |
 | 4 | Deployment | Vercel (free) + GitHub Actions CI | Public URL, auto-deploy from Git; Docker challenges run locally only |
@@ -74,7 +74,7 @@ and run in local mode only.
                     (api/index.js -> Express)                     |  X-Served-By = replica id
                           |                                       +-> Docker socket -> challenge containers
                           +------> MongoDB Atlas <----------------+   (limits, TTL, ctf.* labels)
- Sign-in: browser <-> AWS Cognito (password + TOTP); the backend only verifies the ID token (aws-jwt-verify)
+ Sign-in: browser <-> AWS Cognito (password, optional TOTP); the backend only verifies the ID token (aws-jwt-verify)
 ```
 
 Backend replicas are stateless: counters, locks and uniqueness live in MongoDB (atomic updates and unique indexes).
@@ -140,7 +140,7 @@ npm run dev | npm run build | npm run preview | npm test | npm run lint
 
 | Page | Who | What |
 |------|-----|------|
-| `/`, `/login`, `/signup`, `/confirm`, `/mfa-setup`, `/mfa`, `/forgot`, `/demo`, `/fair-play` | everyone | home, sign-up and sign-in with TOTP MFA, password reset, demo page, fair-play rules |
+| `/`, `/login`, `/signup`, `/confirm`, `/mfa-setup`, `/mfa`, `/forgot`, `/demo`, `/fair-play` | everyone | home, sign-up and sign-in (optional TOTP), password reset, demo page, fair-play rules |
 | `/range` | signed in | The Range hub (`/games` redirects here) |
 | `/terminal`, `/cipherlab`, `/weblab`, `/forensics`, `/reversing` (Crackme Arcade), `/osint` | signed in | the six categories |
 | `/skills` | everyone | Skills map and your team's coverage |
@@ -206,7 +206,8 @@ ctf-arena/
 ## Security notes
 
 - No secrets in git: only `.env.example` is committed. Role, team, score and flag correctness are decided on the server.
-- Roles come only from verified Cognito groups; MFA (TOTP) is required. Flags and flag hashes are never sent to players.
+- Roles come only from verified Cognito groups. MFA (TOTP) is optional for players (owner decision) and required for admins; the backend enforces
+  it for admins only where the token carries Cognito's `amr` claim, see [`docs/SECURITY.md`](docs/SECURITY.md) section 1a for exactly what is and is not enforced. Flags and flag hashes are never sent to players.
 - Docker challenge containers get memory, CPU and pids limits, all capabilities dropped, `no-new-privileges`, a TTL and `ctf.*` labels.
 - The Arena Terminal uses a linear-time regex engine (no ReDoS), submissions have atomic attempt limits, and an index guard
   fails closed when required indexes are missing.
@@ -239,7 +240,7 @@ There is no LICENSE file in the repository; this is a course project.
 
 ## Status
 
-All three phases are in the code base: login with MFA and teams, challenges with one Docker container per team, flags and
+All three phases are in the code base: login (optional MFA) and teams, challenges with one Docker container per team, flags and
 scoring, the live leaderboard, the admin dashboard, Nginx load balancing, a load test, and the six Range categories with event
 mode, hints with costs, onboarding, skills, debrief, dark theme and device support. Hosting is on Vercel (the Azure VM plan
 was dropped). The running log is [`docs/PROGRESS.md`](docs/PROGRESS.md).

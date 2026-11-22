@@ -11,12 +11,12 @@ part of the contract, no client may call them, and they are not listed here on p
 Auth: `Authorization: Bearer <Cognito ID token>` on everything except `/api/health`, `/api/announcement`, `/api/event` and `/api/hint-costs` (all public).
 This applies to implemented protected endpoints; unknown paths return 404 without authentication.
 Authentication middleware is attached per protected route. P1-07 attaches
-`req.user = { cognitoSub, email, role }` from verified ID-token claims;
+`req.user = { cognitoSub, email, role, mfa }` from verified ID-token claims (`mfa` is `true` when the signed `amr` claim contains `mfa`, `false` when `amr` is present without it, `null` when the token has no `amr` claim);
 `cognitoSub` is the Cognito `sub`, not a database user ID. Exact membership
 in the `admin` Cognito group grants `admin`; other users (including those
 without groups) are `player`. Missing or malformed Bearer credentials and
 invalid/expired tokens return 401 `UNAUTHENTICATED`. Role mismatches return
-403 `FORBIDDEN`. P1-08 persists the current user through `/me`.
+403 `FORBIDDEN`. An `admin` whose token provably lacks a second factor (`amr` present without `mfa`) gets 403 `ADMIN_MFA_REQUIRED` from every `requireRole` route (admin and player routes alike); `/me` stays open so the app can explain it. A malformed `amr` (not an array of strings) is a 401. MFA is optional for players. P1-08 persists the current user through `/me`.
 Team create/join also upsert the user and refresh token email/role. Team read/leave
 require an existing persisted membership. Roles are exact: `admin` does not
 implicitly satisfy a `player` guard, so admins receive 403 on current team routes.

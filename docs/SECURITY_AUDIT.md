@@ -129,7 +129,7 @@ Nginx `limit_req` (20 r/s per IP, burst 60, exempt: loopback and Docker bridge; 
 
 **Can**
 - Read all frontend code and every endpoint path, and call them. Without a valid Cognito ID token every protected call is 401.
-- Create a normal player account (if sign-up is open: e-mail verification and TOTP MFA are required) and play, including with an AI doing
+- Create a normal player account (if sign-up is open: e-mail verification is required; TOTP MFA is optional for players since the owner decision recorded in `docs/SECURITY.md` section 1a) and play, including with an AI doing
   the clicking and typing. The Arena Terminal cannot stop that; the fair-play layer (pacing, canary commands, tainted decoy flags,
   `docs/FAIR_PLAY.md`) only makes it visible to admins.
 - Guess flags at 5 per minute per challenge and team (10 per minute per terminal mode), guess invite codes at 10 per 15 minutes per account.
