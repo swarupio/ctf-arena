@@ -7,7 +7,7 @@ import { PixelFlag } from './PixelArt.jsx';
 import CelebrationHost from '../components/CelebrationHost.jsx';
 import AnnouncementBanner from '../components/AnnouncementBanner.jsx';
 import EventBanner from '../components/EventBanner.jsx';
-import ThemeToggle from '../theme/ThemeToggle.jsx';
+import ThemeToggle, { ThemeSelect } from '../theme/ThemeToggle.jsx';
 
 export default function Layout() {
   const { user } = useAuth();
@@ -68,6 +68,7 @@ function LayoutContent() {
         {loading ? <span>Loading…</span> : user ? <><span className="email" title={user.email}>{user.email}</span><button className="secondary small" onClick={logout} disabled={busy}>{busy ? 'Logging out…' : 'Logout'}</button></> : <><span className="session-status">[ Not logged in ]</span><Link className="button secondary small" to="/login">Login</Link><Link className="button small" to="/signup">Sign up</Link></>}
         <ThemeToggle />
       </div>
+      <ThemeSelect className="theme-select-menu" />
       </div>
     </header>
     <main id="main" tabIndex={-1}>
@@ -76,6 +77,6 @@ function LayoutContent() {
       <Outlet />
     </main>
     <CelebrationHost />
-    <footer className="site-footer"><span>CTF Arena · Train on the Range. Compete in the Arena.</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><span className="replica">{replica ? `Served by ${replica}` : 'No API response yet'}</span></footer>
+    <footer className="site-footer"><span>CTF Arena · Train on the Range. Compete in the Arena.</span><nav className="footer-links" aria-label="Footer"><Link to="/fair-play">Fair play</Link></nav><ThemeSelect className="theme-select-footer" /><span className="replica">{replica ? `Served by ${replica}` : 'No API response yet'}</span></footer>
   </div>;
 }

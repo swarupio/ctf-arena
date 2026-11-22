@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { THEME_COLORS, THEME_STORAGE_KEY } from '../src/theme/config.js';
 import {
-  THEME_OPTIONS, applyTheme, nextPreference, themeLabel, createThemeController, parsePreference, readPreference, resolveTheme, systemPrefersDark, watchSystem, writePreference,
+  THEME_OPTIONS, SWITCHING_CLASS, applyTheme, effectiveTheme, nextTheme, suspendTransitions, themeLabel, createThemeController, parsePreference, readPreference, resolveTheme, systemPrefersDark, watchSystem, writePreference,
 } from '../src/theme/theme.js';
 
 const memory = (initial = {}) => {
@@ -160,12 +161,81 @@ test('the controller keeps working when storage is blocked', () => {
   assert.equal(env.attrs.get('data-theme'), 'dark');
 });
 
-test('the toggle cycles system, light, dark and labels each state', () => {
-  assert.deepEqual(THEME_OPTIONS.map((option) => option.label), ['Light', 'Dark', 'System']);
-  assert.equal(nextPreference('system'), 'light');
-  assert.equal(nextPreference('light'), 'dark');
-  assert.equal(nextPreference('dark'), 'system');
-  assert.equal(nextPreference('bogus'), 'light');
+test('the selector lists System, Light, Dark and labels each preference', () => {
+  assert.deepEqual(THEME_OPTIONS.map((option) => option.label), ['System', 'Light', 'Dark']);
+  assert.deepEqual(THEME_OPTIONS.map((option) => option.value), ['system', 'light', 'dark']);
   assert.equal(themeLabel('dark'), 'Dark');
   assert.equal(themeLabel('bogus'), 'System');
+});
+
+test('effectiveTheme resolves the preference against the device (pure)', () => {
+  assert.equal(effectiveTheme('light', true), 'light');
+  assert.equal(effectiveTheme('dark', false), 'dark');
+  assert.equal(effectiveTheme('system', false), 'light');
+  assert.equal(effectiveTheme('system', true), 'dark');
+  for (const bad of [null, undefined, '', 'Dark', 'neon', 7]) {
+    assert.equal(effectiveTheme(bad, false), 'light');
+    assert.equal(effectiveTheme(bad, true), 'dark');
+  }
+});
+
+test('the header switch has two states: one click always changes what the page shows', () => {
+  assert.equal(nextTheme('light', false), 'dark');
+  assert.equal(nextTheme('light', true), 'dark');
+  assert.equal(nextTheme('dark', false), 'light');
+  assert.equal(nextTheme('dark', true), 'light');
+  assert.equal(nextTheme('system', false), 'dark', 'System on a light device goes straight to dark');
+  assert.equal(nextTheme('system', true), 'light', 'System on a dark device goes to light');
+  for (const bad of [null, undefined, 'neon', '']) {
+    assert.equal(nextTheme(bad, false), 'dark');
+    assert.equal(nextTheme(bad, true), 'light');
+  }
+  for (const pref of ['light', 'dark', 'system']) for (const osDark of [false, true]) {
+    assert.notEqual(effectiveTheme(nextTheme(pref, osDark), osDark), effectiveTheme(pref, osDark));
+    assert.ok(['light', 'dark'].includes(nextTheme(pref, osDark)), 'never stores system');
+  }
+});
+
+test('a click from System stores an explicit preference and keeps the key', () => {
+  const env = fakeEnv({ dark: false });
+  const store = memory();
+  const controller = createThemeController({ ...env, storage: store, enabled: true });
+  assert.equal(controller.getPreference(), 'system');
+  controller.setPreference(nextTheme(controller.getPreference(), controller.getEffective() === 'dark'));
+  assert.equal(store.data.get(THEME_STORAGE_KEY), 'dark');
+  assert.equal(controller.getEffective(), 'dark');
+});
+
+test('transitions are suspended for two frames while the theme flips, and only while it flips', () => {
+  const classes = new Set();
+  const frames = [];
+  const doc = { documentElement: { classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c) } } };
+  const win = { requestAnimationFrame: (fn) => frames.push(fn) };
+  suspendTransitions({ doc, win });
+  assert.equal(classes.has(SWITCHING_CLASS), true);
+  frames.shift()();
+  assert.equal(classes.has(SWITCHING_CLASS), true, 'still off after one frame');
+  frames.shift()();
+  assert.equal(classes.has(SWITCHING_CLASS), false);
+  assert.doesNotThrow(() => suspendTransitions({ doc: { documentElement: {} }, win }));
+  const env = fakeEnv();
+  const controller = createThemeController({ ...env, doc: { ...env.doc, documentElement: { ...env.doc.documentElement, classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c) } } }, win: { ...env.win, requestAnimationFrame: (fn) => frames.push(fn) }, storage: memory(), enabled: true });
+  controller.start();
+  assert.equal(classes.has(SWITCHING_CLASS), false, 'the first paint is not animated or suspended');
+  controller.setPreference('dark');
+  assert.equal(classes.has(SWITCHING_CLASS), true);
+});
+
+test('the toggle CSS has no colour fade, one global transition-off class, a 44px target on touch, and the selector is in the footer and the menu', () => {
+  const css = readFileSync(new URL('../src/theme/theme.css', import.meta.url), 'utf8');
+  assert.ok(css.includes('.theme-toggle .theme-btn { transition: none; }'));
+  assert.ok(css.includes(`:root.${SWITCHING_CLASS} *`));
+  assert.ok(css.includes('transition: none !important;'));
+  assert.ok(css.includes('@media (pointer: coarse) { .theme-option span { min-height: 44px; } }'));
+  const layout = readFileSync(new URL('../src/layout/Layout.jsx', import.meta.url), 'utf8');
+  assert.ok(layout.includes('<ThemeSelect className="theme-select-menu" />'));
+  assert.ok(layout.includes('<ThemeSelect className="theme-select-footer" />'));
+  const toggle = readFileSync(new URL('../src/theme/ThemeToggle.jsx', import.meta.url), 'utf8');
+  assert.ok(toggle.includes('Switch to ${target} theme'));
+  assert.ok(toggle.includes('Theme set to ${target}'));
 });
