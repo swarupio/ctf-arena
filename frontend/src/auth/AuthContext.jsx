@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { configurationError } from './config.js';
-import { hasStoredSession, loadAuth } from './session.js';
+import { mayHaveSession, loadAuth } from './session.js';
 import { userFromSession } from './logic.js';
 import { apiGet } from '../api/client.js';
 
@@ -8,7 +8,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   // Nothing stored means signed out: no wait, and the amplify chunk is not downloaded (see session.js).
-  const [loading, setLoading] = useState(() => !configurationError && hasStoredSession());
+  const [loading, setLoading] = useState(() => !configurationError && mayHaveSession());
   const [amplifyReady, setAmplifyReady] = useState(false);
   const [user, setUser] = useState(null);
   const [step, setStep] = useState(null);
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
 
   const restore = useCallback(async (isActive = () => true) => {
     try {
-      const session = configurationError || !hasStoredSession() ? null : await (await getAuth()).fetchAuthSession();
+      const session = configurationError || !mayHaveSession() ? null : await (await getAuth()).fetchAuthSession();
       if (isActive()) setUser(userFromSession(session));
     } catch {
       if (isActive()) setUser(null);

@@ -35,7 +35,7 @@ Set these in Project Settings > Environment Variables (Production, and Preview i
 | `MONGODB_URI` | yes | Atlas `mongodb+srv://...` string with database `ctf_arena` |
 | `FLAG_SECRET` | yes | private random value, 32+ characters (`openssl rand -hex 32`); must not be the `.env.example` placeholder (`NODE_ENV` is `production` on Vercel). Changing it changes every team flag. |
 | `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | yes | the backend token verifier |
-| `VITE_COGNITO_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID` | yes | same values; public, used by the frontend build |
+| `VITE_COGNITO_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID` | yes | same values; public, baked into the bundle at build time (`vite build` prints an `[auth] WARNING` if one is missing, so set them before the first deploy) |
 | `DOCKER_ENABLED` | no | defaults to `false` on Vercel (`true`, `false`, `1` or `0` are accepted; anything else stops startup). Do not set it to `true` there (no Docker daemon exists). |
 | `MONGOOSE_AUTO_INDEX` | no | `true`/`false`. Whether Mongoose builds indexes when a function starts. Defaults to `false` on Vercel (every cold start would re-check every index) and `true` locally. Run `npm run db:indexes` instead (section 5). |
 | `PORT`, `PUBLIC_HOST`, `CHALLENGE_*`, `INSTANCE_TTL_MINUTES`, `MAX_INSTANCES_PER_TEAM` | no | only used by Docker mode; inert defaults apply on Vercel |
