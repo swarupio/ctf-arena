@@ -4,7 +4,7 @@
 // Constants, keys and serial parameters all come from the Rng, i.e. HMAC(FLAG_SECRET, 'crackme:' + teamId + ':' + levelId).
 // The server verdict is always "run the program on the submitted input"; `answer` is only used by tests and hints.
 import { assemble } from './asm.js';
-import { CODE_BASE } from './vm.js';
+import { CODE_BASE, runProgram } from './vm.js';
 
 const code = (char) => char.charCodeAt(0);
 export const INPUT_LIMIT = 32;
@@ -244,7 +244,8 @@ function buildLoopSerial(rng) {
   const lines = [
     'PUSH 1', 'PUSH 3', 'STORE',
     'loop:',
-    'INPUT', 'DUP', 'PUSH 2', 'LOAD', 'PUSH 10', 'ADD', 'STORE',
+    'INPUT', 'DUP', 'JZ fail', // a missing digit reads as 0 and would wrap to a huge value: refuse inputs shorter than ten
+    'DUP', 'PUSH 2', 'LOAD', 'PUSH 10', 'ADD', 'STORE',
     'PUSH 48', 'SUB',
     'DUP', 'PUSH 1', 'LOAD', 'ADD', 'PUSH 1', 'STORE',
     'PUSH 3', 'LOAD', 'MUL', ...addTo(0),
@@ -362,11 +363,11 @@ function buildEncrypted(rng) {
 // First half free (hash mod 7 fixed), second half derived from the hash. The hash seed silently depends on DBG.
 function buildDependent(rng) {
   const seed = rng.range(1, 60000);
-  const debugDelta = rng.range(1, 60000);
+  let debugDelta = rng.range(1, 60000);
   const first = letterAnswer(rng, 4);
   let hash = seed;
   for (const char of first) { hash = (code(char) + hash * 33) % 65521; }
-  const lines = ['DBG', `PUSH ${debugDelta}`, 'MUL', `PUSH ${seed}`, 'ADD', 'PUSH 0', 'STORE'];
+  const lines = ['DBG', 'PUSH 0', 'MUL', `PUSH ${seed}`, 'ADD', 'PUSH 0', 'STORE'];
   for (let i = 0; i < 4; i += 1) {
     lines.push('INPUT', 'PUSH 0', 'LOAD', 'PUSH 33', 'MUL', 'ADD', 'PUSH 65521', 'MOD', 'PUSH 0', 'STORE');
   }
@@ -380,7 +381,15 @@ function buildDependent(rng) {
     lines.push('INPUT', 'PUSH 0', 'LOAD', `PUSH ${mult}`, 'MUL', `PUSH ${add}`, 'ADD', 'PUSH 26', 'MOD', 'PUSH 65', 'ADD', 'CMP', 'JNZ fail');
   }
   lines.push(...endOfInput, ...failTail);
-  return make(lines, first + second);
+  // The delta must really change the debugger run: redraw it (after every other draw, so nothing else moves) until the
+  // answer is refused under a debugger. A delta that is a multiple of both moduli would make the debugger tell the truth.
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    lines[1] = `PUSH ${debugDelta}`;
+    const cabinet = make(lines, first + second);
+    if (!runProgram(cabinet.program, cabinet.answer, { debugger: true }).accepted) { return cabinet; }
+    debugDelta = rng.range(1, 60000);
+  }
+  throw new Error('i3: no debugger delta found');
 }
 
 function buildFinalBoss(rng) {
@@ -417,7 +426,7 @@ export const LEVELS = [
     briefing: 'Galaga Gate checks a six character code: some letters are fixed, and the last one is a checksum of the first five.',
     hints: [
       'Memory cell 0 collects a running sum of the first five characters (the ADD and STORE groups).',
-      'The last character must be the letter A (65) plus the sum modulo 26. The two middle letters can be anything.',
+      'The last character must be the letter A (65) plus the sum modulo 26. The fourth and fifth letters can be anything.',
       (built) => `The code starts with ${first(built)}.`,
     ],
   },
@@ -435,7 +444,7 @@ export const LEVELS = [
     briefing: 'Serials look like XXXX-XXXX. The first group is added up, the second is XOR folded, and many different serials are valid.',
     hints: [
       'The first group is summed into memory cell 0, then taken modulo 97. The second group is XORed into memory cell 1.',
-      'Position 4 must be a hyphen (45). Choose any letters that give the two required values.',
+      'The fifth character must be a hyphen (45). Choose any letters that give the two required values.',
       (built) => `The first letter of the serial is ${first(built)}.`,
     ],
   },
@@ -487,7 +496,7 @@ export const LEVELS = [
     briefing: 'A ten digit serial processed in a loop. Read the weights, the modulo checks and the one rule that links two positions.',
     hints: [
       'The loop saves each character at address 10 + i and keeps two sums: a weighted one (weights 1, 3, 1, 3 ...) and a plain one.',
-      'After the loop: the first two digits are fixed, digit 5 is digit 2 plus 3 (as characters), weighted sum mod 11 and plain sum mod 7 are fixed.',
+      'After the loop: the first two digits are fixed, digit 6 is digit 3 plus 3 (as characters), weighted sum mod 11 and plain sum mod 7 are fixed.',
     ],
   },
   {

@@ -211,3 +211,22 @@ function keygen(p) {
 }
 
 export const solveLevel = (id, program) => SOLVERS[id](program);
+
+// Patch Bay solver: what a player does after reading the (unpacked) listing. Every conditional jump that goes straight to a
+// REJECT or HALT is a check; turn each one into POP so it still consumes its value but never rejects. Keygen cabinets (NAME-SERIAL) also need the dash test flipped
+// (`PUSH 45`, `CMP`, `JZ`): with it inverted the first character already leaves the name loop, so any input reaches the end.
+export function patchSolution(program) {
+  const listing = unpack(program);
+  const stops = new Set(listing.flatMap(([name], i) => (name === 'REJECT' || name === 'HALT' ? [i] : [])));
+  const isDash = ([name], index) => name === 'JZ' && listing[index - 1]?.[0] === 'CMP' && listing[index - 2]?.[0] === 'PUSH' && listing[index - 2][1] === 45;
+  const keygen = listing.some(isDash);
+  const edits = [];
+  listing.forEach((item, index) => {
+    const [name, target] = item;
+    if (name !== 'JNZ' && name !== 'JZ') { return; }
+    if (isDash(item, index)) { edits.push({ index, op: 'JNZ' }); return; }
+    // In a keygen the name loop only ends at the dash, so its end-of-input guard must stay.
+    if (stops.has(target) && !(keygen && listing[index - 1]?.[0] === 'DUP')) { edits.push({ index, op: 'POP' }); }
+  });
+  return edits;
+}
