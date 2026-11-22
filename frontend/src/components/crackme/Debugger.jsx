@@ -148,7 +148,7 @@ export default function Debugger({ puzzle, input, onInput, onSubmit, canSubmit =
           aria-describedby="cm-input-help"
         />
       </label>
-      <button type="button" onClick={() => onSubmit?.()} disabled={!canSubmit || !input || Boolean(problem)}>Submit this input</button>
+      {canSubmit && <button type="button" onClick={() => onSubmit?.()} disabled={!input || Boolean(problem)}>Submit this input</button>}
       <div className="cm-buttons" role="group" aria-label="Debugger controls">
         <button type="button" className="secondary" onClick={step} disabled={forwardDisabled} aria-keyshortcuts={keyshortcutsAttr(shortcuts, 'S')}>Step {shortcuts && <kbd aria-hidden="true">S</kbd>}</button>
         {running

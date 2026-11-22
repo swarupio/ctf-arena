@@ -5,15 +5,18 @@ import { DARK_THEME_ENABLED, DEFAULT_PREFERENCE, THEME_COLORS, THEME_PREFERENCES
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 export const THEME_OPTIONS = Object.freeze([
+  { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
 ]);
 
-// The button cycles System -> Light -> Dark -> System.
-export const CYCLE = Object.freeze(['system', 'light', 'dark']);
-export const nextPreference = (preference) => CYCLE[(Math.max(CYCLE.indexOf(preference), 0) + 1) % CYCLE.length];
 export const themeLabel = (preference) => THEME_OPTIONS.find((option) => option.value === preference)?.label ?? 'System';
+
+// Pure: what the page looks like for a stored preference. 'system' follows the device; anything unknown counts as 'system'.
+export const effectiveTheme = (preference, systemDark) => (preference === 'light' || preference === 'dark' ? preference : (systemDark ? 'dark' : 'light'));
+// Pure: the header button is a two-state switch. It always goes to the theme that is NOT showing now, so a click is always visible
+// (System on a light device goes straight to dark, System on a dark device goes to light). The result is stored as an explicit preference.
+export const nextTheme = (preference, systemDark) => (effectiveTheme(preference, systemDark) === 'dark' ? 'light' : 'dark');
 
 // Accepts the plain string or its JSON form; anything else is not a preference.
 export function parsePreference(raw) {
@@ -64,6 +67,17 @@ export function applyTheme(preference, { doc = globalThis.document, win = global
   return effective;
 }
 
+// Colour transitions (buttons fade background and colour over 120 ms) would show mixed colours while the tokens flip.
+// A temporary class on <html> switches them off; it is removed two frames later so the page changes in a single frame.
+export const SWITCHING_CLASS = 'theme-switching';
+export function suspendTransitions({ doc = globalThis.document, win = globalThis.window } = {}) {
+  const root = doc?.documentElement;
+  if (!root?.classList) return;
+  root.classList.add(SWITCHING_CLASS);
+  const done = () => root.classList.remove(SWITCHING_CLASS);
+  if (win?.requestAnimationFrame) win.requestAnimationFrame(() => win.requestAnimationFrame(done)); else setTimeout(done, 50);
+}
+
 // Calls onChange(isDark) when the operating system switches theme. Returns an unsubscribe function.
 export function watchSystem(onChange, win = globalThis.window) {
   let query;
@@ -82,7 +96,7 @@ export function createThemeController({ win = globalThis.window, doc = globalThi
   let preference = readPreference(store);
   let stops = [];
   const emit = () => listeners.forEach((fn) => fn());
-  const reapply = () => { applyTheme(preference, { doc, win, enabled }); };
+  const reapply = (animated = false) => { if (animated && enabled) suspendTransitions({ doc, win }); applyTheme(preference, { doc, win, enabled }); };
   return {
     enabled,
     getPreference: () => preference,
@@ -93,19 +107,19 @@ export function createThemeController({ win = globalThis.window, doc = globalThi
       if (!value) return false;
       preference = value;
       writePreference(value, store);
-      reapply();
+      reapply(true);
       emit();
       return true;
     },
     start() {
       if (!enabled) return () => {};
       reapply();
-      stops.push(watchSystem(() => { if (preference === 'system') { reapply(); emit(); } }, win));
+      stops.push(watchSystem(() => { if (preference === 'system') { reapply(true); emit(); } }, win));
       // Another tab changed the preference.
       const onStorage = (event) => {
         if (event.key !== null && event.key !== THEME_STORAGE_KEY) return;
         preference = readPreference(store);
-        reapply();
+        reapply(true);
         emit();
       };
       win?.addEventListener?.('storage', onStorage);

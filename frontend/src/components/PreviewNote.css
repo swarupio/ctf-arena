@@ -1,0 +1,5 @@
+/* Shared admin-preview note (components/PreviewNote.jsx). Tokens come from styles.css. */
+.preview-note {
+  margin: 0; padding: var(--space-3) var(--space-4); overflow-wrap: anywhere; min-width: 0; box-sizing: border-box;
+  background: var(--color-accent-tint); border: var(--border); border-left: 8px solid var(--color-accent);
+}

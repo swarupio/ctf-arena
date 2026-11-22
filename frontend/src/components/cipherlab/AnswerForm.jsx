@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { submitAnswer } from '../../api/cipherlab.js';
+import PreviewNote from '../PreviewNote.jsx';
 import { HintsUsed } from '../../hints/HintLadder.jsx';
 import { STREAK_LOST, cipherErrorMessage, confettiPieces, missText, streakText } from './helpers.js';
 
@@ -46,8 +47,7 @@ export default function AnswerForm({ puzzle, canSubmit, onSolved, streak = 0, hi
 
   return <section className="cl-box cl-answer" aria-labelledby="cl-answer-title">
     <h2 id="cl-answer-title">Your answer</h2>
-    {!canSubmit && <p className="notice">Admins can preview puzzles but cannot submit answers.</p>}
-    <form onSubmit={submit} className={shake ? 'cl-shake' : undefined} onAnimationEnd={() => setShake(false)} noValidate>
+    {!canSubmit ? <PreviewNote>Admins can read the puzzle and use the tools, but only players can submit answers.</PreviewNote> : <form onSubmit={submit} className={shake ? 'cl-shake' : undefined} onAnimationEnd={() => setShake(false)} noValidate>
       <label>
         Plaintext message{puzzle.track === 'hard' && puzzle.n === 1 ? ' (a number)' : ''}
         <input
@@ -58,14 +58,13 @@ export default function AnswerForm({ puzzle, canSubmit, onSolved, streak = 0, hi
           autoComplete="off"
           spellCheck="false"
           autoCapitalize="characters"
-          disabled={!canSubmit}
           readOnly={busy}
           aria-describedby="cl-answer-help"
         />
       </label>
       <p id="cl-answer-help" className="cl-note">Capitals, spaces and punctuation do not matter.</p>
-      <button type="submit" disabled={!canSubmit || busy || !answer.trim()}>{busy ? 'Checking…' : 'Submit answer'}</button>
-    </form>
+      <button type="submit" disabled={busy || !answer.trim()}>{busy ? 'Checking…' : 'Submit answer'}</button>
+    </form>}
     {error && <p role="alert" className="error">{error}</p>}
     {result && !result.correct && <p role="status" className="cl-wrong">{result.message}{lost ? ` ${STREAK_LOST}` : ''}</p>}
     {result?.correct && <div role="status" className="cl-win">

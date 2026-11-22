@@ -1,7 +1,10 @@
-/* Theme toggle: one cycling button (System, Light, Dark). Colours come from the tokens in styles.css. */
+/* Theme toggle: a two-state light/dark switch in the header, plus a System / Light / Dark selector in the footer and the mobile menu. Colours come from the tokens in styles.css. */
 .theme-toggle { display: flex; flex: none; align-items: center; }
 .theme-toggle .theme-btn { min-height: 36px; min-width: 44px; padding: 0 var(--space-2); gap: var(--space-2); font-size: 0.875rem; }
+.theme-toggle .theme-btn { transition: none; } /* no 120 ms colour fade: the icon and the page change in one frame */
 .theme-icon { flex: none; display: block; }
+/* While the theme flips every transition is off for two frames, so no element shows a mix of old and new colours. */
+:root.theme-switching *, :root.theme-switching *::before, :root.theme-switching *::after { transition: none !important; }
 .theme-btn-text { white-space: nowrap; }
 /* Live status text for screen readers only. */
 .theme-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -18,9 +21,27 @@
   .account:has(.theme-toggle) .email { max-width: 16px; font-size: 0; }
 }
 
+/* Selector: segmented radio group. The radios are visually hidden but stay keyboard and screen reader operable. */
+.theme-select { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); min-width: 0; margin: 0; padding: 0; border: 0; font-size: 0.8125rem; color: var(--color-muted); }
+.theme-select legend { float: left; padding: 0; margin-right: var(--space-3); font-weight: 700; color: var(--color-ink); }
+.theme-select-options { display: inline-flex; }
+.theme-option { position: relative; display: block; margin: 0; font-size: 0.8125rem; }
+.theme-option input { position: absolute; inset: 0; width: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
+.theme-option span { display: flex; align-items: center; justify-content: center; min-height: 32px; min-width: 64px; padding: 0 var(--space-3); color: var(--color-ink); background: var(--color-surface); border: var(--border); margin-left: -2px; font-weight: 700; }
+.theme-option:first-child span { margin-left: 0; }
+.theme-option input:focus-visible { outline: none; box-shadow: none; }
+.theme-option input:checked + span { color: var(--color-ink-contrast); background: var(--color-ink); }
+.theme-option input:focus-visible + span { outline: 3px solid var(--color-focus, var(--color-ink)); outline-offset: 2px; position: relative; z-index: 1; }
+@media (hover: hover) { .theme-option input:not(:checked):hover + span { background: var(--color-accent); color: var(--color-on-accent); } }
+.theme-hint { flex: 1 1 100%; margin: 0; }
+@media (pointer: coarse) { .theme-option span { min-height: 44px; } }
+/* The menu copy only exists for the mobile panel; the footer copy serves the wide header. */
+.theme-select-menu { display: none; }
+
 /* Mobile menu panel: icon and visible text, full row width. */
 @media (max-width: 1100px) {
   .theme-toggle { flex: 1 1 100%; }
+  .theme-select-menu { display: flex; padding: var(--space-3) 0 0; }
   .theme-toggle .theme-btn { width: 100%; justify-content: flex-start; padding: 0 var(--space-3); }
 }
 

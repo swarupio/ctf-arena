@@ -67,3 +67,31 @@ const MESSAGES = {
 export function challengeErrorMessage(error) {
   return MESSAGES[error?.code] ?? error?.message ?? 'Something went wrong. Please try again.';
 }
+
+// Which panels the challenge page shows, decided in one place (pure, so every branch is tested).
+//  gate: a situation that replaces BOTH the instance and the submit panel with one explanation card:
+//        'admin-preview' (admins have no team), 'banned', 'no-team'; otherwise null.
+//  instance: null (static challenge, or already captured with nothing running) | 'running' | 'ready' | 'no-docker'.
+//  submit: 'form' | 'event-not-started' | 'event-ended' | 'hidden' ('hidden' = the instance panel explains why: the flag
+//          of a docker challenge cannot be found without its container, so a Submit box would be a dead end).
+// hasTeam / banned are undefined until /me has loaded: unknown counts as "fine", the server still refuses and the page
+// then switches to the right card from the error code.
+export function challengePanels({
+  role, type, dockerAvailable, hasTeam, banned, solved = false, hasInstance = false, eventPhase = 'none',
+} = {}) {
+  const gate = role === 'admin' ? 'admin-preview' : banned === true ? 'banned' : hasTeam === false ? 'no-team' : null;
+  if (gate) { return { gate, instance: null, submit: 'hidden' }; }
+  const docker = type === 'docker';
+  let instance = null;
+  if (docker && hasInstance) { instance = 'running'; }
+  else if (docker && !solved) { instance = dockerAvailable === false ? 'no-docker' : 'ready'; }
+  let submit = 'form';
+  if (instance === 'no-docker') { submit = 'hidden'; }
+  else if (eventPhase === 'upcoming') { submit = 'event-not-started'; }
+  else if (eventPhase === 'ended') { submit = 'event-ended'; }
+  else if (solved) { submit = 'hidden'; }
+  return { gate: null, instance, submit };
+}
+
+// The server's refusal codes that mean the page should show the team / ban card instead of the controls.
+export const gateFromError = (error) => (error?.code === 'NO_TEAM' ? 'no-team' : error?.code === 'TEAM_BANNED' ? 'banned' : null);
