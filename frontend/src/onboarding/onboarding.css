@@ -91,3 +91,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .ob-bar > span { transition: width 0.4s ease; }
 }
+
+/* While the first-flag data loads: same box as the one-line "cleared" state (same text length, same button height), no list. */
+.ob-skel-text { color: transparent; background: var(--color-surface-2); user-select: none; }
+.ob-skel-btn { display: inline-block; box-sizing: border-box; min-height: 44px; min-width: 8.5rem; background: var(--color-surface-2); border: var(--border); }

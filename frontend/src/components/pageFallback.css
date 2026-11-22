@@ -3,5 +3,7 @@
    footer stays invisible (it keeps its space, nothing else moves) while a page chunk loads and for the first 2.5 s after
    the app starts, which covers a typical API answer; it appears after that (not under prefers-reduced-motion, which turns the delay off). */
 .app:has(.page-fallback) .site-footer { visibility: hidden; }
+/* Same for data that loads after the page chunk: while a skeleton of the real layout is on screen the footer stays hidden too. */
+.app:has(.adm-loading, .adm-skeleton-row, .ob-checklist.is-loading) .site-footer { visibility: hidden; }
 .site-footer { animation: footer-settle 0s linear 2.5s backwards; }
 @keyframes footer-settle { from, to { visibility: hidden; } }

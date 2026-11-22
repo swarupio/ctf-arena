@@ -45,7 +45,8 @@ function LayoutContent() {
     catch (error) { setError(authMessage(error)); }
     finally { setBusy(false); }
   }
-  return <div className="app">
+  // /admin pages are wider than the rest; the class widens the header and main at once, so the lazy admin chunk arriving does not shift them sideways.
+  return <div className={`app${location.pathname === '/admin' || location.pathname.startsWith('/admin/') ? ' is-admin-route' : ''}`}>
     <a className="skip-link" href="#main">Skip to content</a>
     <AnnouncementBanner />
     <EventBanner />

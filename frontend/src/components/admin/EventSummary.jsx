@@ -5,10 +5,17 @@ import { useAdminData } from '../../admin/hooks.js';
 import { formatDate } from '../../admin/format.js';
 import { Badge, Panel } from './PageHeader.jsx';
 
+// Same box as the loaded panel while the settings load (one line of text), so the stat cards below do not jump down.
+export function EventSummarySkeleton() {
+  return <Panel title="Event" id="overview-event" actions={<Link to="/admin/settings">Schedule</Link>}>
+    <p aria-hidden="true"><span className="adm-skel-text">Event disabled. No countdown or automatic freeze. Schedule one.</span></p>
+  </Panel>;
+}
+
 // Small "Event" panel for the admin Overview. Silent on errors (the Overview has its own error handling).
 export default function EventSummary() {
-  const { data } = useAdminData((signal) => getSettings(signal), []);
-  if (!data) return null;
+  const { data, error } = useAdminData((signal) => getSettings(signal), []);
+  if (!data) return error ? null : <EventSummarySkeleton />;
   const event = data.event;
   return <Panel title="Event" id="overview-event" actions={<Link to="/admin/settings">Schedule</Link>}>
     {event

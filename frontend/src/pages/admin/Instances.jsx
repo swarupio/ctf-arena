@@ -46,7 +46,7 @@ export default function Instances() {
     <PageHeader title="Instances" intro={`Challenge containers. Refreshes every ${POLL_MS / 1000} s while this tab is visible.`}>
       <button type="button" className="secondary small" onClick={reload}>Refresh now</button>
     </PageHeader>
-    {updatedAt && <p className="adm-muted adm-meta" role="status">Updated {new Date(updatedAt).toLocaleTimeString()}</p>}
+    <p className="adm-muted adm-meta" role="status">{updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString()}` : 'Loading…'}</p>
     {dockerOff && <p className="notice" role="note">Docker is disabled on this server (DOCKER_ENABLED=false). No containers are started, and killing an instance only marks its record stopped.</p>}
     <FilterBar label="Filter instances" fields={fields} values={list.values} onChange={list.onChange} onReset={list.reset} />
     <DataTable caption="Instances" columns={columns} rows={data?.items ?? []} loading={loading} error={error} onRetry={reload}

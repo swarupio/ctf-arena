@@ -4,6 +4,7 @@ import { startPolling } from '../pages/poller.js';
 import {
   ANNOUNCEMENT_POLL_MS, bannerLevel, bannerRole, dismiss, isDismissed, visibleAnnouncement,
 } from './announcement.js';
+import { useBannerSlot } from './useBannerSlot.js';
 import './AnnouncementBanner.css';
 
 // Presentation only (also used for the live preview in admin Settings). The text is rendered as plain text.
@@ -20,6 +21,7 @@ export function BannerView({ text, level, onDismiss }) {
 export default function AnnouncementBanner() {
   const [announcement, setAnnouncement] = useState(null);
   const [hidden, setHidden] = useState(false);
+  const [answered, setAnswered] = useState(false);
 
   useEffect(() => {
     const poller = startPolling(async () => {
@@ -27,12 +29,17 @@ export default function AnnouncementBanner() {
         const next = visibleAnnouncement(await getAnnouncement());
         setAnnouncement(next);
         setHidden(next ? isDismissed(next) : false);
+        setAnswered(true);
         return true;
-      } catch { return false; }
+      } catch { setAnswered(true); return false; }
     }, { intervalMs: ANNOUNCEMENT_POLL_MS });
     return () => poller.stop();
   }, []);
 
-  if (!announcement || hidden) return null;
-  return <BannerView {...announcement} onDismiss={() => { dismiss(announcement); setHidden(true); }} />;
+  const showing = Boolean(announcement) && !hidden;
+  // The wrapper keeps the last known bar height until the first answer, so a live announcement does not push the page down.
+  const slot = useBannerSlot('announcement', { present: showing, answered });
+  return <div ref={slot.ref} style={slot.style}>
+    {showing && <BannerView {...announcement} onDismiss={() => { dismiss(announcement); setHidden(true); }} />}
+  </div>;
 }

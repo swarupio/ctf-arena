@@ -26,8 +26,13 @@ function Step({ step, onRetry }) {
   </li>;
 }
 
-/** "Capture your first flag": six steps, one per category, with a meter whose label sits outside the bar. */
-export default function FirstFlagChecklist({ steps, progress, onRetry, needsTeam = false }) {
+/**
+ * "Capture your first flag": six steps, one per category, with a meter whose label sits outside the bar.
+ * `hint` is the last known state of this player ('open', 'cleared' or ''). While the overviews load the card never shows the
+ * long list unless the player had it last time: it holds the one-line height (a skeleton), so a cleared player sees no
+ * 1300 px collapse and the content below stays put.
+ */
+export default function FirstFlagChecklist({ steps, progress, onRetry, needsTeam = false, hint = '' }) {
   const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   const cleared = progress.loaded && progress.done === progress.total;
   const next = nextStep(steps);
@@ -35,6 +40,18 @@ export default function FirstFlagChecklist({ steps, progress, onRetry, needsTeam
   const bodyId = useId();
   const collapsed = cleared && !open;
   const heading = <h2 id="ob-checklist-heading">Capture your first flag</h2>;
+  if (!progress.loaded && hint !== 'open') {
+    return <section className="ob-checklist is-cleared is-loading" aria-labelledby="ob-checklist-heading" aria-busy="true">
+      <div className="ob-done-row">
+        {heading}
+        <p className="ob-done-line" role="status">
+          <span className="ob-sr">Checking your first flags</span>
+          <span className="ob-skel-text" aria-hidden="true">{progress.total} of {progress.total} first flags captured. Range cleared. Try the Challenges board</span>
+        </p>
+        <span className="ob-skel-btn" aria-hidden="true" />
+      </div>
+    </section>;
+  }
   return <section className={`ob-checklist${cleared ? ' is-cleared' : ''}`} aria-labelledby="ob-checklist-heading">
     {cleared
       ? <div className="ob-done-row">

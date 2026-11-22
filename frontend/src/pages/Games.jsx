@@ -15,6 +15,10 @@ function Bar({ label, value }) {
   </div>;
 }
 
+// Placeholders drawn with the real classes and a typical amount of text, so a card keeps its height when the numbers arrive.
+// Four rows is the longest difficulty ladder (easy to insane). No animation: nothing here moves.
+const SKELETON_ROWS = [0, 1, 2, 3];
+
 function GameCard({ game, state, recommended, onRetry }) {
   const done = state?.tracks ? sumTracks(state.tracks) : null;
   return <article className={`ov-card gm-card${recommended ? ' is-next' : ''}`} aria-labelledby={`gm-${game.id}`}>
@@ -24,7 +28,12 @@ function GameCard({ game, state, recommended, onRetry }) {
       <p className="gm-pitch">{game.pitch}</p>
     </div>
     <div className="ov-card-mid">
-      {!state && <p role="status" className="gm-muted">Loading progress…</p>}
+      {!state && <>
+        <p role="status" className="gm-sr">Loading progress…</p>
+        <ul className="gm-tracks" aria-hidden="true">
+          {SKELETON_ROWS.map((row) => <li key={row}><span className="gm-skel">Difficulty</span><strong className="gm-skel">0/0</strong></li>)}
+        </ul>
+      </>}
       {state?.error && <p role="alert" className="gm-error">Progress unavailable. <button type="button" className="secondary small" onClick={onRetry}>Retry</button></p>}
       {done && <ul className="gm-tracks" aria-label="Difficulty tracks">
         {state.tracks.map((track) => <li key={track.id} className={track.total > 0 && track.solved >= track.total ? 'is-done' : undefined}>
@@ -33,6 +42,10 @@ function GameCard({ game, state, recommended, onRetry }) {
       </ul>}
     </div>
     <div className="ov-card-low">
+      {!state && <>
+        <div className="ov-progress" aria-hidden="true"><div className="ov-bar"><span style={{ width: '0%' }} /></div></div>
+        <p className="gm-stats" aria-hidden="true"><span className="gm-skel">0/0 flags captured</span><span className="gm-skel">0/0 pts</span></p>
+      </>}
       {done && <>
         <Bar label={`${game.title} progress`} value={done.percent} />
         <p className="gm-stats"><span>{done.solved}/{done.total} flags captured</span><span>{done.pointsEarned}/{done.maxPoints} pts</span></p>
@@ -82,7 +95,12 @@ export default function Games() {
 
     <section className="gm-summary" aria-labelledby="gm-summary-heading">
       <h2 id="gm-summary-heading">Range progress</h2>
-      {total.games === 0 && !loaded && <p role="status" className="gm-muted">Counting your progress…</p>}
+      {total.games === 0 && !loaded && <>
+        <p role="status" className="gm-sr">Counting your progress…</p>
+        <p className="gm-big" aria-hidden="true"><span className="gm-skel"><strong>00</strong>/00 flags captured · <strong>000</strong>/000 points</span></p>
+        <div className="ov-progress" aria-hidden="true"><div className="ov-bar"><span style={{ width: '0%' }} /></div></div>
+        <p className="gm-next" aria-hidden="true"><span className="gm-skel">Recommended next: Arena Terminal, Easy (3 left)</span></p>
+      </>}
       {total.games > 0 && <>
         <p className="gm-big"><strong>{total.solved}</strong>/{total.total} flags captured <span aria-hidden="true">·</span> <strong>{total.pointsEarned}</strong>/{total.maxPoints} points</p>
         <Bar label="Range progress" value={percentOf(total.solved, total.total)} />

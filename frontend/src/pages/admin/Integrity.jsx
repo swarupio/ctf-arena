@@ -16,6 +16,25 @@ import FilterBar from '../../components/admin/FilterBar.jsx';
 import PageHeader, { Badge, Panel } from '../../components/admin/PageHeader.jsx';
 import StatCard, { StatGrid } from '../../components/admin/StatCard.jsx';
 
+const SUMMARY_LABELS = ['Flagged users', 'Signal rows', 'Signal events', 'Active last 24 h'];
+
+// The summary at its final size while it loads, so the filters and the table below do not jump down when it arrives.
+function SummarySkeleton() {
+  return <div className="adm-loading" aria-busy="true">
+    <p role="status" className="adm-sr">Loading the summary</p>
+    <StatGrid label="Fair-play summary">
+      {SUMMARY_LABELS.map((label) => <StatCard key={label} label={label} value="0000" loading />)}
+    </StatGrid>
+    <Panel title="Signals by kind" id="integrity-kinds">
+      <ul className="adm-list" aria-hidden="true">{[0, 1].map((row) => <li key={row}>
+        <span className="adm-skel-text">Honeypot endpoint honeypot-endpoint</span>
+        <span className="adm-skel-text">3 users/rows · 13 events · 40 minutes ago</span>
+      </li>)}</ul>
+      <p className="adm-muted"><span className="adm-skel-text">High risk is 10 or more (severity times events, up to 5 per signal).</span></p>
+    </Panel>
+  </div>;
+}
+
 const FILTERS = [
   { name: 'q', label: 'Search player or team', type: 'search', maxLength: 100, initial: '' },
   { name: 'kind', label: 'Signal kind', type: 'select', initial: '', options: [{ value: '', label: 'Any kind' }, ...Object.keys(SIGNAL_KINDS).map((kind) => ({ value: kind, label: kindLabel(kind) }))] },
@@ -47,7 +66,7 @@ export default function Integrity() {
   const info = summary.data;
   return <>
     <PageHeader title="Fair play" intro={EVIDENCE_NOTE} />
-    <AsyncBlock loading={summary.loading} error={summary.error} hasData={Boolean(info)} onRetry={summary.reload} label="the summary" lines={2}>
+    <AsyncBlock loading={summary.loading} error={summary.error} hasData={Boolean(info)} onRetry={summary.reload} label="the summary" fallback={<SummarySkeleton />}>
       {info && <>
         <StatGrid label="Fair-play summary">
           <StatCard label="Flagged users" value={formatNumber(info.flaggedUsers)} tone={info.flaggedUsers ? 'warn' : ''} />

@@ -484,6 +484,8 @@ main:focus { outline: none; }
 
 /* Page shell */
 main { flex: 1; width: min(100%, var(--content-width)); margin: 0 auto; padding: var(--page-top) max(var(--gutter), var(--safe-r)) var(--space-8) max(var(--gutter), var(--safe-l)); }
+/* The admin routes are wider (see admin.css). Set here, not in the lazy admin CSS, so header and main already have the width while the admin chunk loads. */
+.app.is-admin-route { --content-width: 97.5rem; }
 main > p[role='status']:not(.notice) { color: var(--color-muted); }
 main > p[role='status']:not(.notice)::before { content: '> '; content: '> ' / ''; color: var(--color-ink); }
 
