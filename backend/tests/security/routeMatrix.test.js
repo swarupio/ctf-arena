@@ -37,6 +37,7 @@ vi.mock('../../src/models/AuditLog.js', async () => (await import('./helpers/fak
 vi.mock('../../src/models/AppSetting.js', async () => (await import('./helpers/fakeDb.js')).emptyModelModule({ ANNOUNCEMENT_LEVELS: ['info', 'warning', 'critical'] }));
 vi.mock('../../src/models/CipherHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CipherHint'));
 vi.mock('../../src/models/CrackmeHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CrackmeHint'));
+vi.mock('../../src/models/CrackmePatch.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CrackmePatch'));
 vi.mock('../../src/models/OsintHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('OsintHint'));
 // Tag every requireRole() guard with the roles it was built with, so the access level can be read off the chain.
 vi.mock('../../src/middleware/requireRole.js', async (importOriginal) => {
@@ -71,6 +72,7 @@ const TABLE = [
 
   ['GET', '/api/leaderboard', 'any'],
   ['GET', '/api/leaderboard/timeline', 'any'],
+  ['GET', '/api/leaderboard/me', 'any'],
 
   ['GET', '/api/feed', 'any'],
   ['GET', '/api/daily', 'any'],
@@ -85,25 +87,32 @@ const TABLE = [
   ['GET', '/api/forensics/tracks', 'any'],
   ['GET', '/api/forensics/tracks/:track', 'any'],
   ['GET', '/api/forensics/tracks/:track/artefacts/:artefact', 'any'],
+  ['GET', '/api/forensics/tracks/:track/interviews', 'any'],
+  ['POST', '/api/forensics/tracks/:track/interviews', 'any'],
   ['POST', '/api/forensics/tracks/:track/stages/:n/answer', 'player'],
 
   ['GET', '/api/osint/cases', 'any'],
   ['GET', '/api/osint/cases/:track', 'any'],
   ['GET', '/api/osint/cases/:track/sources/:source', 'any'],
   ['GET', '/api/osint/cases/:track/search', 'any'],
+  ['GET', '/api/osint/cases/:track/board', 'any'],
+  ['GET', '/api/osint/cases/:track/board/evidence', 'any'],
+  ['PUT', '/api/osint/cases/:track/board', 'player'],
+  ['POST', '/api/osint/cases/:track/board/check', 'any'],
   ['POST', '/api/osint/cases/:track/questions/:n/answer', 'player'],
   ['POST', '/api/osint/cases/:track/questions/:n/hints', 'player'],
   ['GET', '/api/osint/admin/hints', 'admin'],
 
   ['GET', '/api/cipherlab/overview', 'any'],
   ['GET', '/api/cipherlab/levels/:id', 'any'],
-  ['POST', '/api/cipherlab/levels/:id/hints', 'player'],
+  ['POST', '/api/cipherlab/levels/:id/hints', 'any'], // admins preview hints; nothing is stored for them
   ['POST', '/api/cipherlab/levels/:id/answer', 'player'],
   ['GET', '/api/cipherlab/admin/hints', 'admin'],
   ['GET', '/api/crackme/overview', 'any'],
   ['GET', '/api/crackme/levels/:id', 'any'],
   ['POST', '/api/crackme/levels/:id/hints', 'player'],
   ['POST', '/api/crackme/levels/:id/answer', 'player'],
+  ['POST', '/api/crackme/levels/:id/patch', 'player'],
   ['GET', '/api/crackme/admin/hints', 'admin'],
   ['GET', '/api/weblab/labs', 'any'],
   ['GET', '/api/weblab/labs/:slug', 'any'],
@@ -125,6 +134,8 @@ const TABLE = [
 
   // Admin API v2 (docs/API_SPEC.md "Admin API v2"); GET /api/announcement is public on purpose (banner text only).
   ['GET', '/api/announcement', 'none'],
+  // GET /api/event is public on purpose too (scheduled-event name, phase and times only; docs/EVENT_MODE.md).
+  ['GET', '/api/event', 'none'],
   ...[
     ['GET', '/challenges/export'], ['POST', '/challenges/import'], ['PATCH', '/challenges/:id/visibility'],
     ['POST', '/challenges/:id/duplicate'], ['GET', '/challenges/:id/stats'], ['POST', '/challenges/:id/reset-solves'],
@@ -249,10 +260,10 @@ describe('route inventory', () => {
     expect(missingRoute, 'TABLE rows with no route (stale entries)').toEqual([]);
   });
 
-  it('only exposes health, the announcement banner and the documented honeypot decoys without authentication', () => {
+  it('only exposes health, the announcement banner, the event schedule and the documented honeypot decoys without authentication', () => {
     const open = routes.filter((route) => accessOf(route.chain) === 'none').map((route) => keyOf(route.method, route.path));
     expect(open.sort()).toEqual([...PUBLIC_KEYS].sort());
-    expect(PUBLIC_KEYS.filter((key) => !key.includes('/api/health') && !key.endsWith(' /api/announcement') && !HONEYPOT_PATHS.some((path) => key.endsWith(` ${path}`)))).toEqual([]);
+    expect(PUBLIC_KEYS.filter((key) => !key.includes('/api/health') && !key.endsWith(' /api/announcement') && !key.endsWith(' /api/event') && !HONEYPOT_PATHS.some((path) => key.endsWith(` ${path}`)))).toEqual([]);
   });
 
   it('wires the required access into each route chain, with auth before any role check', () => {

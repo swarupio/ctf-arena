@@ -118,7 +118,7 @@ describe('instanceService.stop and extend', () => {
     expect((await service.stop('i1', { force: true })).status).toBe('stopped');
     const [claim, update] = Instance.findOneAndUpdate.mock.calls[0];
     expect(claim).toEqual({ _id: 'i1', status: { $in: ['starting', 'running', 'stopping'] } });
-    expect(update).toEqual({ $set: { status: 'stopping' } });
+    expect(update).toEqual({ $set: { status: 'stopping', stoppingAt: expect.any(Date) } });
     expect(docker.stopInstance).toHaveBeenCalledWith('c-1');
     expect(Instance.findOneAndUpdate.mock.calls[1][1].$set).toMatchObject({ status: 'stopped' });
   });
@@ -170,6 +170,29 @@ describe('reaper', () => {
     const instances = { stop: vi.fn().mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce({}) };
     Instance.find.mockResolvedValue([{ _id: 'a' }, { _id: 'b' }]);
     expect(await createReaper({ docker: {}, instances }).reapExpired()).toBe(1);
+  });
+
+  it('takes over instances stuck in stopping, but only claims older than the cutoff, atomically', async () => {
+    const stopFn = vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce(null);
+    Instance.find.mockResolvedValue([{ _id: 'a' }, { _id: 'b' }]);
+    const before = Date.now();
+    expect(await createReaper({ docker: {}, instances: { stop: stopFn }, stuckMs: 5 * 60_000 }).reapStuck()).toBe(1);
+    const [query] = Instance.find.mock.calls[0];
+    expect(query.status).toBe('stopping');
+    expect(query.$or[0].stoppingAt.$lte.getTime()).toBeLessThanOrEqual(before - 5 * 60_000 + 1000);
+    expect(stopFn.mock.calls[0][1].stuckBefore).toBeInstanceOf(Date);
+  });
+
+  it('the stuck claim filters on stoppingAt in the findOneAndUpdate itself and stamps a new stoppingAt', async () => {
+    Instance.findOneAndUpdate.mockResolvedValueOnce({ _id: 'i1', containerId: 'c-1' }).mockResolvedValueOnce({ status: 'stopped' });
+    const cutoff = new Date(Date.now() - 300_000);
+    expect((await service.stop('i1', { stuckBefore: cutoff })).status).toBe('stopped');
+    const [claim, update] = Instance.findOneAndUpdate.mock.calls[0];
+    expect(claim).toEqual({
+      _id: 'i1', status: 'stopping', $or: [{ stoppingAt: { $lte: cutoff } }, { stoppingAt: { $exists: false } }],
+    });
+    expect(update.$set.stoppingAt).toBeInstanceOf(Date);
+    expect(docker.stopInstance).toHaveBeenCalledWith('c-1');
   });
 
   it('reconciles orphans and missing containers on startup', async () => {

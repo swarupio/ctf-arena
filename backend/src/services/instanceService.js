@@ -109,11 +109,17 @@ export function createInstanceService({ docker = defaultDocker, config = env } =
   // it. The player routes and the reaper keep the exclusive claim, so they never touch another caller's
   // stop in progress. Removing a container is idempotent (an already removed one is ignored), so a forced
   // stop overlapping a slow normal one is harmless.
-  async function stop(instanceId, { force = false } = {}) {
+  //
+  // `stuckBefore` (a Date, used by the reaper) takes over only a 'stopping' claim made before that time, so a stop
+  // that another caller started a moment ago is left alone while a crashed one is finished. It is atomic like the rest.
+  async function stop(instanceId, { force = false, stuckBefore = null } = {}) {
     const claimable = force ? ['starting', 'running', 'stopping'] : ['starting', 'running'];
+    const filter = stuckBefore
+      ? { _id: instanceId, status: 'stopping', $or: [{ stoppingAt: { $lte: stuckBefore } }, { stoppingAt: { $exists: false } }] }
+      : { _id: instanceId, status: { $in: claimable } };
     const claimed = await Instance.findOneAndUpdate(
-      { _id: instanceId, status: { $in: claimable } },
-      { $set: { status: 'stopping' } },
+      filter,
+      { $set: { status: 'stopping', stoppingAt: new Date() } },
       { new: true },
     );
     if (!claimed) { return null; }

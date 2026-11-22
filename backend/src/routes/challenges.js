@@ -16,6 +16,7 @@ import { instanceService, serializeInstance } from '../services/instanceService.
 import { integrityService } from '../services/integrityService.js';
 import { recordSolve } from '../services/scoringService.js';
 import { getTeamContext } from '../services/teamContext.js';
+import { resolveView } from '../services/viewCutoff.js';
 
 const router = Router();
 const submitSchema = z.object({ flag: z.string().trim().min(1).max(200) }).strict();
@@ -42,7 +43,9 @@ const SUMMARY_FIELDS = 'slug title category difficulty points type solveCount';
 const DETAIL_FIELDS = `${SUMMARY_FIELDS} description attachments`;
 
 // Explicit allow-list: flag, flagHash and flagSalt can never leak through this shape.
-export function playerSummary(challenge, solvedIds, ) {
+// `hideCounts` (frozen scoreboard, players only) turns the live per-challenge solve counter into null: it would
+// otherwise show how every team is doing while the standings are frozen.
+export function playerSummary(challenge, solvedIds, hideCounts = false) {
   return {
     id: String(challenge._id),
     slug: challenge.slug,
@@ -51,7 +54,7 @@ export function playerSummary(challenge, solvedIds, ) {
     difficulty: challenge.difficulty,
     points: challenge.points,
     type: challenge.type,
-    solveCount: challenge.solveCount ?? 0,
+    solveCount: hideCounts ? null : (challenge.solveCount ?? 0),
     solvedByMyTeam: solvedIds.has(String(challenge._id)),
     // Additive: docker challenges only run when the platform is hosted locally (DOCKER_ENABLED=false on Vercel).
     ...(challenge.type === 'docker' ? { dockerAvailable: env.DOCKER_ENABLED !== false } : {}),
@@ -66,7 +69,7 @@ async function visibleChallenge(id, fields = null) {
 }
 
 // Runs two independent reads concurrently but reports the first one's error first, like sequential awaits would.
-async function both(first, second) {
+export async function both(first, second) {
   const [a, b] = await Promise.allSettled([first, second]);
   if (a.status === 'rejected') { throw a.reason; }
   if (b.status === 'rejected') { throw b.reason; }
@@ -79,13 +82,16 @@ router.use(auth);
 
 router.get('/', requireRole('player', 'admin'), async (req, res) => {
   // The challenge list does not depend on the team, so both reads run at the same time.
-  const [challenges, solves] = await Promise.all([
+  const [challenges, solves, { frozen }] = await Promise.all([
     Challenge.find({ visible: true }, SUMMARY_FIELDS, { lean: true }).sort({ points: 1, title: 1 }),
     getTeamContext(req.user, { requireTeam: false, blockBanned: false })
       .then(({ team }) => (team ? Solve.find({ teamId: team._id }, 'challengeId -_id', { lean: true }) : [])),
+    resolveView(req.user),
   ]);
   const solvedIds = new Set(solves.map((solve) => String(solve.challengeId)));
-  res.json(challenges.map((challenge) => playerSummary(challenge, solvedIds)));
+  // Per-user view (frozen hides the counters from players): never shared by a cache.
+  res.set({ 'Cache-Control': 'private, no-store', Vary: 'Authorization' });
+  res.json(challenges.map((challenge) => playerSummary(challenge, solvedIds, frozen)));
 });
 
 router.get('/:id', requireRole('player', 'admin'), async (req, res) => {
@@ -93,6 +99,7 @@ router.get('/:id', requireRole('player', 'admin'), async (req, res) => {
     visibleChallenge(req.params.id, DETAIL_FIELDS),
     getTeamContext(req.user, { requireTeam: false, blockBanned: false }),
   );
+  const { frozen } = await resolveView(req.user);
   const [solved, instance] = team ? await Promise.all([
     Solve.exists({ teamId: team._id, challengeId: challenge._id }),
     challenge.type === 'docker'
@@ -100,7 +107,7 @@ router.get('/:id', requireRole('player', 'admin'), async (req, res) => {
       : null,
   ]) : [null, null];
   res.json({
-    ...playerSummary(challenge, new Set(solved ? [String(challenge._id)] : [])),
+    ...playerSummary(challenge, new Set(solved ? [String(challenge._id)] : []), frozen),
     description: challenge.description,
     attachments: (challenge.attachments ?? []).map(({ name, url }) => ({ name, url })),
     hasInstance: Boolean(instance),
@@ -149,8 +156,9 @@ router.post('/:id/submit', playerOnly, async (req, res) => {
   if (!solve) {
     throw new AppError(409, 'CONFLICT', 'Your team has already solved this challenge.');
   }
-  await instanceService.stopTeamChallenge(team._id, challenge._id).catch(() => {});
-  const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id }); // cosmetic; never throws
+  // Only docker challenges have instances (instanceService.start refuses every other type): no lookup for the rest.
+  if (challenge.type === 'docker') { await instanceService.stopTeamChallenge(team._id, challenge._id).catch(() => {}); }
+  const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id, memberCount: team.memberIds?.length }); // cosmetic; never throws
   return res.json({
     ...(badges.length ? { badges } : {}),
     correct: true,

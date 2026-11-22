@@ -78,10 +78,12 @@ describe('GET /api/leaderboard', () => {
   it('appends teams without solves at the bottom with 0 points, never banned ones', async () => {
     const teams = [idleTeam(5, 'Quiet'), idleTeam(6, 'Alpha Idle'), { ...idleTeam(7, 'Banned Idle'), banned: true }, idleTeam(1, 'Solvers')];
     Solve.aggregate.mockResolvedValue([row(1, 'Solvers', 10, 1, 5)]);
-    // Behaves like the database: applies the banned filter and the $nin list the service sends.
-    Team.find.mockImplementation(async (filter) => teams.filter((t) => (
-      !t.banned && !filter._id.$nin.some((id) => String(id) === String(t._id))
-    )));
+    // Behaves like the database: applies the banned filter the service sends. The service itself drops the teams
+    // that already have solves ('Solvers' is returned here and must still appear only once, with its points).
+    Team.find.mockImplementation(async (filter) => {
+      expect(filter).toEqual({ banned: { $ne: true } });
+      return teams.filter((t) => !t.banned);
+    });
     const { body } = await api('').expect(200);
     expect(body.map((t) => [t.rank, t.teamName, t.points, t.solves, t.lastSolveAt])).toEqual([
       [1, 'Solvers', 10, 1, at(5).toISOString()], [2, 'Alpha Idle', 0, 0, null], [3, 'Quiet', 0, 0, null],

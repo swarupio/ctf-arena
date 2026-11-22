@@ -9,10 +9,13 @@ import { AppError } from '../utils/AppError.js';
 import { boolText, iso, listQuery, searchRegex } from './adminCommon.js';
 import { CODE_DEFINED_TYPES, adminView, fields, importItemSchema, isCodeDefined } from './adminChallengeSchema.js';
 
+// Every value of the model's `type` enum (CODE_DEFINED_TYPES are the game-like ones).
+export const CHALLENGE_TYPES = ['static', 'docker', 'terminal', ...CODE_DEFINED_TYPES];
+
 export const challengesQuery = listQuery(['createdAt', 'title', 'points', 'solveCount'], 'createdAt', {
   category: z.enum(['web', 'crypto', 'forensics', 'misc', 'pwn', 'terminal']).optional(),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
-  type: z.enum(['static', 'docker', 'terminal']).optional(),
+  type: z.enum(CHALLENGE_TYPES).optional(),
   visible: boolText.optional(),
 });
 export const visibilityBody = z.object({ visible: z.boolean() }).strict();

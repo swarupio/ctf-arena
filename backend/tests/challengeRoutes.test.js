@@ -134,11 +134,19 @@ describe('flag submission', () => {
     expect(recordSolve).not.toHaveBeenCalled();
   });
 
-  it('awards points, reports first blood and stops the team instance on a correct flag', async () => {
-    recordSolve.mockResolvedValue({ points: 27, firstBlood: true, score: 27 });
+  it('awards points and reports first blood on a correct flag; a static challenge has no instance to look up', async () => {
+    recordSolve.mockResolvedValue({ points: 27, firstBlood: true });
     const { body } = await api('post', `/challenges/${staticChallenge._id}/submit`, 'player', { flag: 'CTF{static_one}' }).expect(200);
     expect(body).toMatchObject({ correct: true, pointsAwarded: 27, firstBlood: true });
-    expect(instanceService.stopTeamChallenge).toHaveBeenCalledWith(oid(2), staticChallenge._id);
+    expect(instanceService.stopTeamChallenge).not.toHaveBeenCalled();
+  });
+
+  it('stops the team instance of a docker challenge on a correct flag', async () => {
+    Challenge.findOne.mockResolvedValue(dockerChallenge);
+    recordSolve.mockResolvedValue({ points: 100, firstBlood: false });
+    const own = expectedFlagFor(dockerChallenge, { secret: env.FLAG_SECRET, teamId: oid(2) });
+    await api('post', `/challenges/${dockerChallenge._id}/submit`, 'player', { flag: own }).expect(200).expect((r) => expect(r.body.correct).toBe(true));
+    expect(instanceService.stopTeamChallenge).toHaveBeenCalledWith(oid(2), dockerChallenge._id);
   });
 
   it('accepts the team-specific docker flag and rejects another team\'s flag', async () => {

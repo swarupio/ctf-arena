@@ -3,13 +3,17 @@ import Team from '../models/Team.js';
 
 export const TIMELINE_TEAMS = 10;
 
-// Short-lived in-process memo of the full ranking (one entry, so memory is bounded). Every replica recomputes at
+// Short-lived in-process memo of the full ranking, one entry per view: the live ranking, and (only while an event's
+// scoreboard is frozen) the ranking at the freeze time. The key includes the cutoff, so live data can never be served
+// to a request that asked for the frozen view, or the other way round. Entries are pruned on insert (bounded size). Every replica recomputes at
 // most once per TTL, so the answer is at most TTL old on any replica (the contract allows a few seconds of lag).
 // Concurrent callers share one in-flight computation. It holds only public data (team names, points), never per-user data.
 // Disabled under NODE_ENV=test unless a test calls configureRankingCache.
 let cacheTtlMs = process.env.NODE_ENV === 'test' ? 0 : 5000;
-let cached = null;
-export function configureRankingCache({ ttlMs }) { cacheTtlMs = ttlMs; cached = null; }
+const cached = new Map();
+export function configureRankingCache({ ttlMs }) { cacheTtlMs = ttlMs; cached.clear(); }
+const MAX_CACHED_VIEWS = 4;
+const viewKey = (asOf) => (asOf ? `asOf:${new Date(asOf).getTime()}` : 'live');
 
 // Manual score adjustments (Solve rows with adjustment: true) add to points but are not solves.
 const REAL_SOLVE_COUNT = { $sum: { $cond: [{ $eq: ['$adjustment', true] }, 0, 1] } };
@@ -30,8 +34,10 @@ export function compareStanding(a, b) {
 
 // Teams with solves, aggregated as in DATABASE_SCHEMA.md "Leaderboard query".
 // $project keeps only the team name, so invite codes and member lists never leave the database layer.
-function solvedTeams() {
+// `asOf` (a Date) keeps only solves at or before that instant: the frozen scoreboard of an event.
+function solvedTeams(asOf) {
   return Solve.aggregate([
+    ...(asOf ? [{ $match: { solvedAt: { $lte: new Date(asOf) } } }] : []),
     { $group: { _id: '$teamId', points: { $sum: '$points' }, solves: REAL_SOLVE_COUNT, lastSolveAt: { $max: '$solvedAt' } } },
     { $sort: { points: -1, lastSolveAt: 1 } },
     { $lookup: { from: 'teams', localField: '_id', foreignField: '_id', as: 'team' } },
@@ -43,8 +49,9 @@ function solvedTeams() {
 
 // Complete ranking: solved teams first, then every other visible team with 0 points.
 // Rank is the position in the list (1-based); ties are broken deterministically.
-async function computeRanking() {
-  const rows = await solvedTeams();
+async function computeRanking(asOf) {
+  // The idle teams do not depend on the aggregation (teams that solved something are removed here), so both reads run at once.
+  const [rows, visibleTeams] = await Promise.all([solvedTeams(asOf), Team.find({ banned: { $ne: true } }, 'name', { lean: true })]);
   const standings = rows.map((row) => ({
     teamId: String(row._id),
     teamName: row.teamName,
@@ -52,36 +59,53 @@ async function computeRanking() {
     solves: row.solves,
     lastSolveAt: row.lastSolveAt ? new Date(row.lastSolveAt).toISOString() : null,
   }));
-  const idle = await Team.find({ banned: { $ne: true }, _id: { $nin: rows.map((row) => row._id) } }, 'name', { lean: true });
-  for (const team of idle) {
+  const solvedIds = new Set(rows.map((row) => String(row._id)));
+  for (const team of visibleTeams) {
+    if (solvedIds.has(String(team._id))) { continue; }
     standings.push({ teamId: String(team._id), teamName: team.name, points: 0, solves: 0, lastSolveAt: null });
   }
   return standings.sort(compareStanding).map((standing, index) => ({ rank: index + 1, ...standing }));
 }
 
-async function rankTeams() {
-  if (cacheTtlMs <= 0) { return computeRanking(); }
-  if (cached && cached.expires > Date.now()) { return cached.promise; }
+async function rankTeams(asOf = null) {
+  if (cacheTtlMs <= 0) { return computeRanking(asOf); }
+  const key = viewKey(asOf);
+  const hit = cached.get(key);
+  if (hit && hit.expires > Date.now()) { return hit.promise; }
+  for (const [other, entry] of cached) { if (entry.expires <= Date.now()) { cached.delete(other); } }
+  while (cached.size >= MAX_CACHED_VIEWS) { cached.delete(cached.keys().next().value); }
   const entry = { expires: Date.now() + cacheTtlMs, promise: null };
-  entry.promise = computeRanking().catch((error) => {
-    if (cached === entry) { cached = null; }
+  entry.promise = computeRanking(asOf).catch((error) => {
+    if (cached.get(key) === entry) { cached.delete(key); }
     throw error;
   });
-  cached = entry;
+  cached.set(key, entry);
   return entry.promise;
 }
 
-export async function getLeaderboard({ limit } = {}) {
-  const ranking = await rankTeams();
+export async function getLeaderboard({ limit, asOf = null } = {}) {
+  const ranking = await rankTeams(asOf);
   return limit ? ranking.slice(0, limit) : ranking;
+}
+
+// One team's own live totals (used by the frozen scoreboard so a team still sees its own score). Never ranks it:
+// a live rank would reveal how other teams are doing. Not cached: one indexed aggregation for one team.
+export async function getTeamScore(teamId) {
+  const [row] = await Solve.aggregate([
+    { $match: { teamId } },
+    { $group: { _id: '$teamId', points: { $sum: '$points' }, solves: REAL_SOLVE_COUNT } },
+  ]);
+  return { points: row?.points ?? 0, solves: row?.solves ?? 0 };
 }
 
 // Cumulative score after each solve for the top teams. Every line starts at 0 at the time of the
 // earliest solve shown, so a chart can begin all lines at the same point.
-export async function getTimeline({ now = new Date() } = {}) {
-  const top = (await rankTeams()).slice(0, TIMELINE_TEAMS);
+// With `asOf` (frozen scoreboard) the top teams and every line only use solves at or before that instant.
+export async function getTimeline({ now = new Date(), asOf = null } = {}) {
+  const top = (await rankTeams(asOf)).slice(0, TIMELINE_TEAMS);
   const solves = top.length === 0 ? [] : await Solve.find(
-    { teamId: { $in: top.map((team) => team.teamId) } }, 'teamId points solvedAt', { lean: true },
+    { teamId: { $in: top.map((team) => team.teamId) }, ...(asOf ? { solvedAt: { $lte: new Date(asOf) } } : {}) },
+    'teamId points solvedAt', { lean: true },
   ).sort({ solvedAt: 1, _id: 1 });
 
   const start = new Date(solves.length ? solves[0].solvedAt : now).toISOString();

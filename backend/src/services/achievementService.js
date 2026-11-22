@@ -106,38 +106,54 @@ export const toFact = (challenge) => ({
   category: challenge.category, difficulty: challenge.difficulty, type: challenge.type, mode: challenge.terminal?.mode,
 });
 
-// Reads the facts with a few small lean queries, all on indexed fields.
-export async function loadFacts({ userId, teamId }) {
-  const userSolves = await Solve.find({ userId, adjustment: { $ne: true } }).select('challengeId solvedAt firstBlood').lean();
-  const teamSolves = teamId ? await Solve.find({ teamId, adjustment: { $ne: true } }).select('challengeId').lean() : [];
-  const ids = [...new Set([...userSolves, ...teamSolves].map((solve) => String(solve.challengeId)))];
-  const rows = ids.length ? await Challenge.find({ _id: { $in: ids } }).select('category difficulty type terminal.mode').lean() : [];
-  const challenges = Object.fromEntries(rows.map((row) => [String(row._id), toFact(row)]));
+// Reads the facts with a few small lean queries, all on indexed fields. The user's and the team's solves come from ONE
+// query ($or over the {userId, solvedAt} and {teamId, challengeId} indexes) and are split here, and the team document
+// is only read when the caller did not pass `memberCount` (the submit routes already hold the team from the request).
+export async function loadFacts({ userId, teamId, memberCount }) {
+  const filter = teamId ? { $or: [{ userId }, { teamId }], adjustment: { $ne: true } } : { userId, adjustment: { $ne: true } };
+  const [rows, team] = await Promise.all([
+    Solve.find(filter).select('userId teamId challengeId solvedAt firstBlood').lean(),
+    teamId && typeof memberCount !== 'number' ? Team.findById(teamId).select('memberIds').lean() : null,
+  ]);
+  const userSolves = rows.filter((solve) => String(solve.userId) === String(userId));
+  const teamSolves = teamId ? rows.filter((solve) => String(solve.teamId) === String(teamId)) : [];
+  const ids = [...new Set(rows.map((solve) => String(solve.challengeId)))];
+  const challengeRows = ids.length ? await Challenge.find({ _id: { $in: ids } }).select('category difficulty type terminal.mode').lean() : [];
+  const challenges = Object.fromEntries(challengeRows.map((row) => [String(row._id), toFact(row)]));
   const terminalTotals = {};
-  if (rows.some((row) => row.type === 'terminal')) {
+  if (challengeRows.some((row) => row.type === 'terminal')) {
     const totals = await Challenge.aggregate([
       { $match: { type: 'terminal', visible: true } }, { $group: { _id: '$terminal.mode', n: { $sum: 1 } } },
     ]);
     for (const row of totals) { terminalTotals[row._id] = row.n; }
   }
-  const team = teamId ? await Team.findById(teamId).select('memberIds').lean() : null;
-  return { userSolves, teamSolves, challenges, terminalTotals, memberCount: team?.memberIds?.length ?? 0 };
+  return {
+    userSolves, teamSolves, challenges, terminalTotals,
+    memberCount: typeof memberCount === 'number' ? memberCount : team?.memberIds?.length ?? 0,
+  };
 }
 
-// Awards every newly earned badge. The unique {userId,key} index plus an upsert makes this idempotent and safe
-// across replicas: only the call that really inserted a row reports the badge as new.
-export async function evaluate({ userId, teamId = null }) {
-  const earned = computeEarned(await loadFacts({ userId, teamId }));
-  const fresh = [];
-  for (const key of earned) {
+// Awards every newly earned badge. The badges the user already holds are read in the same round trip as the facts and
+// skipped, so a solve only writes the badges that are really new (not one upsert per earned badge). The unique
+// {userId,key} index plus an upsert still makes the write idempotent and safe across replicas: only the call that
+// really inserted a row reports the badge as new.
+export async function evaluate({ userId, teamId = null, memberCount }) {
+  const [facts, held] = await Promise.all([
+    loadFacts({ userId, teamId, memberCount }),
+    Achievement.find({ userId }).select('key').lean(),
+  ]);
+  const have = new Set(held.map((row) => row.key));
+  const missing = computeEarned(facts).filter((key) => !have.has(key));
+  const awarded = await Promise.all(missing.map(async (key) => {
     try {
       const result = await Achievement.updateOne({ userId, key }, { $setOnInsert: { awardedAt: new Date() } }, { upsert: true });
-      if (result?.upsertedCount === 1) { fresh.push(publicBadge(key)); }
+      return result?.upsertedCount === 1 ? publicBadge(key) : null;
     } catch (error) {
       if (error?.code !== 11000) { throw error; }
+      return null;
     }
-  }
-  return fresh;
+  }));
+  return awarded.filter(Boolean);
 }
 
 // The hook used by the submit routes. It never throws, never waits longer than EVALUATE_TIMEOUT_MS and does nothing

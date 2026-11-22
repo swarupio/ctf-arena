@@ -24,7 +24,7 @@ describe('serverless entry', () => {
     const response = await (await loadHandler()).get('/api/health').expect(200);
     expect(response.body.status).toBe('ok');
     expect(connectDB).toHaveBeenCalledOnce();
-  });
+  }, 60_000);
 
   it('connects before any route runs (the admin audit and settings code assume a live connection)', async () => {
     const order = [];

@@ -41,6 +41,17 @@ export function createDockerService({ docker = new (loadDocker())(), limits = en
     }
   }
 
+  // Lazy and memoised on success only: a Docker daemon that starts after the backend still works on the next
+  // request, and parallel first requests share one attempt. A failure is not cached, so the next call retries.
+  let networkReady = null;
+  function ensureNetworkOnce() {
+    networkReady ??= ensureNetwork().catch((error) => {
+      networkReady = null;
+      throw error;
+    });
+    return networkReady;
+  }
+
   async function createInstance({ instanceId, teamId, challengeId, image, internalPort, port, flag }) {
     if (!IMAGE_PATTERN.test(image)) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Challenge image must start with ctf/.');
@@ -48,6 +59,7 @@ export function createDockerService({ docker = new (loadDocker())(), limits = en
     if (port < limits.CHALLENGE_PORT_MIN || port > limits.CHALLENGE_PORT_MAX) {
       throw new AppError(500, 'SERVER_ERROR', 'Port is outside the allowed challenge range.');
     }
+    await ensureNetworkOnce();
     const containerPort = `${internalPort}/tcp`;
     const container = await docker.createContainer({
       Image: image,

@@ -11,6 +11,8 @@ const instanceSchema = new mongoose.Schema({
   status: { type: String, enum: ['starting', 'running', 'stopping', 'stopped', 'failed'], default: 'starting' },
   expiresAt: { type: Date, required: true },
   extended: { type: Boolean, default: false },
+  // Set when a stop claims the instance (status 'stopping'); the reaper takes over claims older than a few minutes.
+  stoppingAt: { type: Date },
   stoppedAt: { type: Date },
 }, { timestamps: { createdAt: true, updatedAt: false } });
 

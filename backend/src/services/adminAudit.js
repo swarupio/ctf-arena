@@ -54,22 +54,29 @@ export async function actorIdOrFail(req) {
   return actor._id;
 }
 
+// Runs after the mutation succeeded, so a failing audit write must not turn that completed change into a 500 (the
+// admin would retry something that already happened). It logs one line (no values, driver errors can hold secrets).
 export async function recordAudit(req, {
   action, targetType, targetId = null, before = null, after = null, note = '',
 }) {
   if (dbOffline()) { return; }
-  const actor = await actorOf(req);
-  await AuditLog.create({
-    actorId: actor?._id ?? null,
-    actorEmail: req.user.email,
-    action,
-    targetType,
-    targetId: targetId === null ? null : String(targetId),
-    before: summarize(before),
-    after: summarize(after),
-    note: String(note ?? '').slice(0, 500),
-    ip: addressOf(req),
-  });
+  try {
+    const actor = await actorOf(req);
+    await AuditLog.create({
+      actorId: actor?._id ?? null,
+      actorEmail: req.user.email,
+      action,
+      targetType,
+      targetId: targetId === null ? null : String(targetId),
+      before: summarize(before),
+      after: summarize(after),
+      note: String(note ?? '').slice(0, 500),
+      ip: addressOf(req),
+    });
+  } catch {
+    process.stderr.write(`[audit] could not record "${action}"; the action itself completed
+`);
+  }
 }
 
 export const auditQuery = listQuery(['createdAt'], '-createdAt', {

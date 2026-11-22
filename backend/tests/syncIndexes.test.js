@@ -16,3 +16,18 @@ describe('db:indexes script', () => {
     expect(b.syncIndexes).toHaveBeenCalledOnce();
   });
 });
+
+describe('admin list indexes', () => {
+  it('are declared on the models that db:indexes loads', async () => {
+    const models = Object.fromEntries((await loadModels()).map((model) => [model.modelName, model]));
+    const keys = (name) => models[name].schema.indexes().map(([key]) => JSON.stringify(key));
+    expect(keys('Solve')).toEqual(expect.arrayContaining([
+      JSON.stringify({ userId: 1, solvedAt: -1 }), JSON.stringify({ challengeId: 1, solvedAt: 1 }),
+    ]));
+    // Time-ordered covering index (feed, frozen leaderboard, admin per-day series); it replaces the bare { solvedAt: 1 }.
+    expect(keys('Solve')).toContain(JSON.stringify({ solvedAt: 1, adjustment: 1, teamId: 1, points: 1 }));
+    expect(keys('Solve')).not.toContain(JSON.stringify({ solvedAt: 1 }));
+    expect(keys('Submission')).toContain(JSON.stringify({ userId: 1, createdAt: -1 }));
+    expect(keys('User')).toContain(JSON.stringify({ createdAt: -1 }));
+  });
+});

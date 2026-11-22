@@ -12,6 +12,15 @@ const appSettingSchema = new mongoose.Schema({
     text: { type: String, default: '', maxlength: 500 },
     level: { type: String, enum: ANNOUNCEMENT_LEVELS, default: 'info' },
   },
+  // Optional scheduled Arena event (services/eventPhase.js). Absent = no event. The phase is derived from these
+  // timestamps and the clock on every request; nothing is stored about the current phase.
+  event: {
+    // No defaults here on purpose: upserts add defaults with $setOnInsert, which would conflict with $set/$unset of `event`.
+    name: { type: String, maxlength: 80 },
+    startsAt: { type: Date },
+    endsAt: { type: Date },
+    freezeAt: { type: Date },
+  },
   updatedBy: { type: String, default: '' },
 }, { versionKey: false, timestamps: { createdAt: false, updatedAt: true } });
 

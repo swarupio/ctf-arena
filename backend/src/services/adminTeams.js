@@ -27,6 +27,15 @@ async function totalsByTeam() {
   return new Map(rows.map((row) => [String(row._id), row]));
 }
 
+// One team's totals: an indexed aggregation over that team's solves only (the detail page does not need every team's).
+async function teamTotals(teamId) {
+  const [row] = await Solve.aggregate([
+    { $match: { teamId } },
+    { $group: { _id: '$teamId', score: { $sum: '$points' }, solves: { $sum: { $cond: ['$adjustment', 0, 1] } }, lastSolveAt: { $max: '$solvedAt' } } },
+  ]);
+  return row;
+}
+
 // Teams are few (hundreds): filter in the database, aggregate scores once, sort and slice here so `score` is sortable.
 export async function listTeamsPaged(query) {
   const filter = {};
@@ -64,13 +73,12 @@ export async function listTeamsPaged(query) {
 export async function getTeamDetail(teamId) {
   const team = await Team.findById(teamId, 'name memberIds banned captainId createdAt').lean();
   if (!team) { throw new AppError(404, 'NOT_FOUND', 'Team not found.'); }
-  const [members, solves, activeInstances] = await Promise.all([
+  const [members, solves, activeInstances, total] = await Promise.all([
     User.find({ _id: { $in: team.memberIds ?? [] } }, 'displayName email banned').lean(),
     listSolves(solvesQuery.parse({ teamId: String(team._id), sort: 'solvedAt', limit: '100' })),
     Instance.countDocuments({ teamId: team._id, status: { $in: ACTIVE_STATUSES } }),
+    teamTotals(team._id),
   ]);
-  const totals = await totalsByTeam();
-  const total = totals.get(String(team._id));
   const adjustments = solves.items.filter((item) => item.adjustment).reduce((sum, item) => sum + item.points, 0);
   return {
     id: String(team._id),
