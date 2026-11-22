@@ -114,7 +114,7 @@ export function describeError(error, context = 'exec') {
   const status = Number(error?.status);
   const code = text(error?.code);
   if (code === 'NO_TEAM') {
-    return { kind: 'no-team', message: 'no team yet - join or create a team first, codes are scored per team.', link: { to: '/team', label: 'open the Team page' } };
+    return { kind: 'no-team', message: 'no team yet - join or create a team first, flags are scored per team.', link: { to: '/team', label: 'open the Team page' } };
   }
   if (code === 'TEAM_BANNED') {
     return { kind: 'banned', message: 'your team has been banned from the arena.', link: { to: '/team', label: 'open the Team page' } };

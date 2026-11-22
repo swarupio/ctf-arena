@@ -3,7 +3,7 @@
   display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px var(--space-3);
   background: var(--term-bg-black); border-top: 1px solid var(--term-dot);
 }
-.tm-window .tm-hint-info { display: flex; flex-wrap: wrap; gap: 2px 10px; min-width: 0; color: var(--term-white); opacity: 0.8; font-size: 0.8125rem; }
+.tm-window .tm-hint-info { display: flex; flex-wrap: wrap; gap: 2px 16px; min-width: 0; color: var(--term-white); opacity: 0.8; font-size: 0.8125rem; }
 .tm-window button.tm-hint-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 @media (pointer: coarse) {
   .tm-window .tm-hintbar { gap: 8px; }
@@ -13,6 +13,5 @@
   .tm-window .tm-hintbar { flex-wrap: nowrap; overflow-x: auto; padding-block: 4px; }
   .tm-window .tm-hintbar > * { flex: none; }
 }
-.tm-window .tm-hint-info > span + span::before { content: '\00b7'; margin-right: 10px; }
 .tm-window .tm-hint-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; color: var(--term-white); font-size: 0.8125rem; }
 .tm-window .tm-hint-confirm > span { flex: 1 1 14rem; min-width: 0; }

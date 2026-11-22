@@ -170,12 +170,12 @@ export default function Leaderboard() {
     <div className="lb-card">
       <h2>Standings</h2>
       {standings.length === 0
-        ? <p className="lb-note">No teams yet. Create a team on the Team page, then solve a challenge to get on the board.</p>
+        ? <p className="lb-note">No teams yet. Create a team on the Team page, then capture a flag to get on the board.</p>
         : <div className="lb-scroll" role="region" aria-label="Team standings table" tabIndex={0}><table className="lb-table">
           <caption className="lb-sr">Team standings</caption>
           <thead><tr>
             <th scope="col" className="lb-rank">Rank</th><th scope="col">Team</th>
-            <th scope="col" className="lb-num">Points</th><th scope="col" className="lb-num">Solves</th>
+            <th scope="col" className="lb-num">Points</th><th scope="col" className="lb-num">Flags</th>
           </tr></thead>
           <tbody>
             {standings.map((row) => {

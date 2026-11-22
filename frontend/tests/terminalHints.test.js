@@ -87,11 +87,11 @@ const INFO = {
 test('terminal: the server prices decide the confirmation, the spend and the next price', () => {
   const first = hintBarView(INITIAL_HINTS, { mode: 'easy', info: INFO });
   assert.equal(first.firstConfirm, true);
-  assert.equal(first.firstPriceText, 'Costs 5% (-5 pts)');
-  assert.equal(first.costText, 'Next hint: Costs 5% (-5 pts). So far -5 pts. You can still earn 95.');
+  assert.equal(first.firstPriceText, 'Costs\u00a05% (-5\u00a0pts)');
+  assert.equal(first.costText, 'Next hint: Costs\u00a05% (-5\u00a0pts). So far -5\u00a0pts. You can still earn 95.');
   const second = hintBarView(run([{ type: 'output', text: out(1, 3, 3) }]), { mode: 'easy', info: INFO });
   assert.equal(second.nextCommand, 'hint 2');
-  assert.equal(second.nextPriceText, 'Costs 10% (-10 pts)');
+  assert.equal(second.nextPriceText, 'Costs\u00a010% (-10\u00a0pts)');
   assert.equal(second.nextConfirm, true);
 });
 

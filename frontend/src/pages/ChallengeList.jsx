@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listChallenges } from '../api/challenges.js';
-import { challengeErrorMessage, groupByCategory, solveCountLabel, splitTerminalChallenges } from './challengeHelpers.js';
+import { CATEGORY_LEGEND, challengeErrorMessage, groupByCategory, solveCountLabel, splitTerminalChallenges } from './challengeHelpers.js';
 import '../overview.css';
 import './Challenge.css';
 import '../terminal/terminal.css';
@@ -46,6 +46,7 @@ export default function ChallengeList() {
 
   return <section className="challenges ov-page">
     <header className="ov-header"><h1>Challenges</h1></header>
+    <p className="category-legend">{CATEGORY_LEGEND}</p>
     {regular.length === 0 && terminal.count === 0 && <p>No challenges are available yet. Try the Range instead.</p>}
     <div className="challenge-groups">
     {groupByCategory(regular).map(({ category, items }) => <div key={category} className="challenge-group">
@@ -56,7 +57,7 @@ export default function ChallengeList() {
           <span className="tags">
             <span className="tag tag-points">{challenge.points} pts</span>
             <span className={`tag tag-${challenge.difficulty}`}>{challenge.difficulty}</span>
-            {challenge.type === 'docker' && <span className="tag">instance</span>}
+            {challenge.type === 'docker' && <span className="tag">own server</span>}
           </span>
           <span className="challenge-foot">
             <span className="challenge-meta" title={challenge.solveCount == null ? 'Solve counts are hidden while the scoreboard is frozen.' : undefined}>{solveCountLabel(challenge.solveCount)}</span>

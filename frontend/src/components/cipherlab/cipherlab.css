@@ -111,7 +111,8 @@ a.cl-rung-link:focus-visible { border-color: var(--color-line); background: var(
   .cl-toolbox { position: static; }
 }
 @media (max-width: 520px) {
-  .cl-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: var(--space-1); }
+  /* scrolls sideways; the right edge fades out so it is clear there are more tabs (padding keeps the last tab clear of the fade) */
+  .cl-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding: 0 var(--space-6) var(--space-1) 0; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
   .cl-tabs button { flex: 0 0 auto; white-space: nowrap; }
   .cl-box { padding: var(--space-4); }
   .cl-box > h2 { margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) 0; padding-inline: var(--space-4); }

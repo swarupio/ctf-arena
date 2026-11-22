@@ -34,7 +34,7 @@ export default function HintBar({ state, mode, isAdmin, busy, onRun, info = null
 
   return <div className="tm-hintbar" role="group" aria-label="Hints" ref={askAgain}>
     {pending ? <div className="tm-hint-confirm" role="group" aria-label="Confirm opening a hint" ref={group} onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); close(true); } }}>
-      <span>This hint {pending.priceText.replace(/^Costs/, 'costs')}, taken from the code's points when you capture it. Open it?</span>
+      <span>This hint {pending.priceText.replace(/^Costs/, 'costs')}, taken from the flag's points when you capture it. Open it?</span>
       <button type="button" className="tm-chip tm-hint-btn" disabled={busy} onClick={confirm}>Yes, open it</button>
       <button type="button" className="tm-chip tm-hint-btn" onClick={() => close(true)}>Not yet</button>
     </div> : <>

@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { useTeam } from '../layout/TeamContext.jsx';
 import ProgressBar from '../components/cipherlab/ProgressBar.jsx';
 import TrackCard from '../components/cipherlab/TrackCard.jsx';
-import { cipherErrorMessage, nextLevel, streakText } from '../components/cipherlab/helpers.js';
+import { cipherErrorMessage, nextLevel, streakText, unlockText } from '../components/cipherlab/helpers.js';
 import '../components/cipherlab/cipherlab.css';
 import '../overview.css';
 
@@ -56,7 +56,7 @@ function Overview() {
         <ul className="cl-toollist">
           {data.toolbox.map((tool) => <li key={tool.id} className={tool.unlocked ? 'is-open' : 'is-locked'}>
             <strong>{tool.unlocked ? tool.name : `Locked: ${tool.name}`}</strong>
-            <span>{tool.unlocked ? tool.description : `Clear level ${tool.unlockedBy.toUpperCase()} to unlock.`}</span>
+            <span>{tool.unlocked ? tool.description : `${unlockText(tool.unlockedBy)}.`}</span>
           </li>)}
         </ul>
       </section>

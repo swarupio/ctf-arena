@@ -6,7 +6,7 @@ import { GAMES } from '../games/registry.js';
 import { CATALOGUE } from '../skills/levelSkills.js';
 import { CATEGORY_IDS, loadCategory, mergeProgress } from '../skills/progress.js';
 import {
-  computeCoverage, filterRows, flattenCatalogue, frameworkSummary, groupByFramework, levelPath, portfolioStatus, summarize,
+  ADVANCED_NOTE, computeCoverage, filterRows, flattenCatalogue, frameworkSummary, groupByFramework, levelPath, portfolioStatus, splitAdvanced, summarize,
 } from '../skills/coverage.js';
 import { FRAMEWORKS, skillLabel } from '../skills/taxonomy.js';
 import '../overview.css';
@@ -141,6 +141,16 @@ export default function Skills() {
   const totals = summarize(rows);
   const visible = filterRows(rows, { framework, show: captured === null && show === 'shown' ? 'all' : show });
   const groups = groupByFramework(visible);
+  const { primary, advanced } = splitAdvanced(groups);
+  const renderGroup = ({ framework: group, rows: items }) => <section key={group.id} className="sk-card" aria-labelledby={`sk-fw-${group.id}`}>
+    <h2 id={`sk-fw-${group.id}`}>{group.name}</h2>
+    <p className="sk-muted">{group.note}</p>
+    <FrameworkMeter rows={rows.filter((row) => row.skill.framework === group.id)} name={group.name} />
+    <ul className="sk-list">
+      {items.map((row) => <Row key={row.skill.id} row={row} open={openId === row.skill.id}
+        onToggle={() => setOpenId(openId === row.skill.id ? null : row.skill.id)} challengeIds={progress.challengeIds} />)}
+    </ul>
+  </section>;
   const retry = () => {
     setResults((current) => { const next = { ...current }; progress.failed.forEach((id) => { delete next[id]; }); return next; });
     load(progress.failed, () => true);
@@ -187,15 +197,12 @@ export default function Skills() {
 
     <div className="sk-matrix sk-no-print">
       {groups.length === 0 && <p className="sk-muted">No skills match this filter.</p>}
-      {groups.map(({ framework: group, rows: items }) => <section key={group.id} className="sk-card" aria-labelledby={`sk-fw-${group.id}`}>
-        <h2 id={`sk-fw-${group.id}`}>{group.name}</h2>
-        <p className="sk-muted">{group.note}</p>
-        <FrameworkMeter rows={rows.filter((row) => row.skill.framework === group.id)} name={group.name} />
-        <ul className="sk-list">
-          {items.map((row) => <Row key={row.skill.id} row={row} open={openId === row.skill.id}
-            onToggle={() => setOpenId(openId === row.skill.id ? null : row.skill.id)} challengeIds={progress.challengeIds} />)}
-        </ul>
-      </section>)}
+      {primary.map(renderGroup)}
+      {advanced.length > 0 && <details className="sk-advanced" open={framework !== 'all' && framework !== 'area'}>
+        <summary>Advanced frameworks</summary>
+        <p className="sk-muted">{ADVANCED_NOTE}</p>
+        {advanced.map(renderGroup)}
+      </details>}
     </div>
 
     <section className="sk-card sk-sources" aria-labelledby="sk-sources-title">

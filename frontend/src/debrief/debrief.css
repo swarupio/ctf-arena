@@ -8,6 +8,9 @@
   min-width: 0;
 }
 .dbf[data-mode='preview'] { border-style: dashed; }
+/* Not captured yet (admin preview): the bar is there but quiet; hover still sets its own colour */
+.dbf[data-mode='preview'] .dbf-toggle { color: var(--color-muted); border-left-color: var(--color-line-soft); }
+@media (hover: hover) { .dbf[data-mode='preview'] .dbf-toggle:hover:not(:disabled) { color: var(--color-on-accent); } }
 .dbf-head { margin: 0; font-size: 1rem; font-weight: 700; }
 .dbf-toggle {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getPlayerProfile } from '../api/social.js';
 import { useTeam } from '../layout/TeamContext.jsx';
 import {
-  categoryTone, shareText, socialErrorMessage, sortBadges, streakLabel, timeAgo, unlockedBadges,
+  FIRST_BLOOD_NOTE, categoryTone, shareText, socialErrorMessage, sortBadges, streakLabel, timeAgo, unlockedBadges,
 } from './socialHelpers.js';
 import '../components/Social.css';
 import './Profile.css';
@@ -35,7 +35,7 @@ function ShareCard({ profile }) {
     <div className="pf-sharecard">
       <p className="pf-share-name">{profile.displayName}</p>
       <p>{profile.team ? `Team ${profile.team.name}` : 'No team yet'}</p>
-      <p className="pf-share-stats">{profile.solves} solves | {open.length}/{profile.badges.length} badges | {profile.firstBloods} first {profile.firstBloods === 1 ? 'blood' : 'bloods'}</p>
+      <p className="pf-share-stats">{profile.solves} {profile.solves === 1 ? 'flag' : 'flags'} | {open.length}/{profile.badges.length} badges | {profile.firstBloods} first {profile.firstBloods === 1 ? 'blood' : 'bloods'}</p>
       <p className="pf-share-icons" aria-hidden="true">{open.slice(0, 8).map((badge) => <span key={badge.key}>{badge.icon}</span>)}</p>
     </div>
     <button type="button" onClick={share}>{typeof navigator !== 'undefined' && navigator.share ? 'Share' : 'Copy summary'}</button>
@@ -72,8 +72,8 @@ export default function Profile() {
     </div>
 
     <dl className="pf-stats">
-      <div><dt>Solves</dt><dd>{profile.solves}</dd></div>
-      <div><dt>First bloods</dt><dd>{profile.firstBloods}</dd></div>
+      <div><dt>Flags</dt><dd>{profile.solves}</dd></div>
+      <div><dt title={FIRST_BLOOD_NOTE}>First bloods</dt><dd>{profile.firstBloods}</dd></div>
       <div><dt>Badges</dt><dd>{open}/{profile.badges.length}</dd></div>
       <div><dt>Streak</dt><dd>{profile.streak.current}<span className="pf-unit"> days</span></dd></div>
     </dl>
@@ -85,14 +85,14 @@ export default function Profile() {
     </section>
 
     <section className="pf-card" aria-labelledby="pf-recent-title">
-      <h2 id="pf-recent-title">Recent solves</h2>
+      <h2 id="pf-recent-title">Recent flags</h2>
       {profile.recentSolves.length === 0
-        ? <p className="fx-note">No solves yet.</p>
+        ? <p className="fx-note">No flags captured yet.</p>
         : <ul className="pf-recent">
           {profile.recentSolves.map((solve, index) => <li key={`${solve.solvedAt}-${index}`}>
             <span className={`tag pf-cat-${categoryTone(solve.category)}`}>{solve.category}</span>
             {solve.difficulty && <span className={`tag tag-${solve.difficulty}`}>{solve.difficulty}</span>}
-            {solve.firstBlood && <span className="tag tag-points">first blood</span>}
+            {solve.firstBlood && <span className="tag tag-points" title={FIRST_BLOOD_NOTE}>first blood</span>}
             <time dateTime={solve.solvedAt}>{timeAgo(solve.solvedAt)}</time>
           </li>)}
         </ul>}

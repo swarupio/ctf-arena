@@ -1,15 +1,13 @@
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { findFlags, formatBounty, percent, severityMeta } from './helpers.js';
+import { BOUNTY_NOTE, badgeText, findFlags, formatBounty, percent, severityMeta } from './helpers.js';
 
-// Cosmetic bounty-style badge shown after a solve. It carries no score: points come from the server.
+// Cosmetic bounty-style badge, "Severity: HIGH · bounty $500", shown after a solve. It carries no score: points come from the server.
 export function BountyBadge({ severity, bountyUsd, fresh = false }) {
   const meta = severityMeta(severity);
   if (!meta) { return null; }
   return <span className={`wl-badge is-${meta.tone}${fresh ? ' is-fresh' : ''}`}>
-    <span aria-hidden="true">{'*'.repeat(meta.stars)}</span>
-    <strong>{meta.label}</strong>
-    <span>{formatBounty(bountyUsd)}</span>
+    <span>{badgeText(meta, bountyUsd)}</span>
   </span>;
 }
 
@@ -18,8 +16,8 @@ export function ProgressOverview({ totals, inspector }) {
   return <section className="wl-overview ov-summary" aria-label="Your bug bounty progress">
     <div className="wl-stat ov-stat"><span>labs cleared</span><strong>{totals.solved}/{totals.labs}</strong></div>
     <div className="wl-stat ov-stat"><span>points</span><strong>{totals.pointsEarned}<small>/{totals.points}</small></strong></div>
-    <div className="wl-stat ov-stat"><span>bounty earned</span><strong>{formatBounty(totals.bountyUsd)}</strong></div>
-    <div className="wl-stat ov-stat"><span>inspector level</span><strong>{inspector.level}/{inspector.features.length}</strong></div>
+    <div className="wl-stat ov-stat" title={BOUNTY_NOTE}><span>bounty earned</span><strong>{formatBounty(totals.bountyUsd)}</strong></div>
+    <div className="wl-stat ov-stat"><span>tools unlocked</span><strong>{inspector.level}/{inspector.features.length}</strong></div>
     <div className="ov-progress ov-span-all">
       <div className="ov-bar" role="progressbar" aria-label="Points earned" aria-valuemin={0} aria-valuemax={totals.points} aria-valuenow={totals.pointsEarned}>
         <span style={{ width: `${pct}%` }} />

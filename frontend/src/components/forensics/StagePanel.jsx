@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { openHint, submitAnswer } from '../../api/forensics.js';
 import { describeForensicsError } from '../../forensics/caseHelpers.js';
+import { EMPTY_SUBMIT_HINT } from '../../pages/challengeHelpers.js';
 import PreviewNote from '../PreviewNote.jsx';
 import HintLadder, { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
 import Debrief from '../../debrief/Debrief.jsx';
@@ -54,6 +55,7 @@ export default function StagePanel({ trackId, stage, canAnswer, onSolved, prefil
           disabled={busy} aria-describedby={`fx-format-${stage.n}`} placeholder={stage.whodunit ? 'Full name' : ''}
         /></label>
         <button type="submit" disabled={busy || answer.trim() === ''}>{busy ? 'Checking...' : stage.whodunit ? 'Make the accusation' : 'Check answer'}</button>
+        {answer.trim() === '' && <p className="submit-hint">{EMPTY_SUBMIT_HINT}</p>}
         <p id={`fx-format-${stage.n}`} className="fx-format">Format: {stage.format}</p>
       </form> : <PreviewNote>Admins can browse the evidence, but only players can answer.</PreviewNote>}
     </>}

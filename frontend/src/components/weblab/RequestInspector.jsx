@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from 'react';
 import { CurlBox, Decoder, DiffView, HistoryList } from './InspectorTools.jsx';
-import { METHODS, buildPayload, statusQuip } from './helpers.js';
+import { METHODS, REQUEST_HELP, buildPayload, lockNote, statusQuip } from './helpers.js';
 
 const TABS = [
   { id: 'request', label: 'Request', feature: 'edit' },
@@ -69,16 +69,15 @@ export default function RequestInspector({
           className={`secondary small${tab === item.id ? ' is-active' : ''}`}
           onClick={() => { if (open) { setTab(item.id); } }}
         >
-          {item.label}{open ? '' : ' (locked)'}{!open && <span className="wl-sr">. {unlockNote}</span>}
+          {item.label}{open ? '' : ' (locked)'}{!open && <span className="wl-sr">, {unlockNote}</span>}
           {item.id === 'response' && response?.exploited && <span className="wl-ping" aria-hidden="true" />}
         </button>;
       })}
     </div>
-    {TABS.some((item) => !isOpen(item)) && <ul className="wl-locks" aria-hidden="true">
-      {TABS.filter((item) => !isOpen(item)).map((item) => <li key={item.id}>{item.label} unlocks after {need.get(item.feature)} solved lab{need.get(item.feature) === 1 ? '' : 's'}.</li>)}
-    </ul>}
+    {TABS.some((item) => !isOpen(item)) && <p className="wl-muted wl-locks" aria-hidden="true">{lockNote(TABS.filter((item) => !isOpen(item)), need)}</p>}
     <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-tab-${tab}`} className="wl-panel">
       {tab === 'request' && <form className="wl-request" onSubmit={(event) => { event.preventDefault(); send(); }}>
+        <p className="wl-muted">{REQUEST_HELP}</p>
         <div className="wl-row wl-row-method">
           <label htmlFor={`${id}-method`}>Method</label>
           <select id={`${id}-method`} value={draft.method} onChange={set('method')}>

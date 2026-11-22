@@ -56,7 +56,8 @@ export default function HintCostsPanel({ saved, onSaved }) {
 
         <h3 className="adm-h4">Preview</h3>
         <div className="adm-table-block">
-          <table className="adm-table">
+          <div className="adm-scroll" role="region" aria-label="Hint cost preview, table" tabIndex={0}>
+          <table className="adm-table adm-table-fit">
             <caption className="adm-muted">Points deducted per hint, the cap, and the points awarded when all three hint tiers are opened.</caption>
             <thead>
               <tr><th scope="col">Level worth</th><th scope="col">Nudge</th><th scope="col">Approach</th><th scope="col">Walkthrough</th><th scope="col">Cap</th><th scope="col">Awarded with all hints</th></tr>
@@ -70,6 +71,7 @@ export default function HintCostsPanel({ saved, onSaved }) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="adm-actions-row">

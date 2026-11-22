@@ -184,6 +184,16 @@ export const severityMeta = (severity) => SEVERITY[severity] ?? null;
 
 export const formatBounty = (amount) => (Number.isFinite(amount) ? `$${amount.toLocaleString('en-US')}` : '');
 
+export const BOUNTY_NOTE = 'Pretend prize money for flavour. It does not change your points.';
+export const REQUEST_HELP = 'This is the raw request your browser would send. Change any part, press Send, then read the Response tab.';
+// "Severity: HIGH · bounty $500" (the bounty part is dropped when the amount is unknown)
+export const badgeText = (meta, bountyUsd) => `Severity: ${meta.label}${formatBounty(bountyUsd) ? ` · bounty ${formatBounty(bountyUsd)}` : ''}`;
+// One line for all locked tabs: "Locked tabs open as you solve labs: History after 2, Diff after 3."
+export function lockNote(locked, need) {
+  const parts = locked.map((item) => `${item.label} after ${need.get(item.feature)}`);
+  return parts.length === 0 ? '' : `Locked tabs open as you solve labs: ${parts.join(', ')}.`;
+}
+
 export function statusQuip(status, exploited) {
   if (exploited) { return 'EXPLOIT LANDED! Something you should not see just fell out of the response.'; }
   if (status >= 200 && status < 300) { return 'Request accepted. Nothing suspicious yet, keep poking.'; }

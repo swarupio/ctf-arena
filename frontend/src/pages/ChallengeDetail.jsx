@@ -5,7 +5,7 @@ import {
 } from '../api/challenges.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { safeLink } from '../api/safeUrl.js';
-import { challengeErrorMessage, challengePanels, formatCountdown, gateFromError, isExpired, solveCountLabel } from './challengeHelpers.js';
+import { EMPTY_SUBMIT_HINT, FLAG_HELP, SERVER_INTRO, challengeErrorMessage, challengePanels, formatCountdown, gateFromError, isExpired, solveCountLabel } from './challengeHelpers.js';
 import { EventClosedPanel, GateCard, NoDockerPanel } from './ChallengePanels.jsx';
 import { phaseAt } from '../event/logic.js';
 import { useEventClock } from '../event/useEventClock.js';
@@ -112,25 +112,27 @@ function ChallengeView({ id }) {
 
         {panels.instance === 'no-docker' && <NoDockerPanel />}
         {(panels.instance === 'running' || panels.instance === 'ready') && <div className="instance-panel">
-          <h2>Instance</h2>
+          <h2>Your practice server</h2>
+          <p>{SERVER_INTRO}</p>
           {instance ? <>
             <p>Status: <strong>{instance.status}</strong> · Time left: <strong className="countdown">{formatCountdown(instance.expiresAt, now)}</strong></p>
             <p>Connect: {safeLink(instance.url) ? <a href={safeLink(instance.url)} target="_blank" rel="noreferrer">{instance.url}</a> : instance.url}</p>
             <div className="actions">
-              <button className="secondary" disabled={busy || instance.extended} title={instance.extended ? 'Already extended once' : undefined} onClick={() => run(() => extendInstance(instance.id), 'Instance extended by 15 minutes.')}>{instance.extended ? 'Extended' : 'Extend +15 min'}</button>
-              <button className="secondary" disabled={busy} onClick={() => run(() => stopInstance(instance.id), 'Instance stopped.')}>Stop</button>
+              <button className="secondary" disabled={busy || instance.extended} title={instance.extended ? 'Already extended once' : undefined} onClick={() => run(() => extendInstance(instance.id), 'Server extended by 15 minutes.')}>{instance.extended ? 'Extended' : 'Extend +15 min'}</button>
+              <button className="secondary" disabled={busy} onClick={() => run(() => stopInstance(instance.id), 'Server shut down.')}>Shut down</button>
             </div>
           </> : <>
-            <p>Your team gets its own private container with its own flag.</p>
-            <button disabled={busy} onClick={() => run(() => startInstance(id), 'Instance started.')}>{busy ? 'Working…' : 'Start instance'}</button>
+            <button disabled={busy} onClick={() => run(() => startInstance(id), 'Server started.')}>{busy ? 'Working…' : 'Start server'}</button>
           </>}
         </div>}
 
         {panels.submit === 'form' && <form className="flag-form" onSubmit={submit}>
           <h2>Submit flag</h2>
           <label htmlFor="flag">Flag</label>
-          <input id="flag" value={flag} onChange={(event) => setFlag(event.target.value)} placeholder="CTF{...}" autoComplete="off" disabled={busy} maxLength={200} />
+          <input id="flag" value={flag} onChange={(event) => setFlag(event.target.value)} placeholder="CTF{...}" autoComplete="off" disabled={busy} maxLength={200} aria-describedby="flag-help" />
+          <p id="flag-help" className="submit-hint">{FLAG_HELP}</p>
           <button disabled={busy || !flag.trim()}>{busy ? 'Checking…' : 'Submit'}</button>
+          {!flag.trim() && <p className="submit-hint">{EMPTY_SUBMIT_HINT}</p>}
         </form>}
         {(panels.submit === 'event-not-started' || panels.submit === 'event-ended') && <EventClosedPanel phase={panels.submit === 'event-ended' ? 'ended' : 'upcoming'} />}
 

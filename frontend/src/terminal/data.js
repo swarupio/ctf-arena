@@ -41,7 +41,7 @@ export const CHEAT_SHEET = [
   { cmd: 'file <name>', note: 'what kind of file is this?' },
   { cmd: 'wc -l <file>', note: 'count lines (-w words, -c bytes)' },
   { cmd: 'hint', note: 'a nudge for the next code' },
-  { cmd: 'submit CTF{...}', note: 'hand in a code you found' },
+  { cmd: 'submit CTF{...}', note: 'hand in a flag you found' },
 ];
 
 export const KEY_HINTS = [

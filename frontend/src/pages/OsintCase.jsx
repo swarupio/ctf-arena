@@ -12,13 +12,14 @@ import Questions from '../components/osint/Questions.jsx';
 import RegistryTab from '../components/osint/RegistryTab.jsx';
 import SearchBox from '../components/osint/SearchBox.jsx';
 import WebTab from '../components/osint/WebTab.jsx';
+import { START_HERE, useBriefingOpen } from './caseBriefing.js';
 import { DIFFICULTY_LABEL, afterCaseLoadFailure, describeOsintError, nextOpenQuestion, progressPercent } from '../osint/helpers.js';
 import '../components/osint/osint.css';
 
 const TABS = [
   { id: 'feed', label: 'Social Feed', Panel: FeedTab },
   { id: 'web', label: 'Web Archive', Panel: WebTab },
-  { id: 'registry', label: 'Registry / WHOIS', Panel: RegistryTab },
+  { id: 'registry', label: 'Registry / WHOIS (who owns a domain)', Panel: RegistryTab },
   { id: 'map', label: 'Map', Panel: MapTab },
   { id: 'photos', label: 'Photos', Panel: PhotosTab },
   { id: 'board', label: 'Case board', Panel: BoardTab },
@@ -44,6 +45,18 @@ function Tabs({ tab, onTab }) {
       >{t.label}{t.id === 'notes' && desk.notes.length > 0 ? ` (${desk.notes.length})` : ''}</button>)}
     </div>
     <div id="os-panel" role="tabpanel" aria-labelledby={`os-tab-${tab}`} className="os-panel"><Active /></div>
+  </>;
+}
+
+function Briefing({ view, email }) {
+  const open = useBriefingOpen(email, 'osint', view.solved);
+  return <>
+    <p className="case-start" role="note">{START_HERE.osint}</p>
+    <details className="os-briefing" open={open}>
+      <summary>Case briefing</summary>
+      {view.story.map((line, index) => <p key={index}>{line}</p>)}
+      <p className="os-muted">Points are fixed per question and the whole case is worth {view.maxPoints}. There is no first-blood bonus and no time pressure.{view.hintsAllowed ? ' Hints are free; admins can see which ones were opened.' : ' This case gives no hints.'}</p>
+    </details>
   </>;
 }
 
@@ -107,11 +120,7 @@ export default function OsintCase() {
       <p className="os-score-line"><strong>{view.pointsEarned}</strong><span className="os-total">/{view.maxPoints} pts</span></p>
     </header>
     {view.caseClosed && <p className="os-stamp os-closed" role="status">CASE CLOSED. The trail ends here.</p>}
-    <details className="os-briefing" open={view.solved === 0}>
-      <summary>Case briefing</summary>
-      {view.story.map((line, index) => <p key={index}>{line}</p>)}
-      <p className="os-muted">Points are fixed per question and the whole case is worth {view.maxPoints}. There is no first-blood bonus and no time pressure.{view.hintsAllowed ? ' Hints are free; admins can see which ones were opened.' : ' This case gives no hints.'}</p>
-    </details>
+    <Briefing key={view.id} view={view} email={user?.email} />
     <Desk view={view} canAnswer={user?.role !== 'admin'} onSolved={reload} />
   </section>;
 }

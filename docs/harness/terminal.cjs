@@ -39,7 +39,7 @@ function measure() {
       row('loaded', await page.evaluate(measure));
       for (const cmd of ['help', 'ls', 'pwd', 'whoami', 'cat notes.txt', 'echo hello']) { await page.focus('.tm-input').catch(() => {}); await page.keyboard.type(cmd); await page.keyboard.press('Enter'); await wait(500); }
       row('6 cmds', await page.evaluate(measure));
-      await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /Show HUD/.test(x.textContent)); if (b) { b.click(); } }); await wait(300);
+      await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /Show progress/.test(x.textContent)); if (b) { b.click(); } }); await wait(300);
       row('HUD open', await page.evaluate(measure));
       for (const label of ['Hints', 'Next hint']) { await page.evaluate((l) => { const b = [...document.querySelectorAll('.tm-hint-btn')].find((x) => x.textContent.trim() === l); if (b && !b.disabled) { b.click(); } }, label); await wait(800); }
       row('hint bar', await page.evaluate(measure));

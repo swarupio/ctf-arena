@@ -286,10 +286,10 @@ export default function TerminalWindow({
       append({
         kind: 'result', tone: 'info', tag: 'ALREADY CAPTURED', headline: result.message || 'Your team already has that code.', lines: [],
       });
-      announce('That code was already captured by your team.');
+      announce('That flag was already captured by your team.');
     } else {
       append({
-        kind: 'result', tone: 'bad', tag: 'INCORRECT', headline: result.message || 'That is not a valid code for this mode.', lines: [],
+        kind: 'result', tone: 'bad', tag: 'INCORRECT', headline: result.message || 'That is not a valid flag for this mode.', lines: [],
       });
       announce('Incorrect code.');
     }
@@ -297,7 +297,7 @@ export default function TerminalWindow({
 
   const runSubmit = useCallback(async (flag) => {
     if (isAdmin) {
-      say('info', 'admin preview: you can explore every mode, but codes can only be submitted by players.');
+      say('info', 'admin preview: you can explore every mode, but flags can only be submitted by players.');
       return;
     }
     const controller = begin();

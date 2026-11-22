@@ -75,3 +75,7 @@
 .sk-page .sk-fw-summary { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); }
 .sk-page .sk-fw-summary .sk-bar { flex: 0 1 12rem; }
 @media (pointer: coarse) { .sk-page .sk-head { min-height: 44px; } }
+.sk-page .sk-advanced { display: grid; gap: var(--space-4); min-width: 0; padding: var(--space-4); background: var(--color-surface); border: var(--border); }
+.sk-page .sk-advanced > summary { min-height: 44px; display: flex; align-items: center; font-weight: 700; font-size: 1.125rem; cursor: pointer; }
+.sk-page .sk-advanced[open] > summary { margin-bottom: var(--space-2); }
+.sk-page .sk-advanced > .sk-card { margin-top: var(--space-4); }

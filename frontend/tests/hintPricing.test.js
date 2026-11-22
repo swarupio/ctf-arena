@@ -4,7 +4,7 @@ import { DEFAULT_HINT_COSTS, FREE_LINE } from '../src/hints/config.js';
 import { buildLadder, confirmText, needsConfirm } from '../src/hints/helpers.js';
 import {
   deductionText, earnLeft, inOrderPricing, marginalPercent, mergeSpent, normalizeCosts, normalizeSpent, percentAt, percentLine, pointsFor, priceFor, priceText,
-  pricingCovers, spentText, tierAt,
+  pricingCovers, ptsText, spentText, tierAt,
 } from '../src/hints/pricing.js';
 
 const PRICING = [
@@ -57,9 +57,9 @@ test('priceFor prefers the server entry, then the platform costs, then nothing',
 });
 
 test('price text: Free, percent with points, percent alone', () => {
-  assert.equal(priceText({ percent: 10, points: 12, tier: 'approach' }), 'Costs 10% (-12 pts)');
-  assert.equal(priceText({ percent: 10, points: null }), 'Costs 10%');
-  assert.equal(priceText({ percent: 5, points: 0 }), 'Costs 5%');
+  assert.equal(priceText({ percent: 10, points: 12, tier: 'approach' }), 'Costs\u00a010% (-12\u00a0pts)');
+  assert.equal(priceText({ percent: 10, points: null }), 'Costs\u00a010%');
+  assert.equal(priceText({ percent: 5, points: 0 }), 'Costs\u00a05%');
   assert.equal(priceText({ percent: 0, points: 0 }), 'Free');
   assert.equal(priceText(null), '');
 });
@@ -84,46 +84,46 @@ test('spent records: normalise, merge, what is left and the sentence', () => {
   assert.equal(earnLeft(100, { points: 90, cap: 40 }), 60);
   assert.equal(earnLeft(10, { points: 10, cap: 0 }), 1);
   assert.equal(earnLeft(undefined, { points: 3 }), null);
-  assert.equal(spentText({ points: 17, percent: 15, cap: 40 }, 100), 'So far -17 pts. You can still earn 83.');
-  assert.equal(spentText({ points: 40, percent: 40, cap: 40 }, 100), 'So far -40 pts (cap reached). You can still earn 60.');
-  assert.equal(spentText({ points: 17, percent: 15, cap: 40 }), 'So far -17 pts.');
+  assert.equal(spentText({ points: 17, percent: 15, cap: 40 }, 100), 'So far -17\u00a0pts. You can still earn 83.');
+  assert.equal(spentText({ points: 40, percent: 40, cap: 40 }, 100), 'So far -40\u00a0pts (cap reached). You can still earn 60.');
+  assert.equal(spentText({ points: 17, percent: 15, cap: 40 }), 'So far -17\u00a0pts.');
   assert.equal(spentText({ points: 0, percent: 0, cap: 40 }, 100), '');
   assert.equal(spentText(null, 100), '');
 });
 
 test('the solve message names the base, the deduction and the net points', () => {
-  assert.equal(deductionText({ pointsAwarded: 83, hintCost: { spent: 17, openedCount: 2, base: 100, awarded: 83 } }), 'Captured: 100 pts, minus 17 for hints = 83');
-  assert.equal(deductionText({ pointsAwarded: 83, hintCost: { spent: 17, openedCount: 2 } }), 'Captured: 100 pts, minus 17 for hints = 83');
+  assert.equal(deductionText({ pointsAwarded: 83, hintCost: { spent: 17, openedCount: 2, base: 100, awarded: 83 } }), 'Captured: 100\u00a0pts, minus 17 for hints = 83');
+  assert.equal(deductionText({ pointsAwarded: 83, hintCost: { spent: 17, openedCount: 2 } }), 'Captured: 100\u00a0pts, minus 17 for hints = 83');
   assert.equal(deductionText({ pointsAwarded: 100 }), '');
   assert.equal(deductionText({ pointsAwarded: 100, hintCost: { spent: 0, base: 100, awarded: 100 } }), '');
-  assert.equal(deductionText({ hintCost: { spent: 5 } }), 'Hints cost 5 pts.');
+  assert.equal(deductionText({ hintCost: { spent: 5 } }), 'Hints cost 5\u00a0pts.');
   assert.equal(deductionText(null), '');
 });
 
 test('terminal percent line: free when disabled or all zero', () => {
   assert.equal(percentLine({ enabled: false }), 'Free: no points deducted');
   assert.equal(percentLine({ enabled: true, nudge: 0, approach: 0, walkthrough: 0, maxPercent: 40 }), 'Free: no points deducted');
-  assert.equal(percentLine(DEFAULT_HINT_COSTS), "Costs 5%, 10%, then 25% of the code's points (up to 40%)");
+  assert.equal(percentLine(DEFAULT_HINT_COSTS), "Costs\u00a05%, 10%, then 25% of the flag's points (up to 40%)");
   assert.equal(percentLine(null), '');
 });
 
 test('ladder: closed hints show their price before opening, from hintPricing', () => {
   const ladder = buildLadder({ total: 3, shown: [], pricing: PRICING, base: 100 });
-  assert.deepEqual(ladder.tiers.map((t) => t.priceText), ['Costs 5% (-5 pts)', 'Costs 10% (-10 pts)', 'Costs 25% (-25 pts)']);
-  assert.equal(ladder.next.priceText, 'Costs 5% (-5 pts)');
+  assert.deepEqual(ladder.tiers.map((t) => t.priceText), ['Costs\u00a05% (-5\u00a0pts)', 'Costs\u00a010% (-10\u00a0pts)', 'Costs\u00a025% (-25\u00a0pts)']);
+  assert.equal(ladder.next.priceText, 'Costs\u00a05% (-5\u00a0pts)');
   assert.equal(ladder.next.confirm, true);
-  assert.equal(ladder.costLine, 'Next hint: Costs 5% (-5 pts)');
+  assert.equal(ladder.costLine, 'Next hint: Costs\u00a05% (-5\u00a0pts)');
   const mid = buildLadder({ total: 3, shown: ['a'], pricing: PRICING.slice(1), base: 100, spent: { points: 5, percent: 5, cap: 40 } });
-  assert.deepEqual(mid.tiers.map((t) => t.priceText), ['', 'Costs 10% (-10 pts)', 'Costs 25% (-25 pts)']);
-  assert.equal(mid.costLine, 'So far -5 pts. You can still earn 95.');
-  assert.equal(mid.next.priceText, 'Costs 10% (-10 pts)');
+  assert.deepEqual(mid.tiers.map((t) => t.priceText), ['', 'Costs\u00a010% (-10\u00a0pts)', 'Costs\u00a025% (-25\u00a0pts)']);
+  assert.equal(mid.costLine, 'So far -5\u00a0pts. You can still earn 95.');
+  assert.equal(mid.next.priceText, 'Costs\u00a010% (-10\u00a0pts)');
 });
 
 test('ladder: without hintPricing the platform costs and the level points fill in', () => {
   const ladder = buildLadder({ total: 2, shown: [], costs: DEFAULT_HINT_COSTS, base: 120 });
-  assert.deepEqual(ladder.tiers.map((t) => t.priceText), ['Costs 5% (-6 pts)', 'Costs 10% (-12 pts)']);
+  assert.deepEqual(ladder.tiers.map((t) => t.priceText), ['Costs\u00a05% (-6\u00a0pts)', 'Costs\u00a010% (-12\u00a0pts)']);
   const noBase = buildLadder({ total: 2, shown: [], costs: DEFAULT_HINT_COSTS });
-  assert.equal(noBase.next.priceText, 'Costs 5%');
+  assert.equal(noBase.next.priceText, 'Costs\u00a05%');
 });
 
 test('ladder: waiting for the platform costs and a failed read say so, and invent nothing', () => {
@@ -172,9 +172,9 @@ test('the last tier always confirms; a paid hint confirms whatever its tier', ()
 
 test('confirmation text includes the price and where it is deducted', () => {
   const paid = buildLadder({ total: 3, shown: [], pricing: PRICING });
-  assert.equal(confirmText(paid.next), "Hint 1 (Nudge) costs 5% (-5 pts), taken from this level's points when your team captures it. Open it?");
+  assert.equal(confirmText(paid.next), "Hint 1 (Nudge) costs\u00a05% (-5\u00a0pts), taken from this level's points when your team captures it. Open it?");
   const last = buildLadder({ total: 3, shown: ['a', 'b'], pricing: [PRICING[2]] });
-  assert.match(confirmText(last.next), /^Walkthrough-lite nearly gives the answer away\. Hint 3 \(Walkthrough-lite\) costs 25% \(-25 pts\)/);
+  assert.match(confirmText(last.next), /^Walkthrough-lite nearly gives the answer away\. Hint 3 \(Walkthrough-lite\) costs\u00a025% \(-25\u00a0pts\)/);
   const freeLast = buildLadder({ total: 3, shown: ['a', 'b'] });
   assert.equal(confirmText(freeLast.next), 'Walkthrough-lite nearly gives the answer away. Open it?');
   assert.equal(confirmText(null), '');
@@ -227,4 +227,83 @@ test('the ladder shows the in-order step prices when the server prices are cumul
   assert.equal(ladder.next.price.percent, 5);
   const plain = buildLadder({ total: 3, shown: [], pricing: server, base: 30 });
   assert.deepEqual(plain.tiers.map((tier) => tier.price.percent), [5, 15, 40]);
+});
+
+test('one point reads "1 pt" in every message built from the prices; the unit never splits from its number', () => {
+  assert.equal(ptsText(1), '1\u00a0pt');
+  assert.equal(ptsText(0), '0\u00a0pts');
+  assert.equal(ptsText(2), '2\u00a0pts');
+  assert.equal(priceText({ percent: 5, points: 1, tier: 'nudge' }), 'Costs\u00a05% (-1\u00a0pt)');
+  assert.equal(spentText({ points: 1, percent: 1, cap: 40 }, 100), 'So far -1\u00a0pt. You can still earn 99.');
+  assert.equal(deductionText({ hintCost: { spent: 1 } }), 'Hints cost 1\u00a0pt.');
+  assert.equal(deductionText({ pointsAwarded: 9, hintCost: { spent: 1, base: 10, awarded: 9 } }), 'Captured: 10\u00a0pts, minus 1 for hints = 9');
+  assert.equal(deductionText({ pointsAwarded: 1, hintCost: { spent: 1, base: 2, awarded: 1 } }), 'Captured: 2\u00a0pts, minus 1 for hints = 1');
+  const confirm = confirmText(buildLadder({ total: 3, shown: [], pricing: [{ index: 0, tier: 'nudge', percent: 5, points: 1 }] }).next);
+  assert.match(confirm, /costs\u00a05% \(-1\u00a0pt\),/);
+  // No ordinary space may sit between "Costs" and its percent, or between a number and "pt(s)".
+  const text = priceText({ percent: 25, points: 12, tier: 'walkthrough' });
+  assert.doesNotMatch(text, /Costs \d|\d pts?/);
+  // Screen readers get the same words once the non-breaking spaces are read as spaces.
+  assert.equal(text.replace(/\u00a0/g, ' '), 'Costs 25% (-12 pts)');
+});
+
+// Expected numbers: backend/src/services/hintCost.js `pricingClosed(base, 3, opened, { enabled: true, nudge: 5, approach: 10,
+// walkthrough: 25, maxPercent: 40 })` for the default costs, copied from running it. [index, percent, points] of the closed hints.
+const BACKEND_CLOSED = {
+  8: { none: [[0, 5, 0], [1, 15, 1], [2, 40, 3]], first: [[1, 10, 1], [2, 35, 3]], firstTwo: [[2, 25, 2]], thirdFirst: [[0, 0, 0], [1, 0, 0]] },
+  30: { none: [[0, 5, 2], [1, 15, 5], [2, 40, 12]], first: [[1, 10, 3], [2, 35, 10]], firstTwo: [[2, 25, 7]], thirdFirst: [[0, 0, 0], [1, 0, 0]] },
+  40: { none: [[0, 5, 2], [1, 15, 6], [2, 40, 16]], first: [[1, 10, 4], [2, 35, 14]], firstTwo: [[2, 25, 10]], thirdFirst: [[0, 0, 0], [1, 0, 0]] },
+  100: { none: [[0, 5, 5], [1, 15, 15], [2, 40, 40]], first: [[1, 10, 10], [2, 35, 35]], firstTwo: [[2, 25, 25]], thirdFirst: [[0, 0, 0], [1, 0, 0]] },
+  150: { none: [[0, 5, 8], [1, 15, 23], [2, 40, 60]], first: [[1, 10, 15], [2, 35, 52]], firstTwo: [[2, 25, 37]], thirdFirst: [[0, 0, 0], [1, 0, 0]] },
+};
+const OPENED = { none: [], first: [0], firstTwo: [0, 1], thirdFirst: [2] };
+const asServer = (rows) => rows.map(([index, percent, points]) => ({ index, tier: tierAt(index), percent, points }));
+
+test('priceFor with opened hints gives the percent the backend pricingClosed gives, and the points within one rounding step', () => {
+  for (const [base, states] of Object.entries(BACKEND_CLOSED)) {
+    for (const [state, rows] of Object.entries(states)) {
+      for (const [index, percent, points] of rows) {
+        const price = priceFor({ index, costs: DEFAULT_HINT_COSTS, base: Number(base), opened: OPENED[state] });
+        assert.equal(price.percent, percent, `base ${base} ${state} hint ${index + 1} percent`);
+        // The backend also applies the cap and sums rounded tiers; the client estimate (only used when the server sent no price) may differ by one.
+        assert.ok(Math.abs(price.points - points) <= 1, `base ${base} ${state} hint ${index + 1} points ${price.points} vs ${points}`);
+      }
+    }
+  }
+});
+
+test('marginalPercent matches the backend for none, first, first two and third first', () => {
+  for (const states of Object.values(BACKEND_CLOSED)) {
+    for (const [state, rows] of Object.entries(states)) {
+      for (const [index, percent] of rows) { assert.equal(marginalPercent(index, OPENED[state], DEFAULT_HINT_COSTS), percent); }
+    }
+  }
+});
+
+test('inOrderPricing turns the backend closed prices into exactly what the backend charges when the hints open in order', () => {
+  for (const [base, states] of Object.entries(BACKEND_CLOSED)) {
+    const fresh = inOrderPricing(asServer(states.none), 0).map((p) => [p.index, p.percent, p.points]);
+    // What the backend charges as each hint opens in turn: the first from "none", the second from "first", the third from "first two".
+    const sequential = [states.none[0], states.first[0], states.firstTwo[0]];
+    assert.deepEqual(fresh, sequential, `base ${base} from none`);
+    const afterFirst = inOrderPricing(asServer(states.first), 1).map((p) => [p.index, p.percent, p.points]);
+    assert.deepEqual(afterFirst, [states.first[0], states.firstTwo[0]], `base ${base} after the first hint`);
+    const afterTwo = inOrderPricing(asServer(states.firstTwo), 2).map((p) => [p.index, p.percent, p.points]);
+    assert.deepEqual(afterTwo, states.firstTwo, `base ${base} after two hints`);
+  }
+});
+
+test('the cumulative ladder shows the same prices the backend will charge, from none and after the first hint', () => {
+  const none = buildLadder({ total: 3, shown: [], pricing: asServer(BACKEND_CLOSED[100].none), base: 100, cumulative: true });
+  assert.deepEqual(none.tiers.map((t) => [t.price.percent, t.price.points]), [[5, 5], [10, 10], [25, 25]]);
+  const after = buildLadder({ total: 3, shown: ['a'], pricing: asServer(BACKEND_CLOSED[100].first), base: 100, cumulative: true });
+  assert.deepEqual(after.tiers.filter((t) => t.price).map((t) => [t.price.percent, t.price.points]), [[10, 10], [25, 25]]);
+});
+
+test('inOrderPricing gives the same steps from a list older than the last open (it still holds the opened hints)', () => {
+  const stale = asServer(BACKEND_CLOSED[30].none);
+  assert.deepEqual(inOrderPricing(stale, 1).filter((p) => p.index >= 1).map((p) => [p.index, p.percent, p.points]), [[1, 10, 3], [2, 25, 7]]);
+  assert.deepEqual(inOrderPricing(stale, 2).filter((p) => p.index >= 2).map((p) => [p.index, p.percent, p.points]), [[2, 25, 7]]);
+  const ladder = buildLadder({ total: 3, shown: ['a'], pricing: stale, base: 30, cumulative: true });
+  assert.deepEqual(ladder.tiers.filter((t) => t.price).map((t) => t.price.percent), [10, 25]);
 });

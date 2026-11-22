@@ -85,8 +85,8 @@ test('share text carries only public fields', () => {
     displayName: 'neo', solves: 1, team: { name: 'Zion' }, streak: { current: 2, best: 2 },
     badges: [{ unlocked: true }, { unlocked: false }],
   });
-  assert.equal(text, 'neo on CTF Arena | 1 solve | 1/2 badges | 2-day streak | team Zion');
-  assert.equal(shareText(null), 'A player on CTF Arena | 0 solves | 0/0 badges');
+  assert.equal(text, 'neo on CTF Arena | 1 flag | 1/2 badges | 2-day streak | team Zion');
+  assert.equal(shareText(null), 'A player on CTF Arena | 0 flags | 0/0 badges');
 });
 
 test('error messages are friendly', () => {

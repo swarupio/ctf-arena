@@ -3,6 +3,7 @@ import { KitListing, KitPanels, useAnalysisKit } from './AnalysisView.jsx';
 import { MemoryPanel, Registers, StackPanel } from './Panels.jsx';
 import { ChangesPanel, Scrubber, WatchPanel } from './TimeTravel.jsx';
 import { keyshortcutsAttr, readShortcuts, shortcutsLabel, writeShortcuts } from './shortcuts.js';
+import { EMPTY_SUBMIT_HINT } from '../../pages/challengeHelpers.js';
 import { SPEEDS, inputProblem, rowsOfMachine, runBatch, runToStop } from './helpers.js';
 import {
   createTimeline, decisionMarks, decisionOf, diffMachines, toggleWatch,
@@ -149,6 +150,7 @@ export default function Debugger({ puzzle, input, onInput, onSubmit, canSubmit =
         />
       </label>
       {canSubmit && <button type="button" onClick={() => onSubmit?.()} disabled={!input || Boolean(problem)}>Submit this input</button>}
+      {canSubmit && !input && <p className="submit-hint">{EMPTY_SUBMIT_HINT}</p>}
       <div className="cm-buttons" role="group" aria-label="Debugger controls">
         <button type="button" className="secondary" onClick={step} disabled={forwardDisabled} aria-keyshortcuts={keyshortcutsAttr(shortcuts, 'S')}>Step {shortcuts && <kbd aria-hidden="true">S</kbd>}</button>
         {running
@@ -166,7 +168,7 @@ export default function Debugger({ puzzle, input, onInput, onSubmit, canSubmit =
       <button type="button" className="secondary small cm-keys-toggle" aria-pressed={shortcuts} onClick={toggleShortcuts}>{shortcutsLabel(shortcuts)}</button>
       <label className="cm-check">
         <input type="checkbox" checked={hideDebugger} onChange={(event) => setHideDebugger(event.target.checked)} />
-        Hide debugger (DBG pushes 0)
+        Practice without the debugger (advanced)
       </label>
     </div>
     {problem && <p role="alert" className="error">{problem}</p>}

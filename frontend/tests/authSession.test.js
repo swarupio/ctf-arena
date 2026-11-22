@@ -84,7 +84,10 @@ test('every Cognito error the sign-in pages can meet has its own message', () =>
   ];
   for (const name of names) assert.notEqual(authMessage({ name }), generic, name);
   assert.match(authMessage({ name: 'UserNotConfirmedException' }), /Confirm your email/);
-  assert.match(authMessage({ name: 'NotAuthorizedException' }), /incorrect/);
+  assert.match(authMessage({ name: 'NotAuthorizedException' }), /could not sign you in/);
+  assert.equal(authMessage({ name: 'UserNotFoundException' }), authMessage({ name: 'NotAuthorizedException' }), 'no account-existence leak');
+  assert.doesNotMatch(authMessage({ name: 'UnexpectedSignInStep' }), /administrator/i);
+  assert.match(authMessage({ name: 'InvalidPasswordException' }), /not strong enough/);
   assert.match(authMessage({ name: 'CodeMismatchException' }), /code is incorrect/);
   assert.match(authMessage({ name: 'LimitExceededException' }), /Too many attempts/);
   assert.match(authMessage({ name: 'NetworkError' }), /Unable to connect/);

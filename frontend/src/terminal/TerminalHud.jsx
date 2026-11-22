@@ -17,7 +17,7 @@ function SessionTimer({ startedAt }) {
 }
 
 /**
- * Side panel: mode title, codes found (??? until solved), points, session timer, cheat sheet, mode switcher and key
+ * Side panel: mode title, flags found (??? until solved), points, session timer, cheat sheet, mode switcher and key
  * hints. On narrow screens it stacks under the terminal, starts collapsed and keeps a one-line summary visible.
  */
 export default function TerminalHud({
@@ -31,7 +31,7 @@ export default function TerminalHud({
   const codeTotal = rows.length || info?.codes || 0;
   const titles = new Map((modes ?? []).map((item) => [item.mode, item.title]));
 
-  return <aside className="tm-hud" aria-label="Terminal HUD">
+  return <aside className="tm-hud" aria-label="Terminal progress">
     <div className="tm-hud-head">
       <div>
         <h2>{info?.title ?? mode}</h2>
@@ -43,7 +43,7 @@ export default function TerminalHud({
         aria-expanded={open}
         aria-controls="tm-hud-body"
         onClick={() => setOpen((value) => !value)}
-      >{open ? 'Hide HUD' : 'Show HUD'}</button>
+      >{open ? 'Hide progress' : 'Show progress'}</button>
     </div>
     <p className="tm-hud-summary">
       <strong>{solvedCount}/{codeTotal}</strong> flags <span aria-hidden="true">·</span> <strong>{earned}{pointsTotal ? `/${pointsTotal}` : ''}</strong> pts
@@ -54,7 +54,7 @@ export default function TerminalHud({
       {isAdmin && <p className="tm-hud-note">Admin preview: you can explore every mode, but only players can submit flags.</p>}
 
       <section aria-labelledby="tm-codes-title">
-        <h3 id="tm-codes-title">Codes</h3>
+        <h3 id="tm-codes-title">Flags</h3>
         {progressFailed && <p className="tm-hud-note tm-hud-note--warn">Could not load your progress. <button type="button" className="small secondary" onClick={onRetry}>Retry</button></p>}
         <ul className="tm-codes">
           {rows.map((row) => <li key={row.n} className={row.solved ? 'is-solved' : undefined}>

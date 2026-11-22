@@ -41,6 +41,15 @@ export function crackmeErrorMessage(error) {
   return error?.message || 'Something went wrong. Please try again.';
 }
 
+// Plain-language onboarding copy: the "Your first move" box (first cabinet only) and the one-line glossary on every cabinet.
+export const FIRST_MOVE = Object.freeze([
+  'Read the listing top to bottom. Each PUSH loads a letter’s number.',
+  'Type your guess in “Input to test” and press Step.',
+  'When it says ACCEPT, press “Submit this input”.',
+]);
+export const GLOSSARY = 'PC = which line is running. CMP = compare. JNZ = jump if they differed.';
+export const isFirstCabinet = (puzzle) => puzzle?.track === 'easy' && puzzle?.n === 1;
+
 // The server accepts printable ASCII only (space to tilde) and says nothing useful otherwise, so check before sending.
 export const PRINTABLE_ASCII = /^[\x20-\x7e]+$/;
 export function inputProblem(input) {

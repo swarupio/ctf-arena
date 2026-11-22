@@ -1,8 +1,14 @@
 import { EVENT_MESSAGES } from '../event/messages.js';
-// "N solves", or a neutral dash while the scoreboard is frozen (the server sends solveCount: null to players then).
+// Plain-language copy shared by the challenge pages (tested in challenge.test.js).
+export const SERVER_INTRO = 'Start your private practice server. Open the link, find the flag, paste it below. It shuts down by itself when the timer ends.';
+export const FLAG_HELP = 'Flags look like CTF{...}. Paste the whole thing.';
+export const EMPTY_SUBMIT_HINT = 'Type your answer to enable';
+export const CATEGORY_LEGEND = 'Pwn = break a program to take control of it. Crypto = codes and ciphers. Misc = anything else.';
+
+// "N captures", or a neutral dash while the scoreboard is frozen (the server sends solveCount: null to players then).
 export function solveCountLabel(count) {
   if (typeof count !== 'number' || !Number.isFinite(count)) { return '-'; }
-  return `${count} ${count === 1 ? 'solve' : 'solves'}`;
+  return `${count} ${count === 1 ? 'capture' : 'captures'}`;
 }
 
 export const CATEGORY_ORDER = ['web', 'crypto', 'forensics', 'pwn', 'misc', 'terminal'];
@@ -57,9 +63,9 @@ const MESSAGES = {
   FORBIDDEN: 'Admins can preview only.',
   NO_TEAM: 'Join or create a team first (Team page) to play.',
   TEAM_BANNED: 'Your team has been banned.',
-  INSTANCE_LIMIT: 'Your team has reached its instance limit. Stop another instance first.',
-  ALREADY_RUNNING: 'Your team already has an instance of this challenge.',
-  DOCKER_DISABLED: 'Docker challenges are only available when the platform is run locally.',
+  INSTANCE_LIMIT: 'Your team has reached its server limit. Shut another server down first.',
+  ALREADY_RUNNING: 'Your team already has a server running for this challenge.',
+  DOCKER_DISABLED: 'This challenge needs its own practice server, which needs Docker. Docker runs only when the platform is run locally.',
   NO_FREE_PORT: 'No free ports right now. Try again in a moment.',
   RATE_LIMITED: 'Too many attempts. Wait a minute before trying again.',
 };

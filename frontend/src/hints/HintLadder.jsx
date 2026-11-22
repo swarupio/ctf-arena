@@ -94,15 +94,17 @@ export default function HintLadder({
       </li>)}
     </ol>
     {error && <p role="alert" className="error">{error}</p>}
-    {next && !confirming && <button type="button" className="secondary hl-button" ref={openButton} onClick={ask} disabled={busy}>
+    {next && <div className={`hl-ask${confirming ? ' is-asking' : ''}`}>
+    <button type="button" className="secondary hl-button" ref={openButton} onClick={ask} disabled={busy} tabIndex={confirming ? -1 : undefined} aria-hidden={confirming ? 'true' : undefined}>
       {busy ? 'Opening...' : `${next.button} (${next.label})${next.priceText ? `: ${next.priceText}` : ''}`}
-    </button>}
-    {next && confirming && <div className="hl-confirm" role="group" aria-label={`Confirm opening hint ${next.position} of ${ladder.total}`} onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); cancel(); } }}>
+    </button>
+    {confirming && <div className="hl-confirm" role="group" aria-label={`Confirm opening hint ${next.position} of ${ladder.total}`} onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); cancel(); } }}>
       <p>{confirmText(next)}</p>
       <div className="hl-actions">
         <button type="button" className="hl-button" onClick={open} disabled={busy} autoFocus>Yes, open hint {next.position} of {ladder.total}</button>
         <button type="button" className="secondary hl-button" onClick={cancel}>Not yet</button>
       </div>
+    </div>}
     </div>}
     {!next && !ladder.preview && ladder.used === ladder.total && <p className="hl-done">That was every hint.</p>}
     <p className="hl-live" role="status" aria-live="polite">{live}</p>

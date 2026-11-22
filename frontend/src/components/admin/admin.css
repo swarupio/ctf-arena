@@ -101,6 +101,9 @@ main:has(.adm-shell) { width: min(100%, 97.5rem); }
 .adm-table th, .adm-table td { padding: var(--space-2) var(--space-3); text-align: left; vertical-align: top; border-top: 1px solid var(--color-line-soft); overflow-wrap: break-word; }
 .adm-table thead th { position: sticky; top: 0; z-index: 1; border-top: 0; border-bottom: var(--border); background: var(--color-surface-2); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
 @media (hover: hover) { .adm-table tbody tr:hover { background: var(--color-accent-tint); } }
+/* Six short numeric columns (the hint cost preview): headers may wrap, so it fits a tablet column and only scrolls on a phone. */
+.adm-table-fit { min-width: 520px; }
+.adm-table-fit thead th { white-space: normal; }
 .adm-table .adm-right { text-align: right; font-variant-numeric: tabular-nums; }
 .adm-table td:last-child button { white-space: nowrap; }
 .adm-table td .small { min-height: 36px; }
@@ -129,7 +132,7 @@ th[aria-sort='ascending'] .adm-sort-mark, th[aria-sort='descending'] .adm-sort-m
 .adm-pager-size select { width: auto; min-height: 36px; padding-block: 4px; }
 
 /* Forms and details */
-.adm-form { display: grid; gap: var(--space-4); margin-bottom: var(--space-4); }
+.adm-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); margin-bottom: var(--space-4); }
 .adm-form-grid { grid-template-columns: minmax(0, 1fr); }
 .adm-fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .adm-fieldset > label:has(textarea), .adm-fieldset > .adm-check { grid-column: 1 / -1; }

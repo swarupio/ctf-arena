@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { submitInput } from '../../api/crackme.js';
 import PreviewNote from '../PreviewNote.jsx';
 import { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
+import { EMPTY_SUBMIT_HINT } from '../../pages/challengeHelpers.js';
 import { confettiPieces, crackmeErrorMessage, inputProblem, streakText } from './helpers.js';
 
 const PIECES = confettiPieces();
@@ -45,6 +46,7 @@ export default function SubmitForm({ puzzle, input, canSubmit, onSolved, submitR
       </p>
       <p className="cm-note">The server runs its own copy of the machine on this input. A pass in your debugger is not enough: check for traps.</p>
       <button type="submit" disabled={busy || !input}>{busy ? 'Checking...' : 'Submit input'}</button>
+      {!input && <p className="submit-hint">{EMPTY_SUBMIT_HINT}</p>}
     </form>}
     {error && <p role="alert" className="error">{error}</p>}
     {result && !result.correct && <p role="status" className="cm-wrong">{result.message}</p>}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TOOL_COMPONENTS } from './tools.jsx';
+import { levelName, unlockText } from './helpers.js';
 
 // Tabs for the decoder toolbox. Tools the team has not unlocked yet stay visible (so the goal is clear) but disabled.
 export default function Toolbox({ tools, puzzle }) {
@@ -32,13 +33,13 @@ export default function Toolbox({ tools, puzzle }) {
         tabIndex={active === tool.id ? 0 : -1}
         className={`cl-tab${active === tool.id ? ' is-active' : ''}${tool.unlocked ? '' : ' is-locked'}`}
         disabled={!tool.unlocked}
-        title={tool.unlocked ? tool.description : `Locked: clear level ${tool.unlockedBy.toUpperCase()} to unlock`}
+        title={tool.unlocked ? tool.description : unlockText(tool.unlockedBy)}
         onClick={() => setActive(tool.id)}
         onKeyDown={(event) => move(event, index)}
-      >{tool.unlocked ? tool.name : `Locked · ${tool.unlockedBy.toUpperCase()}`}</button>)}
+      >{tool.unlocked ? tool.name : `Locked · ${levelName(tool.unlockedBy)}`}</button>)}
     </div>
     {tools.some((tool) => !tool.unlocked) && <ul className="cl-locks" aria-label="Locked decoder tools">
-      {tools.filter((tool) => !tool.unlocked).map((tool) => <li key={tool.id} className="cl-note">{tool.name} unlocks when you clear level {tool.unlockedBy.toUpperCase()}.</li>)}
+      {tools.filter((tool) => !tool.unlocked).map((tool) => <li key={tool.id} className="cl-note">{tool.name} unlocks when you clear {levelName(tool.unlockedBy)}.</li>)}
     </ul>}
     <div id="cl-tool-panel" role="tabpanel" aria-labelledby={active ? `cl-tab-${active}` : undefined} className="cl-panel">
       <label>Working text

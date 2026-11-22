@@ -89,6 +89,13 @@ export function groupByFramework(rows, frameworks = FRAMEWORKS) {
     .filter((group) => group.rows.length > 0);
 }
 
+/** The readable CTF skill areas come first; the public frameworks (ATT&CK, NICE, OWASP) go under "Advanced frameworks". */
+export const ADVANCED_NOTE = 'These map flags onto public industry frameworks. Useful for a CV or a course, not needed to play.';
+export function splitAdvanced(groups) {
+  const all = list(groups);
+  return { primary: all.filter((group) => group.framework.id === 'area'), advanced: all.filter((group) => group.framework.id !== 'area') };
+}
+
 /** Totals for the header line: how many skills the catalogue teaches and how many the player has shown. */
 export function summarize(rows) {
   const taught = list(rows).filter((row) => row.total > 0);

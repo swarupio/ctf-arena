@@ -83,11 +83,13 @@ export function sortBadges(badges) {
   return [...open, ...list.filter((badge) => !badge.unlocked)];
 }
 
+export const FIRST_BLOOD_NOTE = 'You captured it before anyone else did';
+
 export function shareText(profile) {
   const badges = Array.isArray(profile?.badges) ? profile.badges : [];
   const parts = [
     `${profile?.displayName ?? 'A player'} on CTF Arena`,
-    `${profile?.solves ?? 0} ${profile?.solves === 1 ? 'solve' : 'solves'}`,
+    `${profile?.solves ?? 0} ${profile?.solves === 1 ? 'flag' : 'flags'}`,
     `${unlockedBadges(badges).length}/${badges.length} badges`,
   ];
   if (profile?.streak?.current > 0) parts.push(`${profile.streak.current}-day streak`);

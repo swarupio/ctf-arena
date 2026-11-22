@@ -79,7 +79,7 @@ export default function Terminal() {
       <h1>Arena Terminal</h1>
       <p className="tm-lead ov-lead">
         A pretend Unix machine that lives in your browser tab. Type real commands, dig through its files and find the hidden
-        codes. Every code you submit scores for your team on the leaderboard.
+        flags. Every flag you submit scores for your team on the leaderboard.
       </p>
     </header>
     {user?.role === 'admin' && <p className="tm-note ov-note">Admin preview: you can open every mode and run commands, but only players can submit flags.</p>}

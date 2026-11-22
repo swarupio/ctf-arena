@@ -3,6 +3,14 @@ import { eventMessage } from '../../event/messages.js';
 
 export const TRACK_BLURB = { easy: 'Warm up', medium: 'Keys and maths', hard: 'Stacked puzzles', insane: 'No hints' };
 
+// "m2" -> "Medium level 2": the plain-language name of a level id (the id itself stays the key in data and tests).
+const TRACK_NAME = { e: 'Easy', m: 'Medium', h: 'Hard', i: 'Insane' };
+export function levelName(id) {
+  const match = /^([emhi])(\d{1,2})$/.exec(String(id ?? '').toLowerCase());
+  return match ? `${TRACK_NAME[match[1]]} level ${Number(match[2])}` : String(id ?? '').toUpperCase();
+}
+export const unlockText = (id) => `Unlocks when you clear ${levelName(id)}`;
+
 export const percent = (done, total) => (total > 0 ? Math.round((Math.min(done, total) * 100) / total) : 0);
 
 export function formatDuration(ms) {

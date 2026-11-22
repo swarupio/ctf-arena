@@ -18,7 +18,7 @@ function FlagPill({ flag, onCopied }) {
   }
   return <span className="tm-flag">
     <span className="tm-flag-text">{flag}</span>
-    <button type="button" className="tm-copy" onClick={copy} aria-label="Copy this code to the clipboard">
+    <button type="button" className="tm-copy" onClick={copy} aria-label="Copy this flag to the clipboard">
       {state === 'copied' ? 'copied' : state === 'failed' ? 'select + Ctrl+C' : 'copy'}
     </button>
   </span>;

@@ -45,7 +45,7 @@ export function parseSubmit(line) {
 
 const SUBMIT_ERRORS = {
   usage: 'usage: submit <code>   (for example: submit CTF{some_code})',
-  spaces: 'a code has no spaces. Copy the whole CTF{...} string and try again.',
+  spaces: 'a flag has no spaces. Copy the whole CTF{...} string and try again.',
   'too-long': 'that is far too long to be a code.',
 };
 export const submitErrorMessage = (error) => SUBMIT_ERRORS[error] ?? SUBMIT_ERRORS.usage;

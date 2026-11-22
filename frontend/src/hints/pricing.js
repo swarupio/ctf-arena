@@ -58,13 +58,14 @@ export function priceFor({ index, pricing, costs, base, opened } = {}) {
 
 // The server prices a closed hint as what opening it WOULD ADD (cumulative tiers). A ladder that opens hints strictly in
 // order wants the price each later hint will have once the ones before it are open: the step between neighbours. Entries
-// from `used` upward keep their order; the first keeps its price, a later one is its price minus the previous entry's.
+// from `used` upward keep their order; the first keeps its price, a later one is its price minus the previous entry's. A list
+// that is older than the last open (still holding the hints opened since) gives the same answer: the step is what counts.
 export function inOrderPricing(pricing, used) {
   const list = (Array.isArray(pricing) ? pricing : []).filter(validEntry);
   const byIndex = new Map(list.map((item) => [item.index, item]));
   return list.map((item) => {
     const before = byIndex.get(item.index - 1);
-    if (item.index <= used || !before) { return item; }
+    if (item.index < used || !before) { return item; }
     return {
       ...item,
       percent: Math.max(0, item.percent - before.percent),
@@ -83,10 +84,17 @@ export function pricingCovers(pricing, used, total) {
 
 export const FREE_WORD = 'Free';
 
+// Non-breaking space: keeps "Costs 5%" and "-2 pts" each on one line at any width. Screen readers read it as a normal space.
+export const NBSP = ' ';
+
+// '1 pt', '2 pts', '0 pts': the unit stays on the line of its number.
+export const ptsText = (count) => `${count}${NBSP}${count === 1 ? 'pt' : 'pts'}`;
+
 export function priceText(price) {
   if (!price) { return ''; }
   if (price.percent <= 0) { return FREE_WORD; }
-  return price.points !== null && price.points > 0 ? `Costs ${price.percent}% (-${price.points} pts)` : `Costs ${price.percent}%`;
+  const head = `Costs${NBSP}${price.percent}%`;
+  return price.points !== null && price.points > 0 ? `${head} (-${ptsText(price.points)})` : head;
 }
 
 // { points, percent, cap } from `spent` / `hintSpent`, or null when absent or malformed (admins never get it).
@@ -112,13 +120,14 @@ export function earnLeft(base, spent) {
   return Math.max(1, base - charged);
 }
 
-// 'So far -17 pts. You can still earn 83.' Empty while nothing was spent.
+// 'So far -17 pts. You can still earn 83.' ('-1 pt' for one point). Empty while nothing was spent.
 export function spentText(spent, base) {
   const current = normalizeSpent(spent);
   if (!current || current.points <= 0) { return ''; }
   const left = earnLeft(base, current);
   const capped = current.cap > 0 && current.points >= current.cap ? ' (cap reached)' : '';
-  return left === null ? `So far -${current.points} pts${capped}.` : `So far -${current.points} pts${capped}. You can still earn ${left}.`;
+  const so = `So far -${ptsText(current.points)}${capped}.`;
+  return left === null ? so : `${so} You can still earn ${left}.`;
 }
 
 // The solve result line: 'Captured: 100 pts, minus 17 for hints = 83'. Empty when no hint cost anything.
@@ -127,8 +136,8 @@ export function deductionText(result) {
   if (!cost || !Number.isFinite(cost.spent) || cost.spent <= 0) { return ''; }
   const awarded = Number.isFinite(cost.awarded) ? cost.awarded : result.pointsAwarded;
   const base = Number.isFinite(cost.base) ? cost.base : Number.isFinite(awarded) ? awarded + cost.spent : null;
-  if (base === null || !Number.isFinite(awarded)) { return `Hints cost ${cost.spent} pts.`; }
-  return `Captured: ${base} pts, minus ${cost.spent} for hints = ${awarded}`;
+  if (base === null || !Number.isFinite(awarded)) { return `Hints cost ${ptsText(cost.spent)}.`; }
+  return `Captured: ${ptsText(base)}, minus ${cost.spent} for hints = ${awarded}`;
 }
 
 // One line for the Arena Terminal, where the base points of the next code are not known up front.
@@ -136,5 +145,5 @@ export function percentLine(costs) {
   if (!costs) { return ''; }
   const c = normalizeCosts(costs);
   if (!c.enabled || (c.nudge === 0 && c.approach === 0 && c.walkthrough === 0)) { return 'Free: no points deducted'; }
-  return `Costs ${c.nudge}%, ${c.approach}%, then ${c.walkthrough}% of the code's points (up to ${c.maxPercent}%)`;
+  return `Costs${NBSP}${c.nudge}%, ${c.approach}%, then ${c.walkthrough}% of the flag's points (up to ${c.maxPercent}%)`;
 }

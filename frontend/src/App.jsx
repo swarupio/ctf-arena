@@ -74,7 +74,7 @@ export default function App() {
         <Route path="challenges" element={lazyPage(<ChallengeList />, 'Challenges')} />
         <Route path="challenges/:id" element={lazyPage(<ChallengeDetail />, 'Challenge')} />
         <Route path="range" element={lazyPage(<Games />, 'The Range')} />
-        <Route path="terminal" element={lazyPage(<Terminal />, 'Terminal Trainer')} />
+        <Route path="terminal" element={lazyPage(<Terminal />, 'Arena Terminal')} />
         <Route path="terminal/:mode" element={lazyPage(<TerminalPlay />, 'Terminal')} />
         <Route path="cipherlab/*" element={lazyPage(<CipherLab />, 'Cipher Lab')} />
         <Route path="weblab" element={lazyPage(<WebLab />, 'Web Exploit Lab')} />

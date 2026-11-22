@@ -32,7 +32,7 @@ export default function LogViewer({ track, artefact, timeline }) {
       </label>
       <fieldset className="fx-toggles">
         <legend className="fx-sr">Search options</legend>
-        <label className="fx-check"><input type="checkbox" checked={mode === 'regex'} onChange={(e) => setMode(e.target.checked ? 'regex' : 'text')} /> regex</label>
+        <label className="fx-check"><input type="checkbox" checked={mode === 'regex'} onChange={(e) => setMode(e.target.checked ? 'regex' : 'text')} /> regex (pattern search, optional)</label>
         <label className="fx-check"><input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} /> match case</label>
         <label className="fx-check"><input type="checkbox" checked={invert} onChange={(e) => setInvert(e.target.checked)} /> invert</label>
       </fieldset>

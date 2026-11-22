@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { roleFromGroups, userFromSession, signInPath, returnPath, authMessage, missingAuthVariables } from '../src/auth/logic.js';
+import { copyText, copyStatusText, roleFromGroups, userFromSession, signInPath, returnPath, authMessage, missingAuthVariables } from '../src/auth/logic.js';
 import createViteConfig from '../vite.config.js';
 
 test('Vite reads the root env while retaining the browser prefix restriction', () => {
@@ -45,4 +45,16 @@ test('auth errors are friendly and never echo raw errors or codes', () => {
     assert.notEqual(authMessage({ name }), authMessage({ name: 'Unknown' }));
   }
   assert.equal(authMessage({ message: 'sensitive code or token' }), 'Unable to complete this request. Please try again.');
+});
+
+test('copyText reports copied or failed without throwing', async () => {
+  let written = '';
+  assert.equal(await copyText('JBSWY3DP', { writeText: async (value) => { written = value; } }), 'copied');
+  assert.equal(written, 'JBSWY3DP');
+  assert.equal(await copyText('JBSWY3DP', { writeText: async () => { throw new Error('denied'); } }), 'failed');
+  assert.equal(await copyText('JBSWY3DP', undefined), 'failed');
+  assert.equal(await copyText('', { writeText: async () => {} }), 'failed');
+  assert.equal(copyStatusText('copied'), 'Copied');
+  assert.match(copyStatusText('failed'), /Ctrl\+C/);
+  assert.equal(copyStatusText(''), '');
 });

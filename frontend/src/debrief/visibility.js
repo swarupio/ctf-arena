@@ -3,7 +3,7 @@
 
 export const DEBRIEF_TITLE = 'Debrief: what you just learned';
 export const WRITEUP_TITLE = 'Write-up';
-export const PREVIEW_TITLE = 'Debrief (preview)';
+export const PREVIEW_TITLE = 'Debrief: how this level works (preview, opens for players after they capture the flag)';
 
 /** 'preview' | 'captured' | 'writeup' | null (hidden). */
 export function debriefMode({ isAdmin = false, captured = false, eventEnded = false } = {}) {

@@ -200,3 +200,39 @@ Review of the finished hint-cost work (contract in `docs/HINTS.md` "Hint costs")
 - **Docs.** `docs/HINTS.md`: price fixed at open, cumulative tiers, freeze/ban behaviour of opens (Forensics and Terminal not blocked, Web Lab blocks banned teams), `/api/hint-costs` has no own rate limit (nginx limits it), race re-check. Also `API_SPEC.md`, `DATABASE_SCHEMA.md`, `WEB_EXPLOIT_LAB.md`.
 - Tests: `tests/hints/{hintCost,hintLedger}.test.js`, `tests/hints/terminalHints.test.js`, `tests/weblab/api.test.js`, `routeMatrix`; frontend `hintPricing.test.js`, `hintsRestore.test.js`.
 - Known limits: the displayed `spent` of Cipher Lab, Crackme and OSINT views uses the current rates (the solve charges the stored ones); two truly concurrent opens of different tiers on two replicas can both include a shared lower tier, which the cap bounds.
+
+## Range gloss (reverted)
+An extra explanatory line for "The Range" (landing hero, Range page subtitle and hint, long nav label, page title) was tried and reverted at the owner's request: the hero line looked bad under the buttons. The name and all earlier wording are unchanged.
+
+## Newcomer auth copy
+- Sign-up subtitle names free authenticator apps (Google Authenticator, Microsoft Authenticator, Authy, 1Password), says setup takes about a minute and gives the one-line reason for the code.
+- MFA setup: numbered steps (install an app, scan the QR code, type the 6-digit code), a "Copy key" button (`copyText` in `auth/logic.js`, clipboard API; a polite `role="status"` line says "Copied", on failure the key is selected and the line says to press Ctrl+C; nothing is logged) and "No camera or on this phone? Enter this key in your app (choose enter a setup key)" replacing "Can't scan".
+- Login: "Just signed up? Confirm your email first." under the confirm link.
+- `authMessage`: wrong password, unknown user and expired sign-in share one non-blaming text (Cognito gives one code for the first and last, so it is not split; the unknown-user text now equals it, so it does not hint whether an account exists). "Contact the arena administrator" became "ask the event organiser who invited you" (no contact details invented). `InvalidPasswordException` says the password is not strong enough and to try a longer one.
+- The Cognito password policy is not documented in the repo, so the hint stays "Use a strong password." and the error does not list rules ([CHECK]: read the pool policy in the Cognito console and put it in both places).
+- Security unchanged: MFA still required, no new dependency. Tests: `auth.test.js` (copy helper), `authSession.test.js` (new strings, no existence leak).
+
+## Plain-language copy
+UX-review copy fixes for newcomers on the category and challenge pages (frontend only, no contract change).
+- Challenges: tag `instance` is now `own server`; panel "Your practice server" with an intro line, buttons Start server / Extend +15 min / Shut down; the hosted-mode (no Docker) panel and the `DOCKER_DISABLED` message use the same wording; flag field help "Flags look like CTF{...}. Paste the whole thing."; one-line Pwn/Crypto/Misc legend; card counts read "N captures" (a flag count would be misleading per challenge).
+- Disabled buttons: flat muted fill and quiet solid border instead of the hatched dashed box (`styles.css`), plus `.submit-hint` "Type your answer to enable" under empty fields (Challenge, Cipher Lab, Crackme, Forensics, OSINT).
+- Arena Terminal: code wording becomes flag wording, HUD toggle "Show progress", page title "Arena Terminal". Hint-bar tooltip skipped: `HintBar.jsx` was edited by the hint agent within the last 30 minutes. Debrief: only the admin preview bar can show before a capture (players see none), so it now reads "Debrief: how this level works (preview, ...)" and is muted; the captured title is unchanged.
+- Cipher Lab: "Unlocks when you clear Medium level 2" (`levelName`/`unlockText`, ids unchanged); tool tabs fade on the right edge at 390 px.
+- Crackme: "Your first move" box on easy cabinet 1 only, one-line glossary on every cabinet, "Practice without the debugger (advanced)".
+- Web Lab: bounty tooltip, "tools unlocked", badge "Severity: HIGH · bounty $500", one locked-tabs line, one Request explainer.
+- OSINT/Forensics: "Start here" line, briefing open on the first visit (own `ctf.briefingSeen.v1:` key, same pattern as onboarding), "regex (pattern search, optional)", "Registry / WHOIS (who owns a domain)".
+- Profile/leaderboard: Solves become Flags, first-blood tooltip. Locked badges already show their description, so nothing added.
+- Skills: CTF skill areas first, ATT&CK / NICE / OWASP under a collapsed "Advanced frameworks" with a framing line (opens when one of them is filtered).
+- Tests: new `plainCopy.test.js`; `challenge`, `social`, `debrief` tests updated.
+
+## Hint UI visual fixes
+QA of the hint-cost UI (screenshots at 320, 390, 768, 1024, 1273, light and dark). Nothing is committed.
+
+- **Admin Hint costs preview.** The 760 px table sat in `.adm-table-block` (no scroller), and `.adm-form` (a one-column grid with an `auto` track) grew to the table's width, so the document was 812 px at 320/390 and 820 at 768. The table now sits in the existing `.adm-scroll` region (keyboard focusable, labelled), `.adm-form` has `grid-template-columns: minmax(0, 1fr)` (no other form can push the page wider either) and the preview table has its own `adm-table-fit` width (520 px, wrapping headers) so it fits a tablet. `scrollWidth` equals the viewport at 320, 390, 768 and 1273 (was 812, 812, 820, 1273).
+- **Price text.** `priceText`, `percentLine` and the confirm sentence use non-breaking spaces ("Costs 5%", "-2 pts") so a price never splits inside the parenthesis; screen readers read them as normal spaces.
+- **Terminal hint bar.** The "·" separator that could start the second line is gone; the info parts are separated by spacing only.
+- **Confirm buttons.** Text in the confirm actions is centred (both buttons) on every width.
+- **Layout shift.** The confirmation now lays over the space under the Open button (the button stays in the flow, hidden while asking) instead of replacing it: content under the ladder moved by 157 to 374 px when the box opened, now 0 px (page height +176 px, now +0).
+- **OSINT ladder.** `.os-hints ol` (24 px indent, higher specificity) hit the ladder's own list; it is now `.os-hints > ol`, so the tier boxes and the confirm share the same left edge.
+- **Wording.** One point reads "1 pt" (`ptsText`) in the price, the "So far" line, the solve line and "Hints cost N pts". The Terminal confirm and the cost line say "the flag's points" (docs/VOCABULARY.md).
+- **Stub fixture and pricing parity.** `docs/harness/hintfix.cjs` now prices Web Lab and the Terminal like `pricingClosed` (cumulative tiers, cap aware); Cipher Lab, Crackme, OSINT and Forensics keep the per-tier prices of `pricingFor`. `inOrderPricing` also handles a price list older than the last open (it showed the Web Lab second hint at 15% after the first was open; now 10%). `hintPricing.test.js` carries numbers copied from running `backend/src/services/hintCost.js` (bases 8, 30, 40, 100, 150; none, first, first two, third first): percents match exactly, estimated points within 1 (the backend also applies the cap), `inOrderPricing` matches the sequential backend charges exactly.

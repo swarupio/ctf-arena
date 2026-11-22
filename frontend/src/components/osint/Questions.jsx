@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { openHint, submitAnswer } from '../../api/osint.js';
 import { useDesk } from './DeskContext.jsx';
 import { describeOsintError } from '../../osint/helpers.js';
+import { EMPTY_SUBMIT_HINT } from '../../pages/challengeHelpers.js';
 import PreviewNote from '../PreviewNote.jsx';
 import HintLadder, { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
 import Debrief from '../../debrief/Debrief.jsx';
@@ -65,6 +66,7 @@ function Question({ trackId, q, hintsAllowed, canAnswer, onSolved }) {
           disabled={busy} aria-describedby={`os-format-${q.n}`}
         /></label>
         <button type="submit" disabled={busy || answer.trim() === ''}>{busy ? 'Checking...' : q.final ? 'Submit the final answer' : 'Check answer'}</button>
+        {answer.trim() === '' && <p className="submit-hint">{EMPTY_SUBMIT_HINT}</p>}
         <p id={`os-format-${q.n}`} className="os-format">Format: {q.format}</p>
         {pickable && <button type="button" className="secondary small" disabled={!fromPick} onClick={() => setAnswer(fromPick)}>
           {fromPick ? `Use my map pick (${fromPick})` : 'Pick a point on the Map tab first'}

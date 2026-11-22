@@ -109,6 +109,7 @@ test('debriefMode: captured, ended, admin and hidden', () => {
   assert.equal(modeTitle('writeup'), 'Write-up');
   assert.equal(modeTitle('captured'), 'Debrief: what you just learned');
   assert.match(modeTitle('preview'), /preview/);
+  assert.match(modeTitle('preview'), /^Debrief: how this level works/);
 });
 
 test('isEnded only trusts phase "ended"', () => {

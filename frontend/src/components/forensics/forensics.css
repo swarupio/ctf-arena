@@ -192,3 +192,4 @@
 @media (max-width: 260px) {
   .fx-suspect dt { flex: 0 1 auto; }
 }
+.case-start { margin: 0; font-weight: 700; }

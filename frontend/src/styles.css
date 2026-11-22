@@ -510,8 +510,10 @@ button, .button {
 button:active:not(:disabled), .button:active { transform: translate(1px, 1px); }
 button.secondary, .button.secondary { color: var(--color-ink); background: var(--color-surface); }
 @media (hover: hover) { button.secondary:hover:not(:disabled), .button.secondary:hover { color: var(--color-on-accent); background: var(--color-accent); } }
-/* One disabled look for primary and secondary buttons: no fill, hatched, dashed border, muted label (4.5:1 or better in both themes) */
-button:disabled, button.secondary:disabled { opacity: 1; cursor: not-allowed; color: var(--color-muted); background: repeating-linear-gradient(135deg, var(--color-surface-2) 0 6px, var(--color-surface) 6px 12px); border-style: dashed; }
+/* One calm disabled look for primary and secondary buttons: flat muted fill, quiet solid border, muted label, no hatching (4.5:1 or better in both themes) */
+button:disabled, button.secondary:disabled { opacity: 1; cursor: not-allowed; color: var(--color-muted); background: var(--color-surface-2); border-color: var(--color-line-soft); }
+/* One-line reason shown under an empty field while its submit button is disabled */
+.submit-hint { margin: 0; font-size: 0.875rem; color: var(--color-muted); }
 .small { min-height: 36px; padding: 4px var(--space-4); font-size: 0.875rem; }
 
 /* Forms */
@@ -581,6 +583,12 @@ dt:first-of-type, dt:first-of-type + dd { border-top: 0; }
 .auth-panel .error, .auth-panel .notice { margin-top: 0; }
 .totp-setup { margin: var(--space-5) 0; padding: var(--space-4); border: var(--border); background: var(--color-surface-2); }
 .totp-setup svg { display: block; max-width: 100%; height: auto; margin: 0 auto var(--space-4); border: var(--border); background: var(--color-surface); }
+.auth-steps { margin: 0 0 var(--space-4); padding-left: var(--space-5); display: grid; gap: var(--space-2); }
+.copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-top: var(--space-3); }
+.auth-panel .copy-row button { width: auto; }
+.copy-status { min-height: 1.5em; color: var(--color-ink); font-weight: 700; }
+.auth-link-group { display: grid; gap: var(--space-1); }
+.auth-link-group .muted { font-size: 0.875rem; }
 .shared-secret { margin: 0; padding: var(--space-3); overflow-wrap: anywhere; font-weight: 700; letter-spacing: 0.05em; user-select: all; background: var(--color-surface); border: 1px dashed var(--color-ink); }
 
 /* Home */

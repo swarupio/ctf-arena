@@ -16,6 +16,11 @@
 .hl-confirm { display: grid; gap: var(--space-2); padding: var(--space-3); border: 2px solid var(--color-ink); background: var(--color-accent-tint); }
 .hl-confirm p { margin: 0; }
 .hl-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.hl-actions .hl-button { text-align: center; }
+/* The Open button keeps its place in the flow; the confirmation lays over the space right below it, so nothing under the ladder moves. */
+.hl-ask { position: relative; display: grid; min-width: 0; }
+.hl-ask.is-asking > .hl-button { visibility: hidden; }
+.hl-ask > .hl-confirm { position: absolute; top: 0; left: 0; right: 0; z-index: 3; box-shadow: var(--shadow-hard); }
 .hl-live { margin: 0; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .hl-result { margin: 0; font-size: 0.875rem; font-weight: 700; }
 .hl-deduction { font-variant-numeric: tabular-nums; }

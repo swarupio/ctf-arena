@@ -13,6 +13,17 @@ const spentOf = (base, set) => {
   return { points, percent: base > 0 ? Math.round(points * 100 / base) : 0, cap };
 };
 const closed = (base, total, set) => Array.from({ length: total }, (_, index) => index).filter((index) => !set.has(index)).map((index) => ({ index, ...costOf(base, index) }));
+// Web Lab and the Arena Terminal open hints in any order and the backend (services/hintCost.js pricingClosed / marginalPercent /
+// spentFor) prices them CUMULATIVELY: opening hint N also pays for the cheaper tiers below it that nothing opened covers.
+const marginalOf = (index, set) => { const top = set.size ? Math.max(...set) : -1; let percent = 0; if (COSTS.enabled) { for (let step = top + 1; step <= index; step += 1) { percent += COSTS[TIERS[Math.min(step, 2)]]; } } return Math.min(100, percent); };
+const cumSpentPoints = (base, set) => {
+  let total = 0; let covered = -1;
+  for (const index of [...set].sort((a, b) => a - b)) { if (COSTS.enabled) { for (let step = covered + 1; step <= index; step += 1) { total += pointsOf(base, COSTS[TIERS[Math.min(step, 2)]]); } } covered = Math.max(covered, index); }
+  return Math.min(total, COSTS.enabled ? Math.round(base * COSTS.maxPercent / 100) : 0);
+};
+const cumSpent = (base, set) => { const points = cumSpentPoints(base, set); return { points, percent: base > 0 ? Math.round(points * 100 / base) : 0, cap: COSTS.enabled ? Math.round(base * COSTS.maxPercent / 100) : 0 }; };
+const cumCost = (base, index, set) => { const percent = marginalOf(index, set); const after = new Set(set); after.add(index); return { percent, points: Math.max(0, cumSpentPoints(base, after) - cumSpentPoints(base, set)), tier: TIERS[Math.min(index, 2)] }; };
+const cumClosed = (base, total, set) => Array.from({ length: total }, (_, index) => index).filter((index) => !set.has(index)).map((index) => ({ index, ...cumCost(base, index, set) }));
 const set = (key) => (opened[key] ??= new Set());
 const bases = {};
 const baseOf = (key, fallback) => bases[key] ?? fallback;
@@ -26,7 +37,7 @@ function patch(path, body) {
   }
   if ((m = /^\/weblab\/labs\/([^/]+)$/.exec(path)) && body.hintCount > 0) {
     const s = set(`weblab:${m[1]}`); bases[`weblab:${m[1]}`] = body.points;
-    return { ...body, hintsOpened: [...s].map((i) => i + 1), hintPricing: closed(body.points, body.hintCount, s), hintSpent: spentOf(body.points, s) };
+    return { ...body, hintsOpened: [...s].map((i) => i + 1), hintPricing: cumClosed(body.points, body.hintCount, s), hintSpent: cumSpent(body.points, s) };
   }
   if ((m = /^\/osint\/cases\/(\w+)$/.exec(path)) && body.questions) {
     return { ...body, questions: body.questions.map((q) => {
@@ -45,7 +56,7 @@ function patch(path, body) {
   }
   if ((m = /^\/terminal\/(\w+)\/progress$/.exec(path))) {
     const s = set(`terminal:${m[1]}:3`);
-    return { ...body, hint: { code: 3, total: 3, base: 40, opened: [...s].map((i) => i + 1), pricing: closed(40, 3, s), spent: spentOf(40, s) } };
+    return { ...body, hint: { code: 3, total: 3, base: 40, opened: [...s].map((i) => i + 1), pricing: cumClosed(40, 3, s), spent: cumSpent(40, s) } };
   }
   return body;
 }
@@ -71,8 +82,8 @@ function wrap(handler) {
       return json({ index: 0, hint: 'Stub hint: open the evidence in the viewer.', used: 1, total: 1, cost: costOf(base, 0), spent: spentOf(base, s) });
     }
     if ((m = /^\/weblab\/labs\/([^/]+)\/hints\/(\d+)$/.exec(path))) {
-      const base = baseOf(`weblab:${m[1]}`, 150); const s = set(`weblab:${m[1]}`); const index = Number(m[2]) - 1; s.add(index);
-      return json({ level: index + 1, count: 2, text: `Stub hint ${index + 1}: read the cookie value.`, cost: costOf(base, index), spent: spentOf(base, s) });
+      const base = baseOf(`weblab:${m[1]}`, 150); const s = set(`weblab:${m[1]}`); const index = Number(m[2]) - 1; const cost = cumCost(base, index, s); s.add(index);
+      return json({ level: index + 1, count: 2, text: `Stub hint ${index + 1}: read the cookie value.`, cost, spent: cumSpent(base, s) });
     }
     if (req.method() === 'POST' && (m = /^\/terminal\/(\w+)\/exec$/.exec(path)) && /"command":"hint( \d+)?"/.test(req.postData() || '')) {
       const tier = Number(/hint (\d+)/.exec(req.postData())?.[1] ?? 1); set(`terminal:${m[1]}:3`).add(tier - 1);

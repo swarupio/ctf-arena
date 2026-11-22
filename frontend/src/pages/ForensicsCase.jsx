@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getTrack } from '../api/forensics.js';
 import { createLatest } from '../api/latest.js';
 import { useAuth } from '../auth/AuthContext.jsx';
+import { START_HERE, useBriefingOpen } from './caseBriefing.js';
 import { DIFFICULTY_LABEL, afterCaseLoadFailure, describeForensicsError, nextOpenStage, progressPercent } from '../forensics/caseHelpers.js';
 import { EvidenceBoard, SuspectBoard } from '../components/forensics/Board.jsx';
 import CaseTimer from '../components/forensics/CaseTimer.jsx';
@@ -20,6 +21,18 @@ import { useTimeline } from '../components/forensics/useTimeline.js';
 import '../components/forensics/forensics.css';
 
 const VIEWERS = { log: LogViewer, packets: PacketTable, hex: HexEditor, exif: MetadataTable, stego: PixelGrid, disk: DiskViewer };
+
+function Briefing({ view, email }) {
+  const open = useBriefingOpen(email, 'forensics', view.solved);
+  return <>
+    <p className="case-start" role="note">{START_HERE.forensics}</p>
+    <details className="fx-briefing" open={open}>
+      <summary>Case file cover page</summary>
+      {view.briefing.map((line, index) => <p key={index} className={index === 0 ? 'fx-classified' : undefined}>{line}</p>)}
+      <p className="fx-muted">Points are fixed per question and the whole case is worth {view.maxPoints}. There is no first-blood bonus and no time pressure.</p>
+    </details>
+  </>;
+}
 
 export default function ForensicsCase() {
   const { track } = useParams();
@@ -78,11 +91,7 @@ export default function ForensicsCase() {
     <div className="fx-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-label="Case progress"><span style={{ width: `${percent}%` }} /></div>
     {view.caseClosed && <p className="fx-stamp fx-closed" role="status">CASE CLOSED. The culprit is behind bars.</p>}
 
-    <details className="fx-briefing" open={view.solved === 0}>
-      <summary>Case file cover page</summary>
-      {view.briefing.map((line, index) => <p key={index} className={index === 0 ? 'fx-classified' : undefined}>{line}</p>)}
-      <p className="fx-muted">Points are fixed per question and the whole case is worth {view.maxPoints}. There is no first-blood bonus and no time pressure.</p>
-    </details>
+    <Briefing key={view.id} view={view} email={user?.email} />
 
     <div className="fx-layout">
       <div className="fx-tools" role="region" aria-label="Evidence tools">

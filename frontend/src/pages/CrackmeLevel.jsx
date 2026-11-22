@@ -7,7 +7,7 @@ import HintPanel from '../components/crackme/HintPanel.jsx';
 import IsaReference from '../components/crackme/IsaReference.jsx';
 import PatchBay from '../components/crackme/PatchBay.jsx';
 import SubmitForm from '../components/crackme/SubmitForm.jsx';
-import { STATUS_LABEL, afterLoadFailure, crackmeErrorMessage } from '../components/crackme/helpers.js';
+import { FIRST_MOVE, GLOSSARY, STATUS_LABEL, afterLoadFailure, crackmeErrorMessage, isFirstCabinet } from '../components/crackme/helpers.js';
 import { debugProgram } from '../components/crackme/patchEditor.js';
 import Debrief from '../debrief/Debrief.jsx';
 import { keyById } from '../debrief/levels.js';
@@ -69,6 +69,11 @@ export default function CrackmeLevel() {
         </div>
         <p className="cm-briefing">{puzzle.briefing}</p>
       </header>
+      {isFirstCabinet(puzzle) && <aside className="cm-box cm-first-move" aria-labelledby="cm-first-title">
+        <h2 id="cm-first-title">Your first move</h2>
+        <ol>{FIRST_MOVE.map((line) => <li key={line}>{line}</li>)}</ol>
+      </aside>}
+      <p className="cm-note cm-glossary">{GLOSSARY}</p>
       <Debugger email={user?.email} puzzle={shown} input={input} onInput={setInput} canSubmit={user?.role !== 'admin'} onSubmit={() => submitRef.current?.()} />
       <div className="cm-lower">
         <SubmitForm key={puzzle.id} puzzle={puzzle} input={input} canSubmit={user?.role !== 'admin'} onSolved={reload} submitRef={submitRef} hintsUsed={puzzle.hints.length} />

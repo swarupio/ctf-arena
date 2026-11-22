@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { submitAnswer } from '../../api/cipherlab.js';
 import PreviewNote from '../PreviewNote.jsx';
 import { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
+import { EMPTY_SUBMIT_HINT } from '../../pages/challengeHelpers.js';
 import { STREAK_LOST, cipherErrorMessage, confettiPieces, missText, streakText } from './helpers.js';
 
 const PIECES = confettiPieces();
@@ -64,6 +65,7 @@ export default function AnswerForm({ puzzle, canSubmit, onSolved, streak = 0, hi
       </label>
       <p id="cl-answer-help" className="cl-note">Capitals, spaces and punctuation do not matter.</p>
       <button type="submit" disabled={busy || !answer.trim()}>{busy ? 'Checking…' : 'Submit answer'}</button>
+      {!answer.trim() && <p className="submit-hint">{EMPTY_SUBMIT_HINT}</p>}
     </form>}
     {error && <p role="alert" className="error">{error}</p>}
     {result && !result.correct && <p role="status" className="cl-wrong">{result.message}{lost ? ` ${STREAK_LOST}` : ''}</p>}
