@@ -6,7 +6,7 @@ import { useAdminData } from '../../admin/hooks.js';
 import { formatDay, formatNumber, formatPercent } from '../../admin/format.js';
 import AsyncBlock from '../../components/admin/AsyncBlock.jsx';
 import DataTable from '../../components/admin/DataTable.jsx';
-import EventSummary from '../../components/admin/EventSummary.jsx';
+import EventSummary, { EventSummarySkeleton } from '../../components/admin/EventSummary.jsx';
 import PageHeader, { Badge, Panel } from '../../components/admin/PageHeader.jsx';
 import StatCard, { StatGrid } from '../../components/admin/StatCard.jsx';
 import { SvgBarChart, SvgLineChart } from '../../components/admin/SvgCharts.jsx';
@@ -39,6 +39,19 @@ const terminalColumns = [
   { key: 'maxScore', header: 'Best score', align: 'right', render: (row) => formatNumber(row.maxScore) },
 ];
 
+const STAT_LABELS = ['Users', 'Teams', 'Solves', 'Submissions', 'Wrong flags', 'Active instances'];
+
+// The first load: the Event panel and the six stat cards at their final size (no list of lines that turns into the real page).
+function OverviewSkeleton() {
+  return <div className="adm-loading" aria-busy="true">
+    <p role="status" className="adm-sr">Loading the overview</p>
+    <EventSummarySkeleton />
+    <StatGrid label="Platform totals">
+      {STAT_LABELS.map((label) => <StatCard key={label} label={label} value="0000" hint={label === 'Submissions' ? 'last 30 days kept' : ''} loading />)}
+    </StatGrid>
+  </div>;
+}
+
 export default function Overview() {
   const [days, setDays] = useState(14);
   const { data, error, loading, updatedAt, reload, refresh } = useAdminData((signal) => getOverview(days, signal), [days], { pollMs: OVERVIEW_POLL_MS });
@@ -56,7 +69,7 @@ export default function Overview() {
     </PageHeader>
     <p className="adm-muted adm-meta" role="status">{updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString()}` : 'Loading…'} &middot; refreshes every {OVERVIEW_POLL_MS / 1000} s while this tab is visible</p>
 
-    <AsyncBlock loading={loading} error={error} hasData={Boolean(data)} onRetry={reload} label="the overview" lines={6}>
+    <AsyncBlock loading={loading} error={error} hasData={Boolean(data)} onRetry={reload} label="the overview" fallback={<OverviewSkeleton />}>
       {error && <p role="alert" className="error">{error}</p>}
       <EventSummary />
       <StatGrid label="Platform totals">

@@ -7,7 +7,7 @@ export const eventStore = createEventStore({ fetchEvent: () => getEvent() });
 
 // The event schedule from the public GET /api/event (polled every 30 s through the shared store, paused while the tab is
 // hidden, failures silent) plus a ticking "server now". `tickMs` is how often the component re-renders; 0 disables ticking.
-// Returns { event, nowMs }; event is null when no event is configured or the API is unreachable.
+// Returns { event, nowMs, answeredAt }; answeredAt is 0 until the first response arrived; event is null when no event is configured or the API is unreachable.
 export function useEventClock({ tickMs = 1000 } = {}) {
   const state = useSyncExternalStore(eventStore.subscribe, eventStore.getSnapshot, eventStore.getSnapshot);
   const [now, setNow] = useState(() => Date.now());
@@ -31,5 +31,5 @@ export function useEventClock({ tickMs = 1000 } = {}) {
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility); };
   }, [state.event, tickMs]);
 
-  return { event: state.event, nowMs: now + state.offset };
+  return { event: state.event, nowMs: now + state.offset, answeredAt: state.at };
 }

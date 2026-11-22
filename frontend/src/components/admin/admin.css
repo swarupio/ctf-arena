@@ -59,6 +59,10 @@ main:has(.adm-shell) { width: min(100%, 97.5rem); }
 .adm-stat-value { display: block; font-family: var(--font-display); font-size: 2.5rem; line-height: 1; overflow-wrap: anywhere; }
 .adm-stat-label { display: block; margin-top: var(--space-2); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
 .adm-stat-hint { display: block; margin-top: var(--space-1); font-size: 0.75rem; color: var(--color-muted); }
+/* Loading placeholders: transparent text on a flat block, the size of the text that replaces it. No motion. */
+.adm-skel-text { color: transparent; background: var(--color-surface-2); user-select: none; }
+.adm-stat-skel .adm-stat-value { width: fit-content; color: transparent; background: var(--color-surface-2); }
+.adm-stat-skel .adm-stat-hint { color: transparent; }
 
 /* Charts */
 .adm-chart { position: relative; overflow-x: clip; margin: 0; }
@@ -221,7 +225,7 @@ input[aria-invalid='true'], textarea[aria-invalid='true'] { border-color: var(--
 }
 
 /* A filter bar or table that follows a panel needs the same gap the panels use between themselves. */
-.adm-panel + .adm-filters, .adm-panel + .adm-table-block { margin-top: var(--space-5); }
+.adm-panel + .adm-filters, .adm-panel + .adm-table-block, .adm-loading + .adm-filters, .adm-loading + .adm-table-block { margin-top: var(--space-5); }
 
 /* Visual fixes C. */
 /* A field that follows another field or a note in a panel keeps a gap above its label. */

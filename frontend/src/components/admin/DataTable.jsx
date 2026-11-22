@@ -78,6 +78,6 @@ export default function DataTable({
       </table>
     </div>
     {showSkeleton && <p role="status" className="adm-sr">Loading {caption}</p>}
-    {pagination && <Pagination {...pagination} busy={loading} />}
+    {pagination && !showSkeleton && <Pagination {...pagination} busy={loading} />}
   </div>;
 }
