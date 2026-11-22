@@ -2,10 +2,12 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import app from '../src/app.js';
 import { getCognitoVerifier } from '../src/config/cognito.js';
+import Team from '../src/models/Team.js';
 import User from '../src/models/User.js';
 
 // Use the existing auth middleware with the same verifier mock as auth.test.js.
 vi.mock('../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
+vi.mock('../src/models/Team.js', () => ({ default: { findById: vi.fn() } }));
 vi.mock('../src/models/User.js', () => ({ default: { findOneAndUpdate: vi.fn(), findOne: vi.fn(), exists: vi.fn() } }));
 
 const claims = { sub: 'cognito-alice', email: 'alice@example.com', 'cognito:groups': ['player'] };
@@ -51,7 +53,7 @@ describe('current user profile', () => {
     const response = await getMe().expect(200);
     expect(response.body).toEqual({
       id: '507f1f77bcf86cd799439011', email: claims.email,
-      displayName: 'alice', role: 'player', team: null,
+      displayName: 'alice', role: 'player', team: null, teamBanned: false,
     });
     expect(users.size).toBe(1);
     expect(User.findOneAndUpdate).toHaveBeenCalledWith(
@@ -91,7 +93,7 @@ describe('current user profile', () => {
     const response = await patchMe({ displayName: `  ${name}  ` }).expect(200);
     expect(response.body).toEqual({
       id: '507f1f77bcf86cd799439011', email: claims.email,
-      displayName: name, role: 'player', team: null,
+      displayName: name, role: 'player', team: null, teamBanned: false,
     });
     expect((await getMe().expect(200)).body.displayName).toBe(name);
   });
@@ -135,7 +137,7 @@ describe('current user profile', () => {
     Object.assign(users.get(claims.sub), { teamId: 'some-team', privateField: 'private' });
     expect((await getMe().expect(200)).body).toEqual({
       id: '507f1f77bcf86cd799439011', email: claims.email,
-      displayName: 'alice', role: 'player', team: null,
+      displayName: 'alice', role: 'player', team: null, teamBanned: false,
     });
   });
 
@@ -145,6 +147,54 @@ describe('current user profile', () => {
     users.get(claims.sub).banned = true;
     const response = await getMe().expect(200);
     expect(response.body).toMatchObject({ id: '507f1f77bcf86cd799439011', email: claims.email, banned: true });
+  });
+
+  describe('teamBanned', () => {
+    const teamId = '507f1f77bcf86cd799439022';
+    const withTeam = async (team) => {
+      await getMe().expect(200);
+      users.get(claims.sub).teamId = teamId;
+      Team.findById.mockResolvedValue(team);
+      return (await getMe().expect(200)).body;
+    };
+
+    it('is true for a user whose team is banned, with the team still listed', async () => {
+      const body = await withTeam({ _id: teamId, name: 'Red', banned: true });
+      expect(body).toMatchObject({ team: { id: teamId, name: 'Red' }, teamBanned: true });
+      expect(body).not.toHaveProperty('banned');
+    });
+
+    it('is false for a normal team, and for a team that has no banned field', async () => {
+      expect((await withTeam({ _id: teamId, name: 'Red', banned: false })).teamBanned).toBe(false);
+      expect((await withTeam({ _id: teamId, name: 'Red' })).teamBanned).toBe(false);
+    });
+
+    it('is false without a team, and for a team that no longer exists', async () => {
+      expect((await getMe().expect(200)).body.teamBanned).toBe(false);
+      expect(Team.findById).not.toHaveBeenCalled();
+      const body = await withTeam(null);
+      expect(body).toMatchObject({ team: null, teamBanned: false });
+    });
+
+    it('reads the flag in the existing team lookup (one projection, no extra query)', async () => {
+      await withTeam({ _id: teamId, name: 'Red', banned: true });
+      expect(Team.findById).toHaveBeenCalledTimes(1);
+      expect(Team.findById).toHaveBeenCalledWith(teamId, 'name banned', { lean: true });
+    });
+
+    it('leaves the account flag unchanged: a banned account on a normal team', async () => {
+      await getMe().expect(200);
+      Object.assign(users.get(claims.sub), { teamId, banned: true });
+      Team.findById.mockResolvedValue({ _id: teamId, name: 'Red', banned: false });
+      expect((await getMe().expect(200)).body).toMatchObject({ banned: true, teamBanned: false });
+    });
+
+    it('reports both flags when the account and the team are banned', async () => {
+      await getMe().expect(200);
+      Object.assign(users.get(claims.sub), { teamId, banned: true });
+      Team.findById.mockResolvedValue({ _id: teamId, name: 'Red', banned: true });
+      expect((await getMe().expect(200)).body).toMatchObject({ banned: true, teamBanned: true });
+    });
   });
 
   it('reads the banned flag in the existing lean projection (no extra query)', async () => {

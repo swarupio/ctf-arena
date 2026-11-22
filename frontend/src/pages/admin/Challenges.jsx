@@ -150,7 +150,7 @@ function ManageChallenge({ challenge, onChanged, onGone }) {
   return <>
     <p>{challenge.visible ? <Badge tone="ok">Published</Badge> : <Badge tone="muted">Hidden</Badge>} <Badge>{typeLabel(challenge.type)}</Badge> {challenge.type === 'static' && (challenge.hasFlag ? <Badge>Flag set</Badge> : <Badge tone="danger">No flag</Badge>)}</p>
 
-    <h4 className="adm-h4">Statistics</h4>
+    <h4 className="adm-h4" aria-level={3}>Statistics</h4>
     <AsyncBlock loading={stats.loading} error={stats.error} hasData={Boolean(info)} onRetry={stats.reload} label="statistics" lines={3}>
       {info && <>
         <dl className="adm-facts">
@@ -163,10 +163,10 @@ function ManageChallenge({ challenge, onChanged, onGone }) {
       </>}
     </AsyncBlock>
 
-    <h4 className="adm-h4">Edit</h4>
+    <h4 className="adm-h4" aria-level={3}>Edit</h4>
     <ChallengeForm key={challenge.id} challenge={challenge} onSaved={changed} />
 
-    <h4 className="adm-h4">Danger zone</h4>
+    <h4 className="adm-h4" aria-level={3}>Danger zone</h4>
     <div className="adm-actions-row">
       <button type="button" className="secondary" disabled={act.busy || terminal} onClick={() => setDialog('duplicate')}>Duplicate</button>
       <button type="button" className="secondary" disabled={act.busy} onClick={() => setDialog('reset')}>Reset solves</button>

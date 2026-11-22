@@ -92,6 +92,15 @@ describe('team join attempt limit', () => {
     expect(burst.filter((response) => response.status === 429).length).toBe(40 - lookedUp);
   });
 
+  it('keeps attempts counted by other requests when a parallel transaction rolls back (counter is outside the session)', async () => {
+    const { database } = await import('./helpers/fakeDb.js');
+    await expect(database.transaction(async () => {
+      await consumeAttempt('join:rollback', { limit: 10, windowMs: 60_000 }); // a parallel request, no session
+      throw new Error('rolled back');
+    })).rejects.toThrow('rolled back');
+    expect(models.AttemptCounter.all().find((row) => row.key === 'join:rollback')?.count).toBe(1);
+  });
+
   it('does not spend attempts on requests that fail validation, and cannot be abused to lock others out', async () => {
     for (const body of [{ inviteCode: 'abc' }, { inviteCode: 'ALPHA' }, { inviteCode: 'ALPHA22' }, { inviteCode: 'IIIIII' }, { inviteCode: { $ne: null } }, {}]) {
       expect((await call('post', '/api/teams/join', 'carol', body)).status).toBe(400);

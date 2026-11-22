@@ -32,7 +32,7 @@ const challengeColumns = [
 
 const terminalColumns = [
   { key: 'mode', header: 'Mode', render: (row) => <strong>{row.mode}</strong> },
-  { key: 'codes', header: 'Codes', align: 'right', render: (row) => formatNumber(row.codes) },
+  { key: 'codes', header: 'Flags', align: 'right', render: (row) => formatNumber(row.codes) },
   { key: 'teamsPlaying', header: 'Teams playing', align: 'right', render: (row) => formatNumber(row.teamsPlaying) },
   { key: 'completions', header: 'Completions', align: 'right', render: (row) => formatNumber(row.completions) },
   { key: 'averageScore', header: 'Average score', align: 'right', render: (row) => formatNumber(Math.round((row.averageScore ?? 0) * 10) / 10) },

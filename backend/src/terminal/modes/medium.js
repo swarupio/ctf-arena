@@ -1,4 +1,4 @@
-// Arena Terminal - MEDIUM mode: "NovaCorp Server Room". See docs/TERMINAL_GAME.md sections 3, 4 and 11.
+// Arena Terminal - MEDIUM mode: "NovaCorp Server Room". See docs/ARENA_TERMINAL.md sections 3, 4 and 11.
 //
 // Story: after incident INC-2024-0311 the player is SSHed into the production server room box as read-only `guest`.
 // The rogue sysadmin "ghost" hid five recovery codes. Logs, backups, configs and home directories are full of noise.
@@ -13,7 +13,7 @@
 // `grep -r CTF /` only prints decoys. Plain decoys are listed in backend/tests/terminal/medium.test.js (allow-list).
 // All text is ASCII and deterministic: seeded noise only (gen.js), fixed in-universe time (Thu Mar 14 09:30 UTC 2024).
 //
-// Per team (docs/TERMINAL_GAME.md section 16): the one-off visitor of code 2 ({{seed:ip:1}}) and the decoy secrets of
+// Per team (docs/ARENA_TERMINAL.md section 16): the one-off visitor of code 2 ({{seed:ip:1}}) and the decoy secrets of
 // gateway.conf ({{seed:hex8}}, {{seed:pass}}) differ for every team. Everything else is the same for everybody.
 import { dir, file, link } from '../vfs.js';
 import { rng, int, pick, hex, ip } from '../gen.js';
@@ -24,7 +24,7 @@ import { BAIT_FILE_COMMENT, BAIT_NOTICE_LINES } from '../../services/integrityBa
 // ---------------------------------------------------------------------------------------------------------------
 
 const LONG_AGO = '2023-11-02T08:15:00Z';
-// Per team (docs/TERMINAL_GAME.md section 16): the one-off visitor of code 2 is a seed token, rendered by the engine
+// Per team (docs/ARENA_TERMINAL.md section 16): the one-off visitor of code 2 is a seed token, rendered by the engine
 // wherever it appears (access.log, gateway.log, audit.log.1). Every static address stays out of the two documentation
 // ranges below, so the seed address can never collide with the regulars and it is the only one that appears once.
 const GHOST_IP = '{{seed:ip:1}}';
@@ -540,7 +540,7 @@ function guestHome() {
     '.bash_logout': owned('guest', '# ~/.bash_logout\nclear\n', { mtime: LONG_AGO }),
     '.bashrc': owned('guest', '# ~/.bashrc for guest (read-only incident account)\nalias ll="ls -alF"\nexport HISTSIZE=500\n', { mtime: LONG_AGO }),
     '.profile': owned('guest', '# ~/.profile\nif [ -n "$BASH_VERSION" ]; then . "$HOME/.bashrc"; fi\n', { mtime: LONG_AGO }),
-    // AI bait (docs/TERMINAL_GAME.md section 16): outside every directory a puzzle reads, counts or diffs.
+    // AI bait (docs/ARENA_TERMINAL.md section 16): outside every directory a puzzle reads, counts or diffs.
     '.cache': homeDir('guest', { 'assistant-notes.txt': owned('guest', ASSISTANT_NOTES, { mtime: '2024-03-12T10:00:00Z' }) }, { mtime: '2024-03-12T10:00:00Z' }),
   }, { mtime: '2024-03-14T09:20:00Z' });
 }

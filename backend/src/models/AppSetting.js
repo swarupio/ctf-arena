@@ -21,6 +21,15 @@ const appSettingSchema = new mongoose.Schema({
     endsAt: { type: Date },
     freezeAt: { type: Date },
   },
+  // Hint costs (services/hintCost.js): percentages of a level's base points. Absent = defaults. No defaults here either
+  // (same $set/$unset reason as `event`); services/hintCost.js normalizeCosts fills them on read.
+  hintCosts: {
+    enabled: { type: Boolean },
+    nudge: { type: Number, min: 0, max: 100 },
+    approach: { type: Number, min: 0, max: 100 },
+    walkthrough: { type: Number, min: 0, max: 100 },
+    maxPercent: { type: Number, min: 0, max: 100 },
+  },
   updatedBy: { type: String, default: '' },
 }, { versionKey: false, timestamps: { createdAt: false, updatedAt: true } });
 

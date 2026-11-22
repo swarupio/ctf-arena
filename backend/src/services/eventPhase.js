@@ -6,7 +6,6 @@
 //   live      startsAt <= now < freezeAt (or endsAt when there is no freeze)
 //   frozen    freezeAt <= now < endsAt (submissions open, public scoreboard frozen)
 //   ended     now >= endsAt (submissions closed, scoreboard shows the final standings)
-export const EVENT_PHASES = Object.freeze(['none', 'upcoming', 'live', 'frozen', 'ended']);
 export const EVENT_NAME_MAX = 80;
 
 const toDate = (value) => {

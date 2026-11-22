@@ -5,6 +5,7 @@ import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
 import AttemptCounter from '../../src/models/AttemptCounter.js';
 import Challenge from '../../src/models/Challenge.js';
+import HintOpen from '../../src/models/HintOpen.js';
 import Solve from '../../src/models/Solve.js';
 import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
@@ -14,6 +15,7 @@ import { recordSolve } from '../../src/services/scoringService.js';
 import { ADMIN_PREVIEW_TEAM, UNAVAILABLE_FLAG } from '../../src/services/terminalService.js';
 import { MODE_NAMES, MODES, getMode } from '../../src/terminal/modes/index.js';
 import { complete, execute } from '../../src/terminal/shell.js';
+import { installHintOpen } from '../helpers/hintOpenStore.js';
 
 vi.mock('../../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 vi.mock('../../src/models/User.js', () => ({ default: { findOne: vi.fn() } }));
@@ -25,6 +27,7 @@ vi.mock('../../src/models/Instance.js', () => ({
   default: { find: vi.fn(), findOne: vi.fn() }, ACTIVE_STATUSES: ['starting', 'running', 'stopping'],
 }));
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), exists: vi.fn() } }));
+vi.mock('../../src/models/HintOpen.js', () => ({ default: { updateOne: vi.fn(), find: vi.fn() } }));
 vi.mock('../../src/models/AttemptCounter.js', () => ({ default: { findOneAndUpdate: vi.fn(), create: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn(), countDocuments: vi.fn() } }));
 vi.mock('../../src/services/scoringService.js', () => ({ recordSolve: vi.fn() }));
@@ -59,6 +62,7 @@ let teams;
 let challenges;
 let solves;
 let counters;
+let opens;
 
 const doc = (name, n) => challenges.find((c) => c.terminal.mode === name && c.terminal.code === n);
 const flagOf = (name, n, teamId = TEAM_A) => expectedFlagFor(doc(name, n), { secret, teamId });
@@ -97,6 +101,7 @@ beforeEach(() => {
   teams = { [TEAM_A]: { _id: TEAM_A, name: 'Alpha', banned: false }, [TEAM_B]: { _id: TEAM_B, name: 'Bravo', banned: false } };
   challenges = MODE_NAMES.flatMap(seededDocs);
   solves = [];
+  opens = installHintOpen(HintOpen);
   User.findOne.mockImplementation(async ({ cognitoSub }) => users[cognitoSub] ?? null);
   Team.findById.mockImplementation(async (id) => teams[String(id)] ?? null);
   Challenge.find.mockImplementation((filter) => ({ lean: async () => challenges.filter((row) => matchesFilter(row, filter)) }));
@@ -227,7 +232,7 @@ describe('POST /terminal/:mode/exec', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     const [line, ctx] = execute.mock.calls[0];
     expect(line).toBe('cat welcome.txt');
-    expect(Object.keys(ctx).sort()).toEqual(['cwd', 'flag', 'mailSeen', 'mode', 'progress', 'seed', 'storySeed']);
+    expect(Object.keys(ctx).sort()).toEqual(['cwd', 'flag', 'mailSeen', 'mode', 'progress', 'recordHint', 'seed', 'storySeed']);
     expect(ctx.seed).toMatch(/^[0-9a-f]{64}$/);
     expect(ctx.mode).toBe(MODES.easy);
     expect(ctx.cwd).toBe('/home/guest');
@@ -467,7 +472,9 @@ describe('GET /terminal/modes', () => {
 describe('GET /terminal/:mode/progress', () => {
   it('lists solved codes with titles from the definition, earned points and first blood', async () => {
     solves = [solveOf('easy', 2), solveOf('easy', 1, { points: 44, firstBlood: true }), { ...solveOf('easy', 3), teamId: TEAM_B }];
-    const { body } = await api('get', '/terminal/easy/progress').expect(200);
+    const { body: full } = await api('get', '/terminal/easy/progress').expect(200);
+    const { hint, ...body } = full; // the hint pricing of the next code has its own test below
+    expect(hint.code).toBe(3);
     const total = MODES.easy.codes.length;
     expect(body).toEqual({
       mode: 'easy', total, remaining: total - 2,
@@ -500,7 +507,9 @@ describe('POST /terminal/:mode/submit', () => {
       correct: true, code: 2, title: definitionCode('easy', 2).title, pointsAwarded: definitionCode('easy', 2).points,
       firstBlood: false, message: 'Correct flag!', solved: 1, total,
     });
-    expect(recordSolve).toHaveBeenCalledWith({ challenge: doc('easy', 2), teamId: TEAM_A, userId: users.player._id });
+    expect(recordSolve).toHaveBeenCalledWith({
+      challenge: doc('easy', 2), teamId: TEAM_A, userId: users.player._id, hint: { scope: 'terminal', key: 'easy:2' },
+    });
     const saved = Submission.create.mock.calls[0][0];
     expect(saved).toMatchObject({ teamId: TEAM_A, userId: users.player._id, challengeId: doc('easy', 2)._id, correct: true });
     expect(saved.submittedHash).toMatch(/^[0-9a-f]{64}$/);
@@ -664,5 +673,52 @@ describe('no response leaks a flag', () => {
     ];
     expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200, 200, 200, 200, 200, 403, 400, 404]);
     for (const response of responses) { expectNoFlags(response.body); }
+  });
+});
+
+describe('hint costs', () => {
+  const nextCode = MODES.easy.codes[0];
+
+  it('gives players the prices of the next code (no text), and nothing to admins', async () => {
+    const { body } = await api('get', '/terminal/easy/progress').expect(200);
+    expect(body.hint).toEqual({
+      code: 1, total: nextCode.hints.length, base: nextCode.points, opened: [],
+      pricing: [
+        { index: 0, tier: 'nudge', percent: 5, points: 2 },
+        { index: 1, tier: 'approach', percent: 15, points: 6 }, // what opening it first adds: the nudge below it too
+        { index: 2, tier: 'walkthrough', percent: 40, points: 16 },
+      ].slice(0, nextCode.hints.length),
+      spent: { points: 0, percent: 0, cap: 16 },
+    });
+    for (const text of nextCode.hints) { expect(JSON.stringify(body)).not.toContain(text); }
+    expect((await api('get', '/terminal/easy/progress', 'admin').expect(200)).body.hint).toBeUndefined();
+    expect((await api('get', '/terminal/easy/progress', 'player2').expect(200)).body.hint.opened).toEqual([]);
+  });
+
+  it('hands players a recordHint that stores the open once (scope terminal, key mode:code) and shows it in the next progress', async () => {
+    await api('post', '/terminal/easy/exec', 'player', { command: 'hint' }).expect(200);
+    const ctx = execute.mock.calls[0][1];
+    await ctx.recordHint({ code: 1, index: 1 });
+    await ctx.recordHint({ code: 1, index: 1 });
+    expect(opens).toHaveLength(1);
+    expect(opens[0]).toMatchObject({ teamId: TEAM_A, userId: users.player._id, scope: 'terminal', key: 'easy:1', index: 1 });
+    const { body } = await api('get', '/terminal/easy/progress').expect(200);
+    expect(body.hint.opened).toEqual([2]);
+    expect(opens[0]).toMatchObject({ percent: 15, capPercent: 40 });
+    expect(body.hint.pricing.map((p) => [p.index, p.percent])).toEqual([[0, 0], [2, 25]]);
+    expect(body.hint.spent).toEqual({ points: 6, percent: 15, cap: 16 });
+    expect((await api('get', '/terminal/easy/progress', 'player2').expect(200)).body.hint.opened).toEqual([]);
+  });
+
+  it('gives admins no recordHint: previews are free and write nothing', async () => {
+    await api('post', '/terminal/easy/exec', 'admin', { command: 'hint' }).expect(200);
+    expect(execute.mock.calls[0][1].recordHint).toBeUndefined();
+    expect(opens).toHaveLength(0);
+  });
+
+  it('adds hintCost to the answer when the solve was charged', async () => {
+    recordSolve.mockResolvedValue({ points: 36, firstBlood: false, hintCost: { spent: 4, openedCount: 1, base: 40, awarded: 36 } });
+    const { body } = await api('post', '/terminal/easy/submit', 'player', { flag: flagOf('easy', 1) }).expect(200);
+    expect(body).toMatchObject({ pointsAwarded: 36, hintCost: { spent: 4, openedCount: 1, base: 40, awarded: 36 } });
   });
 });

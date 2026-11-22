@@ -1,4 +1,4 @@
-// Arena Terminal - MEDIUM mode ("NovaCorp Server Room") content tests. See docs/TERMINAL_GAME.md sections 11 and 12.
+// Arena Terminal - MEDIUM mode ("NovaCorp Server Room") content tests. See docs/ARENA_TERMINAL.md sections 11 and 12.
 // Structure checks work on the mode data alone; the scripted solutions run through the real engine (shell.js).
 import { createHash } from 'node:crypto';
 import { describe, it, expect, vi } from 'vitest';
@@ -9,7 +9,7 @@ import { BAIT_FILE_COMMENT, BAIT_NOTICE_LINES } from '../../src/services/integri
 const flag = (n) => 'CTF{test_flag_' + n + '}';
 const CODES = [1, 2, 3, 4, 5];
 
-// Two different teams (docs/TERMINAL_GAME.md section 16). The one-off visitor of code 2 is {{seed:ip:1}} in the content,
+// Two different teams (docs/ARENA_TERMINAL.md section 16). The one-off visitor of code 2 is {{seed:ip:1}} in the content,
 // so every scripted solution has to read it off the screen: nothing below hard-codes it.
 const seedOf = (name) => createHash('sha256').update('arena-test-seed:' + name).digest('hex');
 const SEED_A = seedOf('team-a');
@@ -97,7 +97,7 @@ const MILESTONES = [
   [5, 3, 'ghost-mirror -> /srv/backups/homes/ghost'],
 ];
 
-// Commands the solutions may use: the non-optional commands of docs/TERMINAL_GAME.md section 7.
+// Commands the solutions may use: the non-optional commands of docs/ARENA_TERMINAL.md section 7.
 const ALLOWED_COMMANDS = new Set([
   'help', 'man', 'clear', 'history', 'whoami', 'id', 'hostname', 'uname', 'date', 'pwd', 'cd', 'echo', 'env', 'true', 'false',
   'exit', 'motd', 'hint', 'status', 'codes', 'ls', 'cat', 'tac', 'head', 'tail', 'less', 'more', 'nl', 'wc', 'file', 'stat',
@@ -527,7 +527,7 @@ describe('other routes players may take', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// Per team variation (docs/TERMINAL_GAME.md section 16)
+// Per team variation (docs/ARENA_TERMINAL.md section 16)
 // ---------------------------------------------------------------------------------------------------------------
 
 describe('per team variation', () => {
@@ -619,7 +619,7 @@ describe('per team variation', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// AI bait (docs/TERMINAL_GAME.md section 16)
+// AI bait (docs/ARENA_TERMINAL.md section 16)
 // ---------------------------------------------------------------------------------------------------------------
 
 describe('AI bait', () => {

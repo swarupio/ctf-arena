@@ -25,6 +25,7 @@ vi.mock('../src/models/CipherHint.js', () => ({ default: {} }));
 vi.mock('../src/models/CrackmeHint.js', () => ({ default: {} }));
 vi.mock('../src/models/CrackmePatch.js', () => ({ default: {} }));
 vi.mock('../src/models/OsintHint.js', () => ({ default: {} }));
+vi.mock('../src/models/HintOpen.js', () => ({ default: {} }));
 vi.mock('../src/models/OsintBoard.js', () => ({ default: {} }));
 vi.mock('../src/models/AuditLog.js', () => ({ default: {} }));
 vi.mock('../src/models/AppSetting.js', () => ({ default: {}, ANNOUNCEMENT_LEVELS: ['info', 'warning', 'critical'] }));

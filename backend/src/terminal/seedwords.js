@@ -1,4 +1,4 @@
-// Fixed word lists behind {{seed:word}}, {{seed:pass}} and {{seed:user}} (docs/TERMINAL_GAME.md section 16).
+// Fixed word lists behind {{seed:word}}, {{seed:pass}} and {{seed:user}} (docs/ARENA_TERMINAL.md section 16).
 // The lists are part of the puzzle contract: changing, reordering or resizing them changes every team's values,
 // so treat them as frozen. All entries are distinct lowercase ASCII; WORDS has exactly 256 entries (one per byte
 // value) and NAMES exactly 64 (6 bits).

@@ -1,5 +1,5 @@
 // The Arena Terminal shell: a safe, deterministic, bounded interpreter over the virtual filesystem.
-// Contract: docs/TERMINAL_GAME.md sections 1, 5, 6, 7. Nothing real is executed; every command is a
+// Contract: docs/ARENA_TERMINAL.md sections 1, 5, 6, 7. Nothing real is executed; every command is a
 // JavaScript function working on the in-memory VFS built by the mode definition.
 import {
   Budget, LIMITS, ResourceLimitError, capOutput, withRegexMeter,
@@ -393,7 +393,7 @@ export async function execute(line, ctx = {}) {
   let rc;
   let safeCtx = ctx && typeof ctx === 'object' ? ctx : {};
   try {
-    // The living story (docs/TERMINAL_GAME.md section 18): mail and log files derived from this team's progress.
+    // The living story (docs/ARENA_TERMINAL.md section 18): mail and log files derived from this team's progress.
     safeCtx = await storyContext(safeCtx);
     rc = makeRc(safeCtx);
   } catch {

@@ -6,6 +6,7 @@ import { getCognitoVerifier } from '../../src/config/cognito.js';
 import { buildPuzzle, slugOf } from '../../src/games/cipherlab/game.js';
 import { LEVELS, MAX_POINTS, TOOLS, TRACKS, levelById, trackMaxPoints } from '../../src/games/cipherlab/levels.js';
 import { ATTEMPT_LIMIT } from '../../src/games/cipherlab/service.js';
+import { netPoints, spentFor } from '../../src/services/hintCost.js';
 import Challenge from '../../src/models/Challenge.js';
 import CipherHint from '../../src/models/CipherHint.js';
 import Solve from '../../src/models/Solve.js';
@@ -108,7 +109,11 @@ beforeEach(() => {
       hints.push({ ...filter, ...update.$setOnInsert, createdAt: new Date() });
     }
   });
-  CipherHint.find.mockImplementation(() => ({ sort: () => ({ limit: () => ({ lean: async () => [...hints].reverse() }) }) }));
+  // The admin log sorts and limits; the hint ledger (services/hintLedger.js) reads one team's rows of one level with .lean().
+  CipherHint.find.mockImplementation((filter = {}) => ({
+    sort: () => ({ limit: () => ({ lean: async () => [...hints].reverse() }) }),
+    lean: async () => hints.filter((h) => String(h.teamId) === String(filter.teamId) && h.levelId === filter.levelId),
+  }));
   consumeAttempt.mockImplementation(async (key, { limit, message }) => {
     counters.set(key, (counters.get(key) ?? 0) + 1);
     if (counters.get(key) > limit) { throw new AppError(429, 'RATE_LIMITED', message); }
@@ -300,7 +305,7 @@ describe('rate limit', () => {
 });
 
 describe('hints', () => {
-  it('reveals hints one at a time, for free, and logs them for admins', async () => {
+  it('reveals hints one at a time, charges them at solve time, and logs them for admins', async () => {
     const first = (await api('post', '/levels/e1/hints', 'player', {}).expect(200)).body;
     expect(first).toMatchObject({ index: 0, used: 1, total: 2 });
     expect(first.hint).toMatch(/\w/);
@@ -310,12 +315,43 @@ describe('hints', () => {
     const view = (await api('get', '/levels/e1').expect(200)).body;
     expect(view.hints).toHaveLength(2);
     expect(JSON.stringify(view)).not.toContain(answerOf('e1'));
-    // Points are unaffected: the level is worth the same after two hints.
-    expect((await solveAnswer('e1')).body.pointsAwarded).toBe(levelById('e1').points);
+    // Hints cost points now (docs/HINTS.md "Hint costs"): two hints on e1 are charged at solve time with the default costs
+    // (this test used to assert that hints were free).
+    const base = levelById('e1').points;
+    const paid = netPoints(base, spentFor(base, [0, 1]));
+    expect(paid).toBeLessThan(base);
+    const solved = (await solveAnswer('e1')).body;
+    expect(solved.pointsAwarded).toBe(paid);
+    expect(solved.hintCost).toEqual({ spent: base - paid, openedCount: 2, base, awarded: paid });
     const log = (await api('get', '/admin/hints', 'admin').expect(200)).body;
     expect(log).toHaveLength(2);
     expect(log[0]).toMatchObject({ teamId: TEAM_A, levelId: 'e1' });
     await api('get', '/admin/hints', 'player').expect(403);
+  });
+
+  it('prices every hint: unopened hints carry tier, percent and points but no text; opening reports cost and spend', async () => {
+    const base = levelById('e1').points;
+    const before = (await api('get', '/levels/e1').expect(200)).body;
+    expect(before.hints).toEqual([]);
+    expect(before.hintPricing.map((p) => [p.index, p.tier])).toEqual([[0, 'nudge'], [1, 'approach']]);
+    expect(Object.keys(before.hintPricing[0]).sort()).toEqual(['index', 'percent', 'points', 'tier']);
+    expect(before.hintSpent).toEqual({ points: 0, percent: 0, cap: Math.round(base * 0.4) });
+    const first = (await api('post', '/levels/e1/hints', 'player', {}).expect(200)).body;
+    expect(first.cost).toEqual({ percent: 5, points: Math.round(base * 0.05), tier: 'nudge' });
+    expect(first.spent).toMatchObject({ points: spentFor(base, [0]), cap: Math.round(base * 0.4) });
+    const after = (await api('get', '/levels/e1').expect(200)).body;
+    expect(after.hintPricing.map((p) => p.index)).toEqual([1]);
+    expect(JSON.stringify(after.hintPricing)).not.toContain(first.hint);
+  });
+
+  it('keeps the admin preview free: no cost, spend or pricing fields, nothing recorded', async () => {
+    const view = (await api('get', '/levels/e1', 'admin').expect(200)).body;
+    expect(view.hintPricing).toBeUndefined();
+    expect(view.hintSpent).toBeUndefined();
+    const opened = (await api('post', '/levels/e1/hints', 'admin', {}).expect(200)).body;
+    expect(opened.cost).toBeUndefined();
+    expect(opened.spent).toBeUndefined();
+    expect(hints).toHaveLength(0);
   });
 
   it('never reveals the full answer, even through the dynamic boss hint', async () => {

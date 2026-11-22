@@ -12,8 +12,11 @@ import {
 } from '../forensics/tracks.js';
 import { interviewAnswer, interviewQuestions } from '../forensics/interviews.js';
 import { achievementService } from './achievementService.js';
+import { getHintCosts } from './adminSettings.js';
 import { consumeAttempt } from './attemptLimiter.js';
 import { expectedFlagFor, hashSubmission } from './flagService.js';
+import { chargeOf, costOf, spentView } from './hintCost.js';
+import { openedEntries, recordHintOpen } from './hintLedger.js';
 import { integrityService } from './integrityService.js';
 import { recordSolve } from './scoringService.js';
 import { safeEqualText } from '../forensics/core.js';
@@ -108,18 +111,60 @@ export function summarizeTrack(track, rows, solved) {
   };
 }
 
+// Hint costs (docs/HINTS.md "Hint costs"): scope 'forensics', key '<track>:<stage>'. A stage has at most one hint (index 0, a
+// nudge). The text is withheld from every player view until the team opened it; admins preview it for free.
+const hintKey = (track, n) => `${track.id}:${n}`;
+const hasHint = (stage) => typeof stage.hint === 'string' && stage.hint !== '';
+
+// { opened: Set of stage numbers the team opened, costs } for the case view of a player with a team; null otherwise.
+export async function hintState(track, team) {
+  if (!team) { return null; }
+  const stages = track.stages.filter(hasHint);
+  if (stages.length === 0) { return { opened: new Set(), costs: await getHintCosts() }; }
+  const [lists, costs] = await Promise.all([
+    Promise.all(stages.map((stage) => openedEntries({ teamId: team._id, scope: 'forensics', key: hintKey(track, stage.n) }))),
+    getHintCosts(),
+  ]);
+  // entries: stage number -> ledger rows (with the stored price), so the spend shown matches what the solve deducts.
+  return {
+    opened: new Set(stages.filter((stage, i) => lists[i].length > 0).map((stage) => stage.n)),
+    entries: new Map(stages.map((stage, i) => [stage.n, lists[i]])),
+    costs,
+  };
+}
+
+export async function openHint({ track, rows, stageNo, team, user, preview }) {
+  const stage = track.stages.find((s) => s.n === stageNo);
+  if (!stage) { throw new AppError(404, 'NOT_FOUND', 'Stage not found.'); }
+  if (!hasHint(stage)) { throw new AppError(403, 'NO_HINTS', 'This stage gives no hint.'); }
+  if (!rows.has(stageNo)) { throw notSeeded(); }
+  const reply = { index: 0, hint: stage.hint, used: 1, total: 1 };
+  if (preview) { return reply; }
+  const scope = { teamId: team._id, scope: 'forensics', key: hintKey(track, stageNo) };
+  const { percent, costs } = await recordHintOpen({ ...scope, userId: user._id, index: 0 }); // priced now; a repeat open keeps the stored price
+  return { ...reply, cost: chargeOf(stage.points, percent, 0), spent: spentView(stage.points, await openedEntries(scope), costs) };
+}
+
 const othersSolved = (track, solved) => track.stages.filter((stage) => !stage.whodunit).every((stage) => solved.has(stage.n));
 
 // Everything the case page needs. Unsolved stages carry no answer, no flag and no suspect fact.
-export function trackView({ track, ctx, rows, solved, team }) {
+export function trackView({ track, ctx, rows, solved, team, hints = null, preview = false }) {
   const unlocked = othersSolved(track, solved);
   const stages = track.stages.map((stage) => {
     const done = solved.has(stage.n);
+    const open = preview || Boolean(hints?.opened.has(stage.n));
     const view = {
       n: stage.n, title: stage.title, prompt: stage.prompt, points: stage.points, format: answerFormat(stage),
-      hint: stage.hint, whodunit: Boolean(stage.whodunit), solved: done,
+      hint: open && hasHint(stage) ? stage.hint : null, hasHint: hasHint(stage),
+      whodunit: Boolean(stage.whodunit), solved: done,
       locked: Boolean(stage.whodunit) && !unlocked, available: rows.has(stage.n),
     };
+    if (hints && hasHint(stage)) {
+      const opened = hints.opened.has(stage.n) ? [0] : [];
+      view.hintOpened = opened.length > 0;
+      view.hintPricing = opened.length > 0 ? [] : [{ index: 0, ...costOf(stage.points, 0, hints.costs) }];
+      view.hintSpent = spentView(stage.points, hints.entries?.get(stage.n) ?? opened, hints.costs);
+    }
     if (done) {
       view.pointsEarned = solved.get(stage.n).points;
       if (team && rows.has(stage.n)) { view.flag = expectedFlagFor(rows.get(stage.n), { secret: env.FLAG_SECRET, teamId: team._id }); }
@@ -176,13 +221,17 @@ export async function submitAnswer({ track, rows, team, user, stageNo, answer })
     return { correct: false, pointsAwarded: 0, firstBlood: false, message: wrongMessage(submitted), solved: solved.size, total };
   }
   // Fixed points straight from the definition: a stored row can never raise the documented maximum.
-  const solve = await recordSolve({ challenge: { ...row, points: stage.points, type: 'forensics' }, teamId: team._id, userId: user._id });
+  const solve = await recordSolve({
+    challenge: { ...row, points: stage.points, type: 'forensics' }, teamId: team._id, userId: user._id,
+    hint: { scope: 'forensics', key: hintKey(track, stageNo) },
+  });
   if (!solve) { return already(solved.size + 1); }
   const closed = solved.size + 1 === total;
   const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id, memberCount: team.memberIds?.length }); // cosmetic; never throws
   return {
     ...(badges.length ? { badges } : {}),
-    correct: true, pointsAwarded: solve.points, firstBlood: false, solved: solved.size + 1, total,
+    correct: true, pointsAwarded: solve.points, ...(solve.hintCost ? { hintCost: solve.hintCost } : {}),
+    firstBlood: false, solved: solved.size + 1, total,
     flag: expectedFlagFor(row, { secret: env.FLAG_SECRET, teamId: team._id }),
     message: closed ? CASE_CLOSED : rightMessage(submitted), caseClosed: closed,
   };

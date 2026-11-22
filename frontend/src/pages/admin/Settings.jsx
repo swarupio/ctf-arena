@@ -10,6 +10,7 @@ import { BannerView } from '../../components/AnnouncementBanner.jsx';
 import AsyncBlock from '../../components/admin/AsyncBlock.jsx';
 import ConfirmDialog from '../../components/admin/ConfirmDialog.jsx';
 import EventPanel from '../../components/admin/EventPanel.jsx';
+import HintCostsPanel from '../../components/admin/HintCostsPanel.jsx';
 import PageHeader, { Panel } from '../../components/admin/PageHeader.jsx';
 
 export default function Settings() {
@@ -81,6 +82,8 @@ function SettingsForm({ saved, onSaved }) {
     </form>
 
     <EventPanel saved={saved.event} onSaved={onSaved} />
+
+    <HintCostsPanel saved={saved.hintCosts} onSaved={onSaved} />
 
     <ConfirmDialog open={confirm} danger title="Apply these settings?" confirmLabel="Save settings" pending={act.isPending('save')} onCancel={() => setConfirm(false)} onConfirm={save}>
       {freezing && <p>Players will not be able to submit flags or terminal answers until you unfreeze submissions.</p>}

@@ -14,6 +14,7 @@ import User from '../../src/models/User.js';
 import { osintDefinitions } from '../../src/scripts/seedOsint.js';
 import { achievementService } from '../../src/services/achievementService.js';
 import { expectedFlagFor } from '../../src/services/flagService.js';
+import { netPoints, spentFor } from '../../src/services/hintCost.js';
 import { hasFirstBloodBonus } from '../../src/services/scoringService.js';
 import { OSINT_MAX_POINTS, TRACKS, TRACK_IDS, buildCase } from '../../src/osint/cases.js';
 
@@ -113,9 +114,12 @@ beforeEach(() => {
     const chain = {
       sort: () => chain,
       limit: () => chain,
-      lean: async () => (filter.teamId
-        ? hints.filter((h) => h.teamId === String(filter.teamId) && filter.key.$in.includes(h.key))
-        : [...hints].reverse()),
+      lean: async () => {
+        if (!filter.teamId) { return [...hints].reverse(); }
+        // openedHints reads many questions ($in); the hint ledger reads one (exact key).
+        const mine = (h) => (typeof filter.key === 'string' ? h.key === filter.key : filter.key.$in.includes(h.key));
+        return hints.filter((h) => h.teamId === String(filter.teamId) && mine(h));
+      },
     };
     return chain;
   });
@@ -357,10 +361,13 @@ describe('attempt limit', () => {
 });
 
 describe('hints', () => {
-  it('opens free hints one at a time for easy and medium, logged for admins', async () => {
+  it('opens hints one at a time for easy and medium, logged for admins, with their cost', async () => {
     const first = await api('post', '/cases/easy/questions/1/hints', 'player', {}).expect(200);
     expect(first.body).toMatchObject({ index: 0, used: 1, total: 2 });
     expect(first.body.hint).toBe(TRACKS.easy.stages[0].hints[0]);
+    const base = TRACKS.easy.stages[0].points;
+    expect(first.body.cost).toEqual({ percent: 5, points: Math.round(base * 0.05) || 1, tier: 'nudge' });
+    expect(first.body.spent).toMatchObject({ cap: Math.round(base * 0.4) });
     const second = await api('post', '/cases/easy/questions/1/hints', 'player', {}).expect(200);
     expect(second.body).toMatchObject({ index: 1, used: 2 });
     expect((await api('post', '/cases/easy/questions/1/hints', 'player', {}).expect(409)).body.error.code).toBe('NO_MORE_HINTS');
@@ -373,6 +380,29 @@ describe('hints', () => {
     expect(log.map((h) => h.key).sort()).toEqual(['easy:1', 'easy:1', 'medium:2']);
     expect(log[0]).toHaveProperty('teamId', TEAM_A);
     expect(hints).toHaveLength(3);
+  });
+
+  it('charges the opened hints at solve time and reports hintCost (repeated opens count once)', async () => {
+    const base = TRACKS.easy.stages[0].points;
+    await api('post', '/cases/easy/questions/1/hints', 'player', {}).expect(200);
+    await api('post', '/cases/easy/questions/1/hints', 'player', {}).expect(200);
+    const paid = netPoints(base, spentFor(base, [0, 1]));
+    const { body } = await answer('easy', 1, truth('easy', 1)).expect(200);
+    expect(body).toMatchObject({ correct: true, pointsAwarded: paid, hintCost: { spent: base - paid, openedCount: 2, base, awarded: paid } });
+    expect(solves[0]).toMatchObject({ points: paid });
+    // Another question with no hints stays at its full points and carries no hintCost.
+    const plain = (await answer('easy', 2, truth('easy', 2)).expect(200)).body;
+    expect(plain.hintCost).toBeUndefined();
+    expect(plain.pointsAwarded).toBe(TRACKS.easy.stages[1].points);
+  });
+
+  it('prices closed hints without text in the case view', async () => {
+    const view = (await api('get', '/cases/easy').expect(200)).body;
+    const question = view.questions[0];
+    expect(question.hints).toEqual([]);
+    expect(question.hintPricing.map((p) => p.tier)).toEqual(['nudge', 'approach']);
+    expect(JSON.stringify(question.hintPricing)).not.toContain(TRACKS.easy.stages[0].hints[0]);
+    expect(question.hintSpent).toMatchObject({ points: 0 });
   });
 
   it('gives no hints for hard and insane and none on a locked final', async () => {

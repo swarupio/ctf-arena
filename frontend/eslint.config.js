@@ -34,6 +34,16 @@ export default [
     },
   },
   {
+    // Plain browser scripts that are copied as they are (not bundled), e.g. public/theme-init.js (ES5, empty catch blocks).
+    files: ['public/**/*.js'],
+    languageOptions: { ecmaVersion: 5, sourceType: 'script', globals: { ...globals.browser } },
+    rules: {
+      ...rules,
+      'no-unused-vars': ['error', { args: 'after-used', caughtErrors: 'none' }],
+      'prefer-const': 'off',
+    },
+  },
+  {
     files: ['tests/**/*.js', 'vite.config.js', 'eslint.config.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },
     rules,

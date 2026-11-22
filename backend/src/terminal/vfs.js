@@ -1,4 +1,4 @@
-// Virtual filesystem node constructors for the terminal game. See docs/TERMINAL_GAME.md section 4.
+// Virtual filesystem node constructors for the terminal game. See docs/ARENA_TERMINAL.md section 4.
 // The shapes below are a contract shared by the engine and every mode file: do not change them.
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';

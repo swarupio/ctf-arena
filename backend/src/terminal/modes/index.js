@@ -1,4 +1,4 @@
-// Registry of terminal game modes. Each mode file default-exports a definition (docs/TERMINAL_GAME.md section 3).
+// Registry of terminal game modes. Each mode file default-exports a definition (docs/ARENA_TERMINAL.md section 3).
 import easy from './easy.js';
 import medium from './medium.js';
 import hard from './hard.js';

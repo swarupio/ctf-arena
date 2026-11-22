@@ -1,4 +1,4 @@
-// Pure helpers for the living story (docs/TERMINAL_GAME.md section 18): which mails exist, which are unread, and the
+// Pure helpers for the living story (docs/ARENA_TERMINAL.md section 18): which mails exist, which are unread, and the
 // cosmetic "commands used" badge. Nothing here is sent to the server except the read marker (a small bit mask), and
 // nothing here decides anything: the server builds the mails, the browser only counts and remembers what was read.
 

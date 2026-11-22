@@ -1,4 +1,4 @@
-// Tokenizer, parser and word expansion for the terminal shell. See docs/TERMINAL_GAME.md section 5.
+// Tokenizer, parser and word expansion for the terminal shell. See docs/ARENA_TERMINAL.md section 5.
 // Words are flat arrays of "items": { c, q } literal char (q = quoted), { v, op?, arg?, q } variable,
 // { s, q } command substitution, { ar, q } arithmetic. Nothing here touches the filesystem directly.
 import { LIMITS } from './limits.js';

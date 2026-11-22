@@ -39,6 +39,7 @@ vi.mock('../../src/models/CipherHint.js', async () => (await import('./helpers/f
 vi.mock('../../src/models/CrackmeHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CrackmeHint'));
 vi.mock('../../src/models/CrackmePatch.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CrackmePatch'));
 vi.mock('../../src/models/OsintHint.js', async () => (await import('./helpers/fakeDb.js')).modelModule('OsintHint'));
+vi.mock('../../src/models/HintOpen.js', async () => (await import('./helpers/fakeDb.js')).modelModule('HintOpen'));
 // Tag every requireRole() guard with the roles it was built with, so the access level can be read off the chain.
 vi.mock('../../src/middleware/requireRole.js', async (importOriginal) => {
   const original = await importOriginal();
@@ -89,6 +90,7 @@ const TABLE = [
   ['GET', '/api/forensics/tracks/:track/artefacts/:artefact', 'any'],
   ['GET', '/api/forensics/tracks/:track/interviews', 'any'],
   ['POST', '/api/forensics/tracks/:track/interviews', 'any'],
+  ['POST', '/api/forensics/tracks/:track/stages/:n/hint', 'any'],
   ['POST', '/api/forensics/tracks/:track/stages/:n/answer', 'player'],
 
   ['GET', '/api/osint/cases', 'any'],
@@ -116,7 +118,7 @@ const TABLE = [
   ['GET', '/api/crackme/admin/hints', 'admin'],
   ['GET', '/api/weblab/labs', 'any'],
   ['GET', '/api/weblab/labs/:slug', 'any'],
-  ['GET', '/api/weblab/labs/:slug/hints/:level', 'any'],
+  ['POST', '/api/weblab/labs/:slug/hints/:level', 'any'],
   ['POST', '/api/weblab/labs/:slug/request', 'any'],
   ['POST', '/api/weblab/labs/:slug/submit', 'player'],
 
@@ -136,6 +138,8 @@ const TABLE = [
   ['GET', '/api/announcement', 'none'],
   // GET /api/event is public on purpose too (scheduled-event name, phase and times only; docs/EVENT_MODE.md).
   ['GET', '/api/event', 'none'],
+  // GET /api/hint-costs is public too (the five hint-cost numbers; docs/HINTS.md "Hint costs").
+  ['GET', '/api/hint-costs', 'none'],
   ...[
     ['GET', '/challenges/export'], ['POST', '/challenges/import'], ['PATCH', '/challenges/:id/visibility'],
     ['POST', '/challenges/:id/duplicate'], ['GET', '/challenges/:id/stats'], ['POST', '/challenges/:id/reset-solves'],
@@ -260,10 +264,10 @@ describe('route inventory', () => {
     expect(missingRoute, 'TABLE rows with no route (stale entries)').toEqual([]);
   });
 
-  it('only exposes health, the announcement banner, the event schedule and the documented honeypot decoys without authentication', () => {
+  it('only exposes health, the announcement banner, the event schedule, the hint costs and the documented honeypot decoys without authentication', () => {
     const open = routes.filter((route) => accessOf(route.chain) === 'none').map((route) => keyOf(route.method, route.path));
     expect(open.sort()).toEqual([...PUBLIC_KEYS].sort());
-    expect(PUBLIC_KEYS.filter((key) => !key.includes('/api/health') && !key.endsWith(' /api/announcement') && !key.endsWith(' /api/event') && !HONEYPOT_PATHS.some((path) => key.endsWith(` ${path}`)))).toEqual([]);
+    expect(PUBLIC_KEYS.filter((key) => !key.includes('/api/health') && !key.endsWith(' /api/announcement') && !key.endsWith(' /api/event') && !key.endsWith(' /api/hint-costs') && !HONEYPOT_PATHS.some((path) => key.endsWith(` ${path}`)))).toEqual([]);
   });
 
   it('wires the required access into each route chain, with auth before any role check', () => {

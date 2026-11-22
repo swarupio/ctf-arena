@@ -1,4 +1,4 @@
-// Per-team puzzle values behind {{seed:KIND[:SLOT]}} tokens (docs/TERMINAL_GAME.md section 16).
+// Per-team puzzle values behind {{seed:KIND[:SLOT]}} tokens (docs/ARENA_TERMINAL.md section 16).
 // Pure and deterministic: the same (seed, kind, slot) always gives the same value on every replica, and different
 // seeds give different values. Nothing here reads the clock, the environment or Math.random().
 import { createHmac } from 'node:crypto';

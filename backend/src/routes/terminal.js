@@ -1,4 +1,4 @@
-// Arena Terminal game API (docs/TERMINAL_GAME.md section 8, docs/API_SPEC.md "Terminal").
+// Arena Terminal game API (docs/ARENA_TERMINAL.md section 8, docs/API_SPEC.md "Terminal").
 // Routes stay thin: validate -> call the service or the shell engine -> respond. No state lives in this process.
 import { Router } from 'express';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import { integrityService } from '../services/integrityService.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
   MAIL_SEEN_MAX, buildContext, completeResponse, execResponse, loadChallengesByMode, loadModeChallenges,
-  normalizeCwd, progressView, submitFlag, summarizeMode, teamSolves,
+  hintInfo, normalizeCwd, progressView, submitFlag, summarizeMode, teamSolves,
 } from '../services/terminalService.js';
 import { MODE_NAMES, MODES, getMode } from '../terminal/modes/index.js';
 import { complete, execute } from '../terminal/shell.js';
@@ -65,7 +65,9 @@ router.get('/:mode/progress', anyRole, async (req, res) => {
   const definition = modeFrom(req.params);
   const team = await viewingTeam(req);
   const challenges = await loadModeChallenges(definition);
-  res.json(progressView(definition, challenges, await teamSolves(team, challenges)));
+  const solves = await teamSolves(team, challenges);
+  const hint = await hintInfo({ definition, challenges, solves, team });
+  res.json({ ...progressView(definition, challenges, solves), ...(hint ? { hint } : {}) });
 });
 
 router.post('/:mode/exec', anyRole, async (req, res) => {
@@ -83,7 +85,7 @@ router.post('/:mode/exec', anyRole, async (req, res) => {
   }
   // One lean read gives the ids and slugs the synchronous flag(n) needs; progress() reads Solve only on demand.
   const challenges = await loadModeChallenges(definition);
-  const result = await execute(command, buildContext({ definition, cwd, challenges, team, mailSeen }));
+  const result = await execute(command, buildContext({ definition, cwd, challenges, team, user, mailSeen }));
   res.json(execResponse(result, definition));
 });
 

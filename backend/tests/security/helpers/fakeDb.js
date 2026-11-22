@@ -204,6 +204,8 @@ function duplicateError(fields) {
   });
 }
 
+const NON_TRANSACTIONAL = new Set(['AttemptCounter', 'ReplicaStat']);
+
 export class FakeDatabase {
   constructor() {
     this.collections = new Map();
@@ -235,9 +237,14 @@ export class FakeDatabase {
   }
 
   // Transactions run one at a time; a throw restores every collection (the real ones roll back).
+  // Collections that the code writes outside any session are never rolled back (the attempt limiter and the request
+  // counter use plain atomic updates): restoring them would undo increments made by parallel requests while the
+  // transaction was open, which real MongoDB cannot do and which made the join burst test fail on slow runners.
   transaction(work) {
     const task = this.queue.then(async () => {
-      const snapshot = new Map([...this.collections].map(([name, collection]) => [name, clone(collection.docs)]));
+      const snapshot = new Map([...this.collections]
+        .filter(([name]) => !NON_TRANSACTIONAL.has(name))
+        .map(([name, collection]) => [name, clone(collection.docs)]));
       try {
         return await work({ fake: 'session' });
       } catch (error) {
@@ -494,6 +501,7 @@ const NAMES = {
   CrackmeHint: { mongoName: 'crackmehints', createdAt: true, unique: [{ fields: ['teamId', 'levelId', 'index'] }] },
   CrackmePatch: { mongoName: 'crackmepatches', createdAt: true, unique: [{ fields: ['teamId', 'levelId'] }] },
   OsintHint: { mongoName: 'osinthints', createdAt: true, unique: [{ fields: ['teamId', 'key', 'index'] }] },
+  HintOpen: { mongoName: 'hintopens', createdAt: true, unique: [{ fields: ['teamId', 'scope', 'key', 'index'] }] },
 };
 
 for (const [name, options] of Object.entries(NAMES)) { database.collection(name).configure(options); }

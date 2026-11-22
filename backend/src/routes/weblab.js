@@ -9,7 +9,7 @@ import { integrityService } from '../services/integrityService.js';
 import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
-  hintFor, labDetail, loadRows, overview, requireOpen, sendRequest, submitFlag, teamIdOf, teamProgress,
+  hintView, labDetail, loadRows, openHint, overview, requireOpen, sendRequest, submitFlag, teamIdOf, teamProgress,
 } from '../services/weblabService.js';
 import { AppError } from '../utils/AppError.js';
 import { both, validate } from './challenges.js';
@@ -27,6 +27,7 @@ const requestBody = z.object({
   body: z.string().max(2000).default(''),
 }).strict();
 const submitBody = z.object({ flag: z.string().trim().min(1).max(200) }).strict();
+const emptyBody = z.object({}).strict();
 const levelParam = z.coerce.number().int().min(1).max(10);
 
 // Unknown or malformed slugs are 404 (never 400): the path tells nothing about valid names.
@@ -66,17 +67,20 @@ router.get('/labs/:slug', anyRole, async (req, res) => {
   const team = await viewingTeam(req);
   const rows = await loadRows();
   const progress = await teamProgress(team, rows);
-  res.json(labDetail(lab, rows, progress, { teamId: teamIdOf(team), preview: req.user.role === 'admin' }));
+  res.json({ ...labDetail(lab, rows, progress, { teamId: teamIdOf(team), preview: req.user.role === 'admin' }), ...await hintView(lab, team) });
 });
 
-router.get('/labs/:slug/hints/:level', anyRole, async (req, res) => {
+// Opening a hint changes state (it is recorded and priced for the team), so it is a POST with an empty strict body. The old GET
+// no longer exists (404). A banned or team-less player is refused by getTeamContext; admins preview for free.
+router.post('/labs/:slug/hints/:level', anyRole, async (req, res) => {
   const lab = labFrom(req.params);
   const level = hintLevel(req.params);
   if (!level.success) { throw new AppError(404, 'NOT_FOUND', 'No such hint.'); }
-  const team = await viewingTeam(req);
+  validate(emptyBody, req.body ?? {});
+  const { user, team } = await playingTeam(req);
   const rows = await loadRows();
   requireOpen(lab, rows, await teamProgress(team, rows), { preview: req.user.role === 'admin' });
-  res.json(hintFor(lab, level.data));
+  res.json(await openHint({ lab, level: level.data, team, user }));
 });
 
 router.post('/labs/:slug/request', anyRole, async (req, res) => {

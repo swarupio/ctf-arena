@@ -10,6 +10,7 @@ import {
 import { PATCH_MAX_EDITS } from '../../src/games/crackme/patch.js';
 import { patchInputs } from '../../src/games/crackme/patchBay.js';
 import { ATTEMPT_LIMIT, PATCH_ATTEMPT_LIMIT } from '../../src/games/crackme/service.js';
+import { netPoints, spentFor } from '../../src/services/hintCost.js';
 import Challenge from '../../src/models/Challenge.js';
 import CrackmeHint from '../../src/models/CrackmeHint.js';
 import CrackmePatch from '../../src/models/CrackmePatch.js';
@@ -125,7 +126,11 @@ beforeEach(() => {
       hints.push({ ...filter, ...update.$setOnInsert, createdAt: new Date() });
     }
   });
-  CrackmeHint.find.mockImplementation(() => ({ sort: () => ({ limit: () => ({ lean: async () => [...hints].reverse() }) }) }));
+  // The admin log sorts and limits; the hint ledger (services/hintLedger.js) reads one team's rows of one level with .lean().
+  CrackmeHint.find.mockImplementation((filter = {}) => ({
+    sort: () => ({ limit: () => ({ lean: async () => [...hints].reverse() }) }),
+    lean: async () => hints.filter((h) => String(h.teamId) === String(filter.teamId) && h.levelId === filter.levelId),
+  }));
   CrackmePatch.find.mockImplementation((filter) => ({ lean: async () => patches.filter((p) => String(p.teamId) === String(filter.teamId)) }));
   CrackmePatch.findOne.mockImplementation((filter) => ({
     lean: async () => patches.find((p) => String(p.teamId) === String(filter.teamId) && p.levelId === filter.levelId) ?? null,
@@ -308,6 +313,8 @@ describe('rate limit', () => {
 
 const patchOf = (id, teamId = TEAM_A) => patchSolution(cabinetOf(id, teamId).program);
 const sendPatch = (id, edits, sub = 'player') => api('post', `/levels/${id}/patch`, sub, { edits });
+// The hidden inputs are random and may be 1 to 5 characters long, so a bare substring check can hit unrelated JSON text
+// (a lone 'R' occurs in any word). A leak is the input appearing as a whole JSON string value, hence the quoted form.
 const hiddenOf = (id, teamId = TEAM_A) => patchInputs(levelById(id), cabinetOf(id, teamId), { secret, teamId });
 
 describe('patch bay', () => {
@@ -319,7 +326,7 @@ describe('patch bay', () => {
     expect((await api('get', '/levels/e1').expect(200)).body.patchBay).toBeUndefined();
     expect((await api('get', '/levels/m1').expect(200)).body.patchBay).toBeUndefined();
     const text = JSON.stringify(hard);
-    for (const input of hiddenOf('h1')) { expect(text).not.toContain(input); }
+    for (const input of hiddenOf('h1')) { expect(text).not.toContain(JSON.stringify(input)); }
     const overview = (await api('get', '/overview').expect(200)).body;
     expect(overview.tracks.flatMap((t) => t.levels).filter((l) => l.patchBay).map((l) => l.id)).toEqual(['h1', 'h2', 'h3', 'h4', 'i1', 'i2', 'i3', 'i4']);
     expect(overview.patchBadges).toBe(0);
@@ -352,7 +359,7 @@ describe('patch bay', () => {
     expect(Object.keys(wrong).sort()).toEqual(['badge', 'message', 'passed', 'serialOk', 'total', 'valid']);
     expect(wrong.badge).toBe(false);
     const text = JSON.stringify(wrong);
-    for (const input of hiddenOf('h1')) { expect(text).not.toContain(input); }
+    for (const input of hiddenOf('h1')) { expect(text).not.toContain(JSON.stringify(input)); }
     expect(patches).toHaveLength(0);
   });
 
@@ -426,7 +433,7 @@ describe('patch bay', () => {
 });
 
 describe('hints', () => {
-  it('reveals hints one at a time, for free, and logs them for admins', async () => {
+  it('reveals hints one at a time, charges them at solve time, and logs them for admins', async () => {
     const total = levelById('e1').hints.length;
     const first = (await api('post', '/levels/e1/hints', 'player', {}).expect(200)).body;
     expect(first).toMatchObject({ index: 0, used: 1, total });
@@ -436,11 +443,31 @@ describe('hints', () => {
     const view = (await api('get', '/levels/e1').expect(200)).body;
     expect(view.hints).toHaveLength(total);
     expect(JSON.stringify(view.hints)).not.toContain(answerOf('e1'));
-    expect((await solveAnswer('e1')).body.pointsAwarded).toBe(levelById('e1').points);
+    // Hints cost points now (docs/HINTS.md "Hint costs"); this test used to assert that hints were free.
+    const base = levelById('e1').points;
+    const paid = netPoints(base, spentFor(base, Array.from({ length: total }, (_, i) => i)));
+    expect(paid).toBeLessThan(base);
+    const solved = (await solveAnswer('e1')).body;
+    expect(solved.pointsAwarded).toBe(paid);
+    expect(solved.hintCost).toEqual({ spent: base - paid, openedCount: total, base, awarded: paid });
     const log = (await api('get', '/admin/hints', 'admin').expect(200)).body;
     expect(log).toHaveLength(total);
     expect(log[0]).toMatchObject({ teamId: TEAM_A, levelId: 'e1' });
     await api('get', '/admin/hints', 'player').expect(403);
+  });
+
+  it('prices closed hints without their text and reports cost and spend when one opens', async () => {
+    const base = levelById('e1').points;
+    const before = (await api('get', '/levels/e1').expect(200)).body;
+    expect(before.hints).toEqual([]);
+    expect(before.hintPricing[0]).toEqual({ index: 0, tier: 'nudge', percent: 5, points: Math.round(base * 0.05) || 1 });
+    expect(before.hintSpent.points).toBe(0);
+    const first = (await api('post', '/levels/e1/hints', 'player', {}).expect(200)).body;
+    expect(first.cost).toMatchObject({ percent: 5, tier: 'nudge' });
+    expect(first.spent).toMatchObject({ points: spentFor(base, [0]) });
+    const after = (await api('get', '/levels/e1').expect(200)).body;
+    expect(after.hintPricing.map((p) => p.index)).not.toContain(0);
+    expect(JSON.stringify(after.hintPricing)).not.toContain(first.hint);
   });
 
   it('gives no hints on the insane track', async () => {

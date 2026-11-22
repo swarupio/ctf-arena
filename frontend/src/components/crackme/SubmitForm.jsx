@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { submitInput } from '../../api/crackme.js';
 import PreviewNote from '../PreviewNote.jsx';
-import { HintsUsed } from '../../hints/HintLadder.jsx';
+import { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
 import { confettiPieces, crackmeErrorMessage, inputProblem, streakText } from './helpers.js';
 
 const PIECES = confettiPieces();
@@ -55,6 +55,7 @@ export default function SubmitForm({ puzzle, input, canSubmit, onSolved, submitR
       <p className="cm-win-title">{result.message}</p>
       {result.pointsAwarded > 0 && <p>+{result.pointsAwarded} points &middot; {streakText(result.streak)}</p>}
       <p>Team flag: <code className="cm-flag">{result.flag}</code></p>
+      <HintDeduction result={result} />
       {hintsUsed !== null && puzzle.hintsAllowed && <HintsUsed count={hintsUsed} />}
       {result.trackComplete && <p className="cm-win-title">Track cleared!</p>}
       {result.nextLevelId && <Link className="button" to={`/reversing/${result.nextLevelId}`}>Next cabinet</Link>}

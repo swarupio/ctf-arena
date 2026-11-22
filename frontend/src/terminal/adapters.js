@@ -1,7 +1,8 @@
-// Adapters between the HTTP contract (docs/TERMINAL_GAME.md section 8) and what the UI uses. api/terminal.js
+// Adapters between the HTTP contract (docs/ARENA_TERMINAL.md section 8) and what the UI uses. api/terminal.js
 // calls these on every response, so a change in a response shape is fixed here and nowhere else.
 
 import { EFFECTS, MODES } from './data.js';
+import { normalizeHintInfo } from './hintBar.js';
 import { eventMessage } from '../event/messages.js';
 
 const text = (value, fallback = '') => (typeof value === 'string' ? value : fallback);
@@ -60,6 +61,7 @@ export function normalizeProgress(data, mode = '') {
     solved,
     remaining: Array.isArray(data?.remaining) ? data.remaining.length : count(data?.remaining, Math.max(0, total - solved.length)),
     remainingItems,
+    hint: normalizeHintInfo(data?.hint),
   };
 }
 
@@ -86,6 +88,7 @@ export function normalizeSubmit(data) {
     code: Number.isFinite(Number(data?.code)) && data?.code !== null ? Number(data.code) : null,
     title: text(data?.title),
     pointsAwarded: count(data?.pointsAwarded),
+    hintCost: data?.hintCost && typeof data.hintCost === 'object' ? data.hintCost : null,
     firstBlood: data?.firstBlood === true,
     message: text(data?.message),
     solved: Number.isFinite(Number(data?.solved)) && data?.solved !== null ? Number(data.solved) : null,

@@ -44,6 +44,7 @@ vi.mock('../src/models/CipherHint.js', async () => (await import('./security/hel
 vi.mock('../src/models/CrackmeHint.js', async () => (await import('./security/helpers/fakeDb.js')).modelModule('CrackmeHint'));
 vi.mock('../src/models/CrackmePatch.js', async () => (await import('./security/helpers/fakeDb.js')).modelModule('CrackmePatch'));
 vi.mock('../src/models/OsintHint.js', async () => (await import('./security/helpers/fakeDb.js')).modelModule('OsintHint'));
+vi.mock('../src/models/HintOpen.js', async () => (await import('./security/helpers/fakeDb.js')).modelModule('HintOpen'));
 vi.mock('../src/models/AppSetting.js', async () => ({
   default: (await import('./security/helpers/fakeDb.js')).database.collection('AppSetting'),
   ANNOUNCEMENT_LEVELS: ['info', 'warning', 'critical'],
@@ -54,16 +55,20 @@ vi.mock('../src/models/OsintBoard.js', async () => ({
 }));
 
 // Budgets: measured counts after the optimisation pass (docs/QUERY_PERFORMANCE.md lists the numbers from before it).
+// Every answer of a category with hints (Cipher Lab, Crackme, OSINT, Forensics, Web Exploit Lab, Terminal) costs one more read:
+// the opened-hint lookup that prices the solve (hint costs).
 const BUDGET = {
   'POST /challenges/:id/submit (wrong)': 9,
   'POST /challenges/:id/submit (correct)': 21,
   'POST /challenges/:id/submit (correct, badges held)': 16,
-  'POST /terminal/:mode/submit (correct)': 22,
-  'POST /cipherlab/levels/:id/answer (correct)': 22,
-  'POST /crackme/levels/:id/answer (correct)': 22,
-  'POST /osint/cases/:track/questions/:n/answer (correct)': 23,
-  'POST /forensics/tracks/:track/stages/:n/answer (correct)': 24,
-  'POST /weblab/labs/:slug/submit (correct)': 20,
+  // The six game submit paths below each read the hint ledger one more time after the Solve insert (recordSolve's free-hint race
+  // re-check, docs/HINTS.md): +1 round trip each, no other change.
+  'POST /terminal/:mode/submit (correct)': 24,
+  'POST /cipherlab/levels/:id/answer (correct)': 24,
+  'POST /crackme/levels/:id/answer (correct)': 24,
+  'POST /osint/cases/:track/questions/:n/answer (correct)': 25,
+  'POST /forensics/tracks/:track/stages/:n/answer (correct)': 26,
+  'POST /weblab/labs/:slug/submit (correct)': 22,
   'GET /leaderboard': 3,
   'GET /leaderboard/timeline': 4,
   'GET /event': 1,

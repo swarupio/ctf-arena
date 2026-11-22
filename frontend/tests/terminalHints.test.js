@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  INITIAL_HINTS, hintBarView, hintCommand, hintReducer, hintsEnabled, isHintLine, parseHintOutput,
+  INITIAL_HINTS, hintBarView, hintCommand, hintReducer, hintsEnabled, isHintLine, normalizeHintInfo, parseHintOutput,
 } from '../src/terminal/hintBar.js';
 
 const out = (tier, total, code, text = 'try ls -la') => `[hint ${tier}/${total} for code ${code}] ${text}\n`;
@@ -66,10 +66,55 @@ test('view: cost line, tier label, admin has no counter, hint-less modes hide', 
   const view = hintBarView(state, { mode: 'hard' });
   assert.equal(view.visible, true);
   assert.equal(view.usedText, 'Hints used: 1');
-  assert.equal(view.costText, 'Free: no points deducted');
+  assert.equal(view.costText, '');
+  assert.equal(hintBarView(state, { mode: 'hard', costs: { enabled: false } }).costText, 'Free: no points deducted');
   assert.equal(view.tierText, 'Hint 2 of 3, Approach');
   assert.equal(hintBarView(state, { mode: 'hard', isAdmin: true }).usedText, null);
   assert.equal(hintBarView(INITIAL_HINTS, { mode: 'easy' }).tierText, '');
   assert.equal(hintBarView(INITIAL_HINTS, { mode: 'insane' }).visible, false);
   assert.equal(hintsEnabled(''), false);
+});
+
+const INFO = {
+  code: 3, total: 3, base: 100, opened: [], spent: { points: 5, percent: 5, cap: 40 },
+  pricing: [
+    { index: 0, tier: 'nudge', percent: 5, points: 5 },
+    { index: 1, tier: 'approach', percent: 10, points: 10 },
+    { index: 2, tier: 'walkthrough', percent: 25, points: 25 },
+  ],
+};
+
+test('terminal: the server prices decide the confirmation, the spend and the next price', () => {
+  const first = hintBarView(INITIAL_HINTS, { mode: 'easy', info: INFO });
+  assert.equal(first.firstConfirm, true);
+  assert.equal(first.firstPriceText, 'Costs 5% (-5 pts)');
+  assert.equal(first.costText, 'Next hint: Costs 5% (-5 pts). So far -5 pts. You can still earn 95.');
+  const second = hintBarView(run([{ type: 'output', text: out(1, 3, 3) }]), { mode: 'easy', info: INFO });
+  assert.equal(second.nextCommand, 'hint 2');
+  assert.equal(second.nextPriceText, 'Costs 10% (-10 pts)');
+  assert.equal(second.nextConfirm, true);
+});
+
+test('terminal: admins and free prices ask nothing and show nothing', () => {
+  const admin = hintBarView(INITIAL_HINTS, { mode: 'easy', info: INFO, isAdmin: true, costs: { enabled: true } });
+  assert.equal(admin.costText, '');
+  assert.equal(admin.firstConfirm, false);
+  const freeInfo = { ...INFO, pricing: INFO.pricing.map((p) => ({ ...p, percent: 0, points: 0 })), spent: null };
+  const free = hintBarView(INITIAL_HINTS, { mode: 'easy', info: freeInfo });
+  assert.equal(free.firstConfirm, false);
+  assert.equal(free.firstPriceText, 'Free');
+  const plain = hintBarView(INITIAL_HINTS, { mode: 'easy' });
+  assert.equal(plain.firstConfirm, false);
+  assert.equal(plain.costText, '');
+});
+
+test('terminal: prices for another code are ignored, malformed info reads as none', () => {
+  const other = hintBarView(run([{ type: 'output', text: out(1, 3, 9) }]), { mode: 'easy', info: INFO });
+  assert.equal(other.firstPriceText, '');
+  assert.equal(normalizeHintInfo(null), null);
+  assert.equal(normalizeHintInfo({ code: 'x', total: 3 }), null);
+  assert.deepEqual(
+    normalizeHintInfo({ code: 3, total: 2, base: 50, opened: [1, 'x', 0], pricing: 'no', spent: null }),
+    { code: 3, total: 2, base: 50, opened: [1], pricing: [], spent: null },
+  );
 });

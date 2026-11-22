@@ -1,7 +1,7 @@
 // Hard mode: "The Vault" (ghost's own hardened box). Final stage of the NovaCorp storyline.
 // 6 codes x 180 points. Design notes and walkthroughs live in backend/tests/terminal/hard.test.js.
 //
-// Per team variation (docs/TERMINAL_GAME.md section 16): the one-off address of code 1 ({{seed:ip:1}}), the three kids
+// Per team variation (docs/ARENA_TERMINAL.md section 16): the one-off address of code 1 ({{seed:ip:1}}), the three kids
 // ({{seed:word:1..3}}, the third widened with |wide), the archive key secret and passphrase ({{seed:pass:1}}) and the
 // master passphrase (the three kids joined with dots). trusted.md5 holds {{md5file:...}} of the genuine key, so the md5
 // puzzle stays solvable by matching what md5sum prints. No static address may sit in 198.51.100.0/24 or 203.0.113.0/24.

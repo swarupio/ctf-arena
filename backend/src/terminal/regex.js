@@ -1,4 +1,4 @@
-// Safe regular expressions for grep / sed / awk / find. See docs/TERMINAL_GAME.md section 6.
+// Safe regular expressions for grep / sed / awk / find. See docs/ARENA_TERMINAL.md section 6.
 //
 // Player patterns are NEVER run by V8's backtracking RegExp (that is the ReDoS hole: `.*.*.*.*.*.*Z` is
 // O(n^7) there, and the work Budget does not count regex time). Instead:

@@ -1,4 +1,4 @@
-// The per-team seed (docs/TERMINAL_GAME.md section 16) as seen from the HTTP API: what the engine receives and
+// The per-team seed (docs/ARENA_TERMINAL.md section 16) as seen from the HTTP API: what the engine receives and
 // what the browser must never see. The shell is a spy around the real engine, so exec responses are real output.
 import { createHmac } from 'node:crypto';
 import request from 'supertest';
@@ -7,6 +7,7 @@ import app from '../../src/app.js';
 import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
 import Challenge from '../../src/models/Challenge.js';
+import HintOpen from '../../src/models/HintOpen.js';
 import Solve from '../../src/models/Solve.js';
 import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
@@ -17,6 +18,7 @@ import { MODE_NAMES, MODES } from '../../src/terminal/modes/index.js';
 import { seedValue } from '../../src/terminal/seed.js';
 import { complete, execute } from '../../src/terminal/shell.js';
 import { dir, file } from '../../src/terminal/vfs.js';
+import { installHintOpen } from '../helpers/hintOpenStore.js';
 
 vi.mock('../../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 vi.mock('../../src/models/User.js', () => ({ default: { findOne: vi.fn() } }));
@@ -27,6 +29,7 @@ vi.mock('../../src/models/Challenge.js', () => ({
 vi.mock('../../src/models/Instance.js', () => ({
   default: { find: vi.fn(), findOne: vi.fn() }, ACTIVE_STATUSES: ['starting', 'running', 'stopping'],
 }));
+vi.mock('../../src/models/HintOpen.js', () => ({ default: { updateOne: vi.fn(), find: vi.fn() } }));
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), exists: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn(), countDocuments: vi.fn() } }));
 vi.mock('../../src/services/scoringService.js', () => ({ recordSolve: vi.fn() }));
@@ -64,6 +67,7 @@ const lastCtx = () => execute.mock.calls.at(-1)[1];
 
 beforeEach(() => {
   vi.resetAllMocks();
+  installHintOpen(HintOpen);
   getCognitoVerifier.mockReturnValue({
     verify: vi.fn(async (sub) => ({ sub, email: `${sub}@example.com`, 'cognito:groups': [sub === 'admin' ? 'admin' : 'player'] })),
   });

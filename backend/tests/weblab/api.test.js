@@ -4,6 +4,7 @@ import app from '../../src/app.js';
 import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
 import Challenge from '../../src/models/Challenge.js';
+import HintOpen from '../../src/models/HintOpen.js';
 import Solve from '../../src/models/Solve.js';
 import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
@@ -16,6 +17,7 @@ import { hasFirstBloodBonus, recordSolve } from '../../src/services/scoringServi
 import { REQUEST_LIMIT, SUBMIT_LIMIT } from '../../src/services/weblabService.js';
 import { AppError } from '../../src/utils/AppError.js';
 import { weblabDefinitions } from '../../src/scripts/seedWebLab.js';
+import { installHintOpen } from '../helpers/hintOpenStore.js';
 
 vi.mock('../../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
 vi.mock('../../src/models/User.js', () => ({ default: { findOne: vi.fn() } }));
@@ -25,6 +27,7 @@ vi.mock('../../src/models/Challenge.js', () => ({
 }));
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), create: vi.fn(), aggregate: vi.fn(), updateOne: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn(), countDocuments: vi.fn() } }));
+vi.mock('../../src/models/HintOpen.js', () => ({ default: { updateOne: vi.fn(), find: vi.fn() } }));
 vi.mock('../../src/services/attemptLimiter.js', () => ({ consumeAttempt: vi.fn() }));
 
 const oid = (n) => String(n).padStart(24, '0');
@@ -41,6 +44,7 @@ let rows;
 let solves;
 let counters;
 let teams;
+let opens;
 
 const rowOf = (id) => rows.find((row) => row.slug === labSlug(id));
 const flagOf = (id, teamId = TEAM_A) => expectedFlagFor(rowOf(id), { secret, teamId });
@@ -63,6 +67,7 @@ beforeEach(() => {
   rows = weblabDefinitions().map((definition, index) => ({ _id: oid(500 + index), visible: true, solveCount: 0, ...definition }));
   solves = [];
   counters = new Map();
+  opens = installHintOpen(HintOpen);
   User.findOne.mockImplementation(async ({ cognitoSub }) => users[cognitoSub] ?? null);
   Team.findById.mockImplementation(async (id) => teams[String(id)] ?? null);
   Challenge.find.mockImplementation((filter) => ({ lean: async () => rows.filter((row) => row.type === filter.type && row.visible === filter.visible) }));
@@ -150,13 +155,13 @@ describe('lab detail and hints', () => {
   });
 
   it('serves hints one level at a time; the insane lab has none; locked labs give none', async () => {
-    const first = await api('get', '/labs/weblab-sqli-login/hints/1');
+    const first = await api('post', '/labs/weblab-sqli-login/hints/1');
     expect(first.body).toMatchObject({ level: 1, count: 3 });
     expect(first.body.text).toBeTruthy();
-    expect((await api('get', '/labs/weblab-sqli-login/hints/4')).status).toBe(404);
-    expect((await api('get', '/labs/weblab-sqli-login/hints/abc')).status).toBe(404);
-    expect((await api('get', '/labs/weblab-chain-vault/hints/1', 'admin')).status).toBe(404);
-    expect((await api('get', '/labs/weblab-idor-statements/hints/1')).status).toBe(403);
+    expect((await api('post', '/labs/weblab-sqli-login/hints/4')).status).toBe(404);
+    expect((await api('post', '/labs/weblab-sqli-login/hints/abc')).status).toBe(404);
+    expect((await api('post', '/labs/weblab-chain-vault/hints/1', 'admin')).status).toBe(404);
+    expect((await api('post', '/labs/weblab-idor-statements/hints/1')).status).toBe(403);
   });
 });
 
@@ -361,5 +366,101 @@ describe('seed definitions', () => {
     for (const def of defs) { expect(def).toMatchObject({ type: 'weblab', category: 'web' }); }
     expect(defs.reduce((sum, d) => sum + d.points, 0)).toBe(WEBLAB_MAX_POINTS);
     expect(JSON.stringify(defs)).not.toContain('CTF{');
+  });
+});
+
+describe('hint costs', () => {
+  const slug = 'weblab-sqli-login';
+  const hintAt = (level, sub = 'player', body = {}) => api('post', `/labs/${slug}/hints/${level}`, sub, body);
+
+  it('records the open, answers with cost and spend, and is idempotent', async () => {
+    const first = (await hintAt(1)).body;
+    expect(first).toMatchObject({ level: 1, count: 3, cost: { percent: 5, points: 2, tier: 'nudge' }, spent: { points: 2, percent: 7, cap: 12 } });
+    expect(first.text).toBeTruthy();
+    const again = (await hintAt(1)).body;
+    expect(again.spent).toEqual(first.spent);
+    expect(opens).toHaveLength(1);
+    expect(opens[0]).toMatchObject({ scope: 'weblab', key: slug, index: 0 });
+    const third = (await hintAt(3)).body;
+    // Tiers are cumulative: the walkthrough opened after the nudge also pays for the approach tier below it (10 + 25 percent).
+    expect(third.cost).toEqual({ percent: 35, points: 11, tier: 'walkthrough' });
+    expect(third.spent.points).toBe(12); // 2 + 11 = 13, capped at 40 percent of 30
+    expect(opens.map((row) => [row.index, row.percent, row.capPercent])).toEqual([[0, 5, 40], [2, 35, 40]]);
+  });
+
+  it('prices the closed hints on the lab view (no text) and lists the opened levels, for players only', async () => {
+    const before = (await api('get', `/labs/${slug}`)).body;
+    expect(before.hintsOpened).toEqual([]);
+    expect(before.hintPricing.map((p) => [p.index, p.tier, p.points])).toEqual([[0, 'nudge', 2], [1, 'approach', 5], [2, 'walkthrough', 12]]); // what opening each one first would add
+    expect(before.hintSpent).toEqual({ points: 0, percent: 0, cap: 12 });
+    const opened = (await hintAt(2)).body;
+    const after = (await api('get', `/labs/${slug}`)).body;
+    expect(after.hintsOpened).toEqual([2]);
+    // The approach tier already covers the nudge; the walkthrough adds 8, capped to 12 - 5.
+    expect(after.hintPricing.map((p) => [p.index, p.percent, p.points])).toEqual([[0, 0, 0], [2, 25, 7]]);
+    expect(JSON.stringify(after)).not.toContain(opened.text);
+    const admin = (await api('get', `/labs/${slug}`, 'admin')).body;
+    expect(admin.hintPricing).toBeUndefined();
+    expect(admin.hintsOpened).toBeUndefined();
+    expect(admin.hintSpent).toBeUndefined();
+  });
+
+  it('deducts opened hints at solve time, capped at 40 percent, and leaves other labs alone', async () => {
+    await hintAt(1);
+    await hintAt(2);
+    await hintAt(3);
+    const solved = (await submit('sqli-login', flagOf('sqli-login'))).body;
+    expect(solved).toMatchObject({ correct: true, pointsAwarded: 18, hintCost: { spent: 12, openedCount: 3, base: 30, awarded: 18 } });
+    const clean = (await submit('cookie-tamper', flagOf('cookie-tamper'))).body;
+    expect(clean.pointsAwarded).toBe(30);
+    expect(clean.hintCost).toBeUndefined();
+  });
+
+  it('charges the approach hint with the nudge below it and ignores a hint opened after the solve', async () => {
+    await hintAt(2);
+    expect((await submit('sqli-login', flagOf('sqli-login'))).body.pointsAwarded).toBe(25);
+    await hintAt(1);
+    expect(solves[0].points).toBe(25);
+  });
+
+  it('opens a hint with POST and an empty strict body; the old GET route is gone (404) and records nothing', async () => {
+    expect((await hintAt(1, 'player', { extra: 1 })).status).toBe(400);
+    expect((await hintAt(1, 'player', { level: 2 })).status).toBe(400);
+    expect(opens).toHaveLength(0);
+    expect((await api('get', `/labs/${slug}/hints/1`)).status).toBe(404);
+    expect((await api('put', `/labs/${slug}/hints/1`, 'player', {})).status).toBe(404);
+    expect(opens).toHaveLength(0);
+    expect((await hintAt(1)).status).toBe(200);
+    expect((await api('post', `/labs/${slug}/hints/1`)).status).toBe(200); // no body at all is fine
+    expect((await hintAt('abc')).status).toBe(404);
+    expect((await hintAt(0)).status).toBe(404);
+    expect((await hintAt(4)).status).toBe(404);
+    expect(opens).toHaveLength(1);
+  });
+
+  it('prices at open time: a re-open answers with the price stored on the row, and the solve charges it', async () => {
+    const first = (await hintAt(1)).body;
+    expect(first.cost).toEqual({ percent: 5, points: 2, tier: 'nudge' });
+    expect(opens[0]).toMatchObject({ percent: 5, capPercent: 40 });
+    opens[0].percent = 10; // as if the hint had been opened while the nudge cost 10 percent
+    const again = (await hintAt(1)).body;
+    expect(again.cost).toEqual({ percent: 10, points: 3, tier: 'nudge' });
+    expect(opens).toHaveLength(1);
+    expect((await submit('sqli-login', flagOf('sqli-login'))).body).toMatchObject({ pointsAwarded: 27, hintCost: { spent: 3 } });
+  });
+
+  it('keeps the admin preview free: no cost, no spend, nothing recorded', async () => {
+    const body = (await hintAt(1, 'admin')).body;
+    expect(body).toEqual({ level: 1, count: 3, text: expect.any(String) });
+    expect(opens).toHaveLength(0);
+  });
+
+  it('needs a team that may play to open a hint (NO_TEAM, TEAM_BANNED) and records nothing', async () => {
+    const res = await hintAt(1, 'loner');
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NO_TEAM');
+    teams[TEAM_A].banned = true;
+    expect((await hintAt(1)).body.error.code).toBe('TEAM_BANNED');
+    expect(opens).toHaveLength(0);
   });
 });

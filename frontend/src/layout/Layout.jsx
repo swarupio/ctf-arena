@@ -17,10 +17,11 @@ export default function Layout() {
 }
 
 // The signed-in account as a small box (two initials, or one big one for a single word handle): it links to the profile, and the
-// full address stays in the title and the accessible name instead of being cut off in the navigation.
+// full address stays in the title and the accessible name instead of being cut off in the navigation. The name starts with
+// the visible initials (WCAG 2.5.3 label in name, axe rule label-content-name-mismatch).
 function AccountBox({ user, name }) {
   const { text, solo } = initialsOf({ displayName: name, email: user.email });
-  return <Link className={`avatar${solo ? ' is-solo' : ''}`} to="/profile" title={user.email} aria-label={`Your profile (${user.email})`}><span aria-hidden="true">{text}</span></Link>;
+  return <Link className={`avatar${solo ? ' is-solo' : ''}`} to="/profile" title={user.email} aria-label={`${text}, your profile (${user.email})`}><span aria-hidden="true">{text}</span></Link>;
 }
 
 function LayoutContent() {

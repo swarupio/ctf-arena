@@ -7,7 +7,7 @@ export function solveCountLabel(count) {
 
 export const CATEGORY_ORDER = ['web', 'crypto', 'forensics', 'pwn', 'misc', 'terminal'];
 
-// Arena Terminal codes are challenges too (docs/TERMINAL_GAME.md section 9), but they are played inside the terminal,
+// Arena Terminal codes are challenges too (docs/ARENA_TERMINAL.md section 9), but they are played inside the terminal,
 // so the card grid hides them and shows one promo card. `regular` are the cards; the rest feeds the promo.
 export const isTerminalChallenge = (challenge) => challenge?.type === 'terminal';
 
@@ -74,12 +74,12 @@ export function challengeErrorMessage(error) {
 //  instance: null (static challenge, or already captured with nothing running) | 'running' | 'ready' | 'no-docker'.
 //  submit: 'form' | 'event-not-started' | 'event-ended' | 'hidden' ('hidden' = the instance panel explains why: the flag
 //          of a docker challenge cannot be found without its container, so a Submit box would be a dead end).
-// hasTeam / banned are undefined until /me has loaded: unknown counts as "fine", the server still refuses and the page
+// hasTeam / banned / teamBanned (the account flag and the team flag of /me) are undefined until /me has loaded: unknown counts as "fine", the server still refuses and the page
 // then switches to the right card from the error code.
 export function challengePanels({
-  role, type, dockerAvailable, hasTeam, banned, solved = false, hasInstance = false, eventPhase = 'none',
+  role, type, dockerAvailable, hasTeam, banned, teamBanned, solved = false, hasInstance = false, eventPhase = 'none',
 } = {}) {
-  const gate = role === 'admin' ? 'admin-preview' : banned === true ? 'banned' : hasTeam === false ? 'no-team' : null;
+  const gate = role === 'admin' ? 'admin-preview' : banned === true || teamBanned === true ? 'banned' : hasTeam === false ? 'no-team' : null;
   if (gate) { return { gate, instance: null, submit: 'hidden' }; }
   const docker = type === 'docker';
   let instance = null;

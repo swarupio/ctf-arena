@@ -1,4 +1,4 @@
-// The living story of Arena Terminal (docs/TERMINAL_GAME.md section 18).
+// The living story of Arena Terminal (docs/ARENA_TERMINAL.md section 18).
 //
 // A team's mailbox (/var/mail/<user>) and a short log grow with the codes the team has solved. Everything here is a pure
 // function of (story seed, solved code numbers, mode definition): no state, no clock, no randomness, no database. Any
@@ -390,7 +390,6 @@ const STORIES = {
   },
 };
 
-export const STORY_MODES = Object.freeze(Object.keys(STORIES));
 export const hasStory = (mode) => Boolean(mode && typeof mode === 'object' && Object.hasOwn(STORIES, mode.mode)
   && Array.isArray(mode.codes) && mode.fs);
 

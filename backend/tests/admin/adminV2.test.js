@@ -871,7 +871,7 @@ describe('instances', () => {
 describe('settings', () => {
   it('reads defaults and applies a partial update with an audit entry', async () => {
     const defaults = await api('get', '/admin/settings').expect(200);
-    expect(defaults.body).toEqual({ registrationOpen: true, submissionsFrozen: false, announcement: { text: '', level: 'info' }, event: null, updatedAt: null });
+    expect(defaults.body).toEqual({ registrationOpen: true, submissionsFrozen: false, announcement: { text: '', level: 'info' }, event: null, hintCosts: { enabled: true, nudge: 5, approach: 10, walkthrough: 25, maxPercent: 40 }, updatedAt: null });
     models.AppSetting.findOneAndUpdate.mockImplementation(() => chain({ registrationOpen: true, submissionsFrozen: true, announcement: { text: 'Break', level: 'warning' }, updatedAt: new Date('2026-11-04T12:00:00Z') }));
     const { body } = await api('put', '/admin/settings', { body: { submissionsFrozen: true, announcement: { text: ' Break ', level: 'warning' } } }).expect(200);
     expect(body).toMatchObject({ submissionsFrozen: true, announcement: { text: 'Break', level: 'warning' } });

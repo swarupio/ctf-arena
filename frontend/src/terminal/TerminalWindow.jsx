@@ -14,6 +14,7 @@ import { QUICK_CHIPS } from './data.js';
 import {
   formatHistory, freshNav, loadHistory, pushHistory, saveHistory, stepHistory,
 } from './history.js';
+import { deductionText } from '../hints/pricing.js';
 import { INITIAL_HINTS, hintReducer, isHintLine } from './hintBar.js';
 import { useMediaQuery, useReducedMotion } from './hooks.js';
 import {
@@ -53,7 +54,7 @@ function useSpinnerFrame(active, reduced) {
 
 export default function TerminalWindow({
   mode, email, info, statusLabel, isAdmin = false, home = DEFAULT_HOME, unread = 0, mailSeenRef, onMailRead,
-  onFirstCommand, onSolved, onUnauthorized,
+  onFirstCommand, onSolved, onUnauthorized, hintInfo = null, onHintOpened,
 }) {
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion();
@@ -89,7 +90,7 @@ export default function TerminalWindow({
   const seqRef = useRef(0);
   const timersRef = useRef(new Set());
   const handlersRef = useRef({});
-  handlersRef.current = { onFirstCommand, onSolved, onUnauthorized, onMailRead };
+  handlersRef.current = { onFirstCommand, onSolved, onUnauthorized, onMailRead, onHintOpened };
   // The login banner reports the unread count as it was when the terminal opened; later changes use the chip and notices.
   const [startNotice] = useState(() => mailNotice(unread));
   const commandCountRef = useRef(null);
@@ -242,7 +243,10 @@ export default function TerminalWindow({
       if (result.cwd) { cwdRef.current = result.cwd; setCwd(result.cwd); }
       if (result.effect === 'clear') clearScreen();
       if (result.output !== '') append({ kind: 'out', text: result.output.replace(/\n$/, '') });
-      if (isHintLine(line)) dispatchHints({ type: 'output', text: result.output });
+      if (isHintLine(line)) {
+        dispatchHints({ type: 'output', text: result.output });
+        if (handlersRef.current.onHintOpened) handlersRef.current.onHintOpened();
+      }
       // One short polite status per command (never the output itself), so long listings cannot flood a screen reader.
       if (result.output !== '') announce(`Output received, ${result.output.replace(/\n$/, '').split('\n').length} lines.`);
       if (result.effect && result.effect !== 'clear') applyEffect(result.effect);
@@ -267,9 +271,10 @@ export default function TerminalWindow({
       commandCountRef.current = 0;
       saveCommandCount(browserStorage(), email, mode, 0);
       if (badge) extra.push(badge.text);
+      const deduction = deductionText(result);
       append({
         kind: 'result', tone: 'ok', tag: 'CORRECT', headline: `${which}${name} captured  +${result.pointsAwarded} pts`,
-        lines: [...(result.message ? [result.message] : []), ...extra, ...(progress ? [progress] : [])],
+        lines: [...(result.message ? [result.message] : []), ...(deduction ? [deduction] : []), ...extra, ...(progress ? [progress] : [])],
       });
       say('info', newMailNotice());
       dispatchHints({ type: 'solved' });
@@ -537,7 +542,7 @@ export default function TerminalWindow({
       {matrixRun > 0 && !reducedMotion ? <MatrixRain key={matrixRun} onDone={() => setMatrixRun(0)} /> : null}
     </div>
 
-    <HintBar state={hints} mode={mode} isAdmin={isAdmin} busy={busy} onRun={runHint} />
+    <HintBar state={hints} mode={mode} isAdmin={isAdmin} busy={busy} onRun={runHint} info={hintInfo} />
 
     <div className="tm-chips" role="group" aria-label="Quick commands">
       <button type="button" className={`tm-chip tm-chip--mail${unread > 0 ? ' has-unread' : ''}`} onClick={() => insertChip('mail')} aria-label={mailChipLabel(unread)}>

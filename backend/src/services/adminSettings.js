@@ -5,6 +5,7 @@ import AppSetting, { ANNOUNCEMENT_LEVELS } from '../models/AppSetting.js';
 import { AppError } from '../utils/AppError.js';
 import { dbOffline, iso } from './adminCommon.js';
 import { EVENT_NAME_MAX, eventPhase, normalizeEvent, submissionBlock, validateSchedule } from './eventPhase.js';
+import { DEFAULT_HINT_COSTS, normalizeCosts } from './hintCost.js';
 
 const KEY = 'platform';
 export const DEFAULT_SETTINGS = Object.freeze({
@@ -29,6 +30,16 @@ export const eventSchema = z.object({
   }
 });
 
+// Hint costs (docs/HINTS.md "Hint costs"): replaced as a whole, `null` resets to the defaults. Percentages are integers 0..100.
+const percent = z.number().int().min(0).max(100);
+export const hintCostsSchema = z.object({
+  enabled: z.boolean().default(DEFAULT_HINT_COSTS.enabled),
+  nudge: percent.default(DEFAULT_HINT_COSTS.nudge),
+  approach: percent.default(DEFAULT_HINT_COSTS.approach),
+  walkthrough: percent.default(DEFAULT_HINT_COSTS.walkthrough),
+  maxPercent: percent.default(DEFAULT_HINT_COSTS.maxPercent),
+}).strict();
+
 export const settingsBody = z.object({
   registrationOpen: z.boolean().optional(),
   submissionsFrozen: z.boolean().optional(),
@@ -37,6 +48,7 @@ export const settingsBody = z.object({
     level: z.enum(ANNOUNCEMENT_LEVELS).default('info'),
   }).strict().optional(),
   event: eventSchema.nullable().optional(),
+  hintCosts: hintCostsSchema.nullable().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, { message: 'send at least one setting' });
 
 // Admin view of the stored event: the schedule plus the phase right now. null when no usable event is stored.
@@ -61,6 +73,7 @@ export function settingsView(doc, now = new Date()) {
       level: doc?.announcement?.level ?? 'info',
     },
     event: eventSettingsView(doc?.event, now),
+    hintCosts: normalizeCosts(doc?.hintCosts),
     updatedAt: iso(doc?.updatedAt),
   };
 }
@@ -77,6 +90,8 @@ export async function updateSettings(patch, actorEmail) {
   const update = { $set, $setOnInsert: { key: KEY } };
   if (patch.event) { $set.event = patch.event; }
   if (patch.event === null) { update.$unset = { event: 1 }; }
+  if (patch.hintCosts) { $set.hintCosts = patch.hintCosts; }
+  if (patch.hintCosts === null) { update.$unset = { ...update.$unset, hintCosts: 1 }; }
   const doc = await AppSetting.findOneAndUpdate(
     { key: KEY }, update, { upsert: true, new: true, runValidators: true },
   ).lean();
@@ -98,7 +113,7 @@ async function readPlatform(fields, { failOpen = true } = {}) {
   if (dbOffline()) { return null; }
   if (!failOpen) { return AppSetting.findOne({ key: KEY }, fields).lean(); }
   let timer;
-  const read = Promise.resolve(AppSetting.findOne({ key: KEY }, fields).lean()).catch(() => null);
+  const read = Promise.resolve().then(() => AppSetting.findOne({ key: KEY }, fields).lean()).catch(() => null);
   const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(null), SETTINGS_TIMEOUT_MS); timer.unref?.(); });
   return Promise.race([read, timeout]).finally(() => clearTimeout(timer));
 }
@@ -118,6 +133,13 @@ async function readPlatformStrict(fields) {
 export async function getEventConfig({ failOpen = false } = {}) {
   const doc = await readPlatform('event', { failOpen });
   return normalizeEvent(doc?.event);
+}
+
+// The configured hint costs (always a complete, normalised object; defaults when none are stored). Read on demand, never
+// cached in a process. Fails open to the defaults (a settings outage must not break opening a hint or a solve).
+export async function getHintCosts() {
+  const doc = await readPlatform('hintCosts', { failOpen: true });
+  return normalizeCosts(doc?.hintCosts);
 }
 
 // Guard for the flag-submit routes: 423 SUBMISSIONS_FROZEN when an admin froze submissions, and, only when an event is

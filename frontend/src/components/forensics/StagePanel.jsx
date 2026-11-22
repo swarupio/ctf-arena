@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { submitAnswer } from '../../api/forensics.js';
+import { openHint, submitAnswer } from '../../api/forensics.js';
 import { describeForensicsError } from '../../forensics/caseHelpers.js';
-import { useAuth } from '../../auth/AuthContext.jsx';
 import PreviewNote from '../PreviewNote.jsx';
-import HintLadder, { HintsUsed } from '../../hints/HintLadder.jsx';
-import { useStoredCount } from '../../hints/hooks.js';
+import HintLadder, { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
 import Debrief from '../../debrief/Debrief.jsx';
 
 // One question: the prompt, an optional hint (a click away, never auto-shown), the answer form and playful feedback.
-// The server does not track hint opens here: the opened count lives in this browser, per player and question.
+// The server records the open for the team (and withholds the text until then); admins read it for free.
 export default function StagePanel({ trackId, stage, canAnswer, onSolved, prefill }) {
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  const { user } = useAuth();
-  const [opened, openNext] = useStoredCount(user, `forensics:${trackId}:${stage.n}`, stage.hint ? 1 : 0);
+  // `hasHint` says a hint exists while `hint` is still null; older servers only send `hint`.
+  const hasHint = stage.hasHint ?? Boolean(stage.hint);
+  const [text, setText] = useState(typeof stage.hint === 'string' && stage.hint !== '' ? stage.hint : null);
+  useEffect(() => { if (typeof stage.hint === 'string' && stage.hint !== '') { setText(stage.hint); } }, [stage.hint]);
   const input = useRef(null);
   useEffect(() => { if (prefill) { setAnswer(prefill.name); input.current?.focus(); } }, [prefill]);
 
@@ -43,8 +43,10 @@ export default function StagePanel({ trackId, stage, canAnswer, onSolved, prefil
     {stage.solved && <p className="fx-stamp" role="status">{'✓'} Confirmed</p>}
     {!stage.solved && !stage.locked && <>
       <HintLadder
-        category="forensics" hints={stage.hint ? [stage.hint].slice(0, opened) : []} total={stage.hint ? 1 : 0} allowed={Boolean(stage.hint)}
-        onOpen={openNext}
+        category="forensics" hints={text ? [text] : []} total={hasHint ? 1 : 0} allowed={hasHint}
+        pricing={stage.hintPricing} spent={stage.hintSpent} base={stage.points} priced={canAnswer}
+        onOpen={async () => { const answer = await openHint(trackId, stage.n); setText(answer.hint); return answer; }}
+        describeError={describeForensicsError}
       />
       {canAnswer ? <form className="fx-answer" onSubmit={submit}>
         <label>Your answer<input
@@ -57,8 +59,9 @@ export default function StagePanel({ trackId, stage, canAnswer, onSolved, prefil
     </>}
     <div aria-live="polite" className="fx-feedback">
       {feedback?.kind === 'wrong' && <p className="fx-wrong">{'✗'} {feedback.result.message}</p>}
-      {feedback?.kind === 'right' &&<p className="fx-right">{'✓'} {feedback.result.message} +{feedback.result.pointsAwarded} pts</p>}
-      {feedback?.kind === 'right' && Boolean(stage.hint) && <HintsUsed count={opened} />}
+      {feedback?.kind === 'right' && <p className="fx-right">{'✓'} {feedback.result.message} +{feedback.result.pointsAwarded} pts</p>}
+      {feedback?.kind === 'right' && <HintDeduction result={feedback.result} />}
+      {feedback?.kind === 'right' && hasHint && <HintsUsed count={text ? 1 : 0} />}
       {feedback?.kind === 'error' && <p role="alert" className="error">{feedback.message}</p>}
     </div>
     {!stage.locked && <Debrief levelKey={`forensics:${trackId}:${stage.n}`} captured={Boolean(stage.solved)} />}

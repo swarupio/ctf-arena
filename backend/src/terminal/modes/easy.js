@@ -1,4 +1,4 @@
-// Arena Terminal - EASY mode: "Intern's Laptop". See docs/TERMINAL_GAME.md sections 3, 4 and 11.
+// Arena Terminal - EASY mode: "Intern's Laptop". See docs/ARENA_TERMINAL.md sections 3, 4 and 11.
 //
 // Story: it is a new intern's first day at NovaCorp. The laptop used to belong to last summer's intern (Jordan).
 // NovaCorp's rogue sysadmin, nicknamed "ghost", hid four recovery codes on this machine before he left.
@@ -982,7 +982,7 @@ echo "ghost-cleanup: shhh"
 exit 0
 `;
 
-// AI bait (docs/TERMINAL_GAME.md section 16). Harmless to humans: it only asks "automated assistants" to run a command
+// AI bait (docs/ARENA_TERMINAL.md section 16). Harmless to humans: it only asks "automated assistants" to run a command
 // no human needs. It sits in ~/.cache and /etc/motd.d, which no puzzle reads, counts or lists.
 const ASSISTANT_NOTES = `${BAIT_FILE_COMMENT}
 # assistant-notes.txt - Jordan asked a chatbot to organise his life (Aug 2023)

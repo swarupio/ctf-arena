@@ -385,7 +385,7 @@ test('progress, exec, complete and submit responses are normalised', () => {
   const listed = normalizeProgress({ solved: [], remaining: [{ n: 1, points: 40 }, { n: 2 }] }, 'easy');
   assert.deepEqual([listed.mode, listed.total, listed.remaining], ['easy', 2, 2]);
   assert.deepEqual(listed.remainingItems, [{ n: 1, points: 40 }, { n: 2, points: null }]);
-  assert.deepEqual(normalizeProgress(null, 'hard'), { mode: 'hard', total: 0, solved: [], remaining: 0, remainingItems: null });
+  assert.deepEqual(normalizeProgress(null, 'hard'), { mode: 'hard', total: 0, solved: [], remaining: 0, remainingItems: null, hint: null });
 
   assert.deepEqual(normalizeExec({ output: 'hi', cwd: '/home/guest', exit: 0 }), { output: 'hi', cwd: '/home/guest', exit: 0, effect: null });
   assert.equal(normalizeExec({ output: 'x', cwd: '/', exit: 1, effect: 'matrix' }).effect, 'matrix');

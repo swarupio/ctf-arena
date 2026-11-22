@@ -12,6 +12,7 @@ const lab = (slug) => `/weblab/labs/${encodeURIComponent(slug)}`;
 
 export const listLabs = () => apiRequest('/weblab/labs');
 export const getLab = (slug) => apiRequest(lab(slug));
-export const getHint = (slug, level) => apiRequest(`${lab(slug)}/hints/${encodeURIComponent(level)}`);
+// Opening a hint is recorded and priced for the team, so it is a POST (idempotent per lab and level).
+export const openLabHint = (slug, level) => post(`${lab(slug)}/hints/${encodeURIComponent(level)}`, {});
 export const sendLabRequest = (slug, payload, { signal } = {}) => post(`${lab(slug)}/request`, payload, signal);
 export const submitLabFlag = (slug, flag) => post(`${lab(slug)}/submit`, { flag });

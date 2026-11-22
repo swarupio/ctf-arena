@@ -14,3 +14,5 @@
   .tm-window .tm-hintbar > * { flex: none; }
 }
 .tm-window .tm-hint-info > span + span::before { content: '\00b7'; margin-right: 10px; }
+.tm-window .tm-hint-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; color: var(--term-white); font-size: 0.8125rem; }
+.tm-window .tm-hint-confirm > span { flex: 1 1 14rem; min-width: 0; }

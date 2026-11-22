@@ -4,7 +4,7 @@ import terminalChallengesCipherlab from './content/terminal-challenges-cipherlab
 import weblabForensics from './content/weblab-forensics.js';
 import crackmeOsint from './content/crackme-osint.js';
 
-export { validateEntry, entryLeaks, LIMITS } from './validate.js';
+export { validateEntry, entryLeaks } from './validate.js';
 
 export const SOURCES = Object.freeze({
   'terminal-challenges-cipherlab': terminalChallengesCipherlab,

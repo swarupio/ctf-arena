@@ -1,4 +1,4 @@
-// Per-team puzzle values (docs/TERMINAL_GAME.md section 16): seedValue, {{seed:...}} tokens, the wide and md5
+// Per-team puzzle values (docs/ARENA_TERMINAL.md section 16): seedValue, {{seed:...}} tokens, the wide and md5
 // filters, {{md5file:...}}, vault passphrases with tokens, and "flag tokens behave exactly as before".
 import { createHash, createHmac } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';

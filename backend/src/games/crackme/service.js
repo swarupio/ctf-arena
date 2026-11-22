@@ -7,7 +7,9 @@ import CrackmePatch from '../../models/CrackmePatch.js';
 import Solve from '../../models/Solve.js';
 import Submission from '../../models/Submission.js';
 import { consumeAttempt } from '../../services/attemptLimiter.js';
+import { getHintCosts } from '../../services/adminSettings.js';
 import { hashSubmission } from '../../services/flagService.js';
+import { costOf, firstN, percentOf, pricingFor, spentView } from '../../services/hintCost.js';
 import { integrityService } from '../../services/integrityService.js';
 import { recordSolve } from '../../services/scoringService.js';
 import { AppError } from '../../utils/AppError.js';
@@ -165,6 +167,8 @@ export async function puzzleView({ entries, entry, team, admin }) {
   const track = TRACKS.find((item) => item.id === level.track);
   const used = track.hints && team ? await CrackmeHint.countDocuments({ teamId: team._id, levelId: level.id }) : 0;
   const texts = track.hints ? hintTexts(level, built) : [];
+  // Prices of the hints still closed (no text) and the spend so far; players only.
+  const costs = track.hints && team ? await getHintCosts() : null;
   const patchBay = isPatchable(level) ? {
     maxEdits: PATCH_MAX_EDITS,
     rules: PATCH_RULES,
@@ -185,6 +189,7 @@ export async function puzzleView({ entries, entry, team, admin }) {
     hintsAllowed: track.hints,
     hintsTotal: texts.length,
     hints: texts.slice(0, used),
+    ...(costs ? { hintPricing: pricingFor(level.points, texts.length, used, costs), hintSpent: spentView(level.points, firstN(used), costs) } : {}),
     ...(patchBay ? { patchBay } : {}),
   };
 }
@@ -199,10 +204,17 @@ export async function openHint({ entries, entry, team, user }) {
   const index = await CrackmeHint.countDocuments({ teamId: team._id, levelId: level.id });
   if (index >= texts.length) { throw new AppError(409, 'NO_MORE_HINTS', 'No more hints for this level.'); }
   // Idempotent per (team, level, index): a double click or a second replica writes the row once.
+  // The price is fixed now and stored on the row (docs/HINTS.md "Hint costs"): a later settings change does not touch it.
+  const costs = await getHintCosts();
   await CrackmeHint.updateOne(
-    { teamId: team._id, levelId: level.id, index }, { $setOnInsert: { userId: user._id } }, { upsert: true },
+    { teamId: team._id, levelId: level.id, index },
+    { $setOnInsert: { userId: user._id, percent: percentOf(index, costs), capPercent: costs.enabled ? costs.maxPercent : 0 } },
+    { upsert: true },
   );
-  return { index, hint: texts[index], used: index + 1, total: texts.length };
+  return {
+    index, hint: texts[index], used: index + 1, total: texts.length,
+    cost: costOf(level.points, index, costs), spent: spentView(level.points, firstN(index + 1), costs),
+  };
 }
 
 export async function listHintLog(limit = 200) {
@@ -241,7 +253,7 @@ export async function submitAnswer({ entries, entry, team, user, answer }) {
   const challenge = { ...doc, points: level.points };
   const flag = flagFor(doc, { secret: env.FLAG_SECRET, teamId: team._id });
   const alreadySolved = status === 'solved';
-  const solve = alreadySolved ? null : await recordSolve({ challenge, teamId: team._id, userId: user._id });
+  const solve = alreadySolved ? null : await recordSolve({ challenge, teamId: team._id, userId: user._id, hint: { scope: 'crackme', key: level.id } });
   const duplicate = alreadySolved || !solve;
   const solvedNow = new Set([...solves.map((row) => String(row.challengeId)), String(doc._id)]);
   const next = entriesOf(entries, level.track).find((item) => !solvedNow.has(String(item.doc._id)));
@@ -249,6 +261,7 @@ export async function submitAnswer({ entries, entry, team, user, answer }) {
     correct: true,
     alreadySolved: duplicate,
     pointsAwarded: duplicate ? 0 : solve.points,
+    ...(solve?.hintCost ? { hintCost: solve.hintCost } : {}),
     firstBlood: false,
     flag,
     message: duplicate ? 'Your team already cracked this one.' : pickMessage(RIGHT, submittedHash),

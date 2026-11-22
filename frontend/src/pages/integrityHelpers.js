@@ -184,7 +184,7 @@ export function timeAgo(iso, now = Date.now()) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} h ago`;
   const days = Math.floor(hours / 24);
-  if (days < 60) return `${days} d ago`;
+  if (days < 60) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
   return new Date(time).toISOString().slice(0, 10);
 }
 

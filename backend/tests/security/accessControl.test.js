@@ -25,6 +25,7 @@ vi.mock('../../src/models/ReplicaStat.js', async () => (await import('./helpers/
 vi.mock('../../src/models/AttemptCounter.js', async () => (await import('./helpers/fakeDb.js')).modelModule('AttemptCounter'));
 vi.mock('../../src/models/CheatSignal.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CheatSignal'));
 vi.mock('../../src/models/TaintedFlag.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TaintedFlag'));
+vi.mock('../../src/models/HintOpen.js', async () => (await import('./helpers/fakeDb.js')).modelModule('HintOpen'));
 vi.mock('../../src/models/TerminalActivity.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TerminalActivity'));
 
 beforeAll(async () => { await getApp(); });

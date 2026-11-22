@@ -1,4 +1,4 @@
-// Server-side logic of the Arena Terminal game (docs/TERMINAL_GAME.md). Routes stay thin and call these helpers.
+// Server-side logic of the Arena Terminal game (docs/ARENA_TERMINAL.md). Routes stay thin and call these helpers.
 // Nothing here keeps state between requests: flags, progress and rate limits come from the secret and MongoDB.
 import { createHmac } from 'node:crypto';
 import { posix } from 'node:path';
@@ -7,8 +7,11 @@ import Challenge from '../models/Challenge.js';
 import Solve from '../models/Solve.js';
 import Submission from '../models/Submission.js';
 import { AppError } from '../utils/AppError.js';
+import { getHintCosts } from './adminSettings.js';
 import { consumeAttempt } from './attemptLimiter.js';
 import { expectedFlagFor, hashSubmission, matchDynamicFlag } from './flagService.js';
+import { pricingClosed, spentView } from './hintCost.js';
+import { openedEntries, recordHintOpen } from './hintLedger.js';
 import { recordSolve } from './scoringService.js';
 
 // Admins explore with flags derived for this fixed id. No team has it, so those flags never validate on submit.
@@ -85,7 +88,7 @@ export async function teamSolves(team, challenges) {
 
 const solvedIds = (solves) => new Set(solves.map((solve) => String(solve.challengeId)));
 
-// Per-team, per-mode seed behind {{seed:...}} tokens (docs/TERMINAL_GAME.md section 16). It only feeds the engine's
+// Per-team, per-mode seed behind {{seed:...}} tokens (docs/ARENA_TERMINAL.md section 16). It only feeds the engine's
 // puzzle values: it is never sent to the browser. Admins use the same fixed preview id as their flag set.
 export function terminalSeed(teamId, mode) {
   return createHmac('sha256', env.FLAG_SECRET).update(`terminal-seed:${teamId}:${mode}`).digest('hex');
@@ -101,9 +104,32 @@ export function storySeed(teamId) {
 export const MAIL_SEEN_MAX = 0xfff;
 export const cleanMailSeen = (value) => (Number.isInteger(value) && value >= 0 && value <= MAIL_SEEN_MAX ? value : 0);
 
-// The ctx the shell engine receives (docs/TERMINAL_GAME.md section 5). flag() is synchronous and per team;
+// Hint costs: scope 'terminal', key '<mode>:<code>', index = tier - 1 (tiers are the code's hints, 1-based in the shell).
+export const hintKey = (mode, code) => `${mode}:${code}`;
+
+// What the Hints control needs for the code `hint` talks about (the first unsolved code with hints): its prices before
+// opening, the opened tiers and the spend. Players with a team only; null when every code is solved or none has hints.
+export async function hintInfo({ definition, challenges, solves, team }) {
+  if (!team) { return null; }
+  const ids = solvedIds(solves);
+  const solvedCodes = new Set(challenges.filter((c) => ids.has(String(c._id))).map((c) => c.terminal.code));
+  const next = [...definition.codes].sort((x, y) => x.n - y.n).find((code) => !solvedCodes.has(code.n));
+  const row = next && challenges.find((c) => c.terminal.code === next.n);
+  const total = Array.isArray(next?.hints) ? next.hints.length : 0;
+  if (!row || total === 0) { return null; }
+  const scope = { teamId: team._id, scope: 'terminal', key: hintKey(definition.mode, next.n) };
+  const [opened, costs] = await Promise.all([openedEntries(scope), getHintCosts()]);
+  return {
+    code: next.n, total, base: row.points,
+    opened: opened.filter((entry) => entry.index < total).map((entry) => entry.index + 1),
+    pricing: pricingClosed(row.points, total, opened, costs),
+    spent: spentView(row.points, opened, costs),
+  };
+}
+
+// The ctx the shell engine receives (docs/ARENA_TERMINAL.md section 5). flag() is synchronous and per team;
 // progress() reads the team's solves lazily, once per request, only when a command (hint, status) asks.
-export function buildContext({ definition, cwd, challenges, team, mailSeen }) {
+export function buildContext({ definition, cwd, challenges, team, user = null, mailSeen }) {
   const teamId = team ? String(team._id) : ADMIN_PREVIEW_TEAM;
   const byCode = new Map(challenges.map((challenge) => [challenge.terminal.code, challenge]));
   let progressed;
@@ -117,6 +143,9 @@ export function buildContext({ definition, cwd, challenges, team, mailSeen }) {
       const challenge = byCode.get(Number(n));
       return challenge ? expectedFlagFor(challenge, { secret: env.FLAG_SECRET, teamId }) : UNAVAILABLE_FLAG;
     },
+    // Players with a team only (admin previews are free and record nothing). The `hint` command records the opened tier here
+    // BEFORE it prints the text; the deduction applies when the code is solved (docs/HINTS.md "Hint costs").
+    ...(team ? { recordHint: ({ code, index }) => recordHintOpen({ teamId: team._id, userId: user?._id, scope: 'terminal', key: hintKey(definition.mode, code), index }) } : {}),
     progress() {
       progressed ??= teamSolves(team, challenges).then((solves) => {
         const ids = solvedIds(solves);
@@ -209,11 +238,13 @@ export async function submitFlag({ definition, challenges, team, user, submitted
   });
   if (!fresh) { return already(ids.size); }
 
-  const solve = await recordSolve({ challenge: fresh, teamId: team._id, userId: user._id });
+  const solve = await recordSolve({
+    challenge: fresh, teamId: team._id, userId: user._id, hint: { scope: 'terminal', key: hintKey(definition.mode, matched.terminal.code) },
+  });
   // null: the other half of a double click (or another replica) recorded it first.
   if (!solve) { return already(ids.size + 1); }
   return {
-    ...known, pointsAwarded: solve.points, firstBlood: solve.firstBlood,
+    ...known, pointsAwarded: solve.points, ...(solve.hintCost ? { hintCost: solve.hintCost } : {}), firstBlood: solve.firstBlood,
     message: solve.firstBlood ? 'First blood! Correct flag.' : 'Correct flag!',
     solved: ids.size + 1, total,
   };

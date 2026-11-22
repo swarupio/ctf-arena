@@ -200,7 +200,7 @@ describe('platform settings: event', () => {
 
   it('defaults to no event, additively (existing keys unchanged)', async () => {
     const { body } = await api('get', '/admin/settings').expect(200);
-    expect(body).toEqual({ registrationOpen: true, submissionsFrozen: false, announcement: { text: '', level: 'info' }, event: null, updatedAt: null });
+    expect(body).toEqual({ registrationOpen: true, submissionsFrozen: false, announcement: { text: '', level: 'info' }, event: null, hintCosts: { enabled: true, nudge: 5, approach: 10, walkthrough: 25, maxPercent: 40 }, updatedAt: null });
   });
 
   it('stores a valid schedule as dates, returns the phase, and writes an audit entry', async () => {

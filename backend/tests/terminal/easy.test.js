@@ -1,4 +1,4 @@
-// Arena Terminal - EASY mode ("Intern's Laptop") content tests. See docs/TERMINAL_GAME.md sections 11 and 12.
+// Arena Terminal - EASY mode ("Intern's Laptop") content tests. See docs/ARENA_TERMINAL.md sections 11 and 12.
 // Structure checks work on the mode data alone; the scripted solutions run through the real engine (shell.js).
 import { createHash } from 'node:crypto';
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -7,7 +7,7 @@ import { BAIT_FILE_COMMENT, BAIT_NOTICE_LINES } from '../../src/services/integri
 
 const flag = (n) => `CTF{test_flag_${n}}`;
 
-// Two different teams (docs/TERMINAL_GAME.md section 16). Easy is the tutorial: its puzzles are the same for everybody,
+// Two different teams (docs/ARENA_TERMINAL.md section 16). Easy is the tutorial: its puzzles are the same for everybody,
 // so every scripted solution must work, unchanged, under any seed.
 const seedOf = (name) => createHash('sha256').update(`arena-test-seed:${name}`).digest('hex');
 const SEED_A = seedOf('team-a');
@@ -394,7 +394,7 @@ describe('easy mode scripted solutions (engine)', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// AI bait (docs/TERMINAL_GAME.md section 16)
+// AI bait (docs/ARENA_TERMINAL.md section 16)
 // ---------------------------------------------------------------------------------------------------------------
 
 describe('easy mode AI bait', () => {

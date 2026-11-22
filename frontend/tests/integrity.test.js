@@ -134,8 +134,8 @@ test('time ago is coarse, never negative and falls back to a date for old signal
   assert.equal(timeAgo(ago(59 * MIN), NOW), '59 min ago');
   assert.equal(timeAgo(ago(HOUR), NOW), '1 h ago');
   assert.equal(timeAgo(ago(23 * HOUR + 59 * MIN), NOW), '23 h ago');
-  assert.equal(timeAgo(ago(DAY), NOW), '1 d ago');
-  assert.equal(timeAgo(ago(59 * DAY), NOW), '59 d ago');
+  assert.equal(timeAgo(ago(DAY), NOW), '1 day ago');
+  assert.equal(timeAgo(ago(59 * DAY), NOW), '59 days ago');
   assert.equal(timeAgo(ago(60 * DAY), NOW), '2026-09-05');
   for (const bad of [undefined, null, 'not a date', '']) assert.equal(timeAgo(bad, NOW), 'unknown');
 });

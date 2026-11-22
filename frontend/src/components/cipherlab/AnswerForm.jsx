@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { submitAnswer } from '../../api/cipherlab.js';
 import PreviewNote from '../PreviewNote.jsx';
-import { HintsUsed } from '../../hints/HintLadder.jsx';
+import { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
 import { STREAK_LOST, cipherErrorMessage, confettiPieces, missText, streakText } from './helpers.js';
 
 const PIECES = confettiPieces();
@@ -74,6 +74,7 @@ export default function AnswerForm({ puzzle, canSubmit, onSolved, streak = 0, hi
       <p className="cl-win-title">{result.message}</p>
       {result.pointsAwarded > 0 && <p>+{result.pointsAwarded} points · {streakText(result.streak)}</p>}
       <p>Team flag: <code className="cl-flag">{result.flag}</code></p>
+      <HintDeduction result={result} />
       {hintsUsed !== null && puzzle.hintsAllowed && <HintsUsed count={hintsUsed} />}
       {result.trackComplete && <p className="cl-win-title">Track cleared! Check the overview for your speed-run badge.</p>}
       {result.nextLevelId && <Link className="button" to={`/cipherlab/${result.nextLevelId}`}>Next level</Link>}

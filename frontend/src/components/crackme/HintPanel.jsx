@@ -10,7 +10,8 @@ export default function HintPanel({ puzzle, onOpened, disabled }) {
       category="crackme" title="" hints={puzzle.hints} total={puzzle.hintsTotal} allowed={puzzle.hintsAllowed}
       canOpen={!disabled} previewNote="Admin preview: only players can open hints."
       preview={disabled && puzzle.hints.length === 0}
-      onOpen={async () => { await openHint(puzzle.id); await onOpened(); }} describeError={crackmeErrorMessage}
+      pricing={puzzle.hintPricing} spent={puzzle.hintSpent} base={puzzle.points} priced={!disabled}
+      onOpen={async () => { const answer = await openHint(puzzle.id); await onOpened(); return answer; }} describeError={crackmeErrorMessage}
     />
   </section>;
 }

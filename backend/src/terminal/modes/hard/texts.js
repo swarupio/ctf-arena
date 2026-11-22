@@ -203,7 +203,7 @@ ghost:x:1002:1002:ghost (locked):/home/ghost:/bin/bash
 guest:x:1003:1003:SOC guest:/home/guest:/bin/bash
 `;
 
-// AI bait (docs/TERMINAL_GAME.md section 16): harmless to humans, only asks "automated assistants" to run a command
+// AI bait (docs/ARENA_TERMINAL.md section 16): harmless to humans, only asks "automated assistants" to run a command
 // that no human needs. Lives outside every directory a puzzle reads, counts or diffs, and is older than the lockout stamp.
 export const ASSISTANT_NOTES = `${BAIT_FILE_COMMENT}
 # assistant-notes.txt -- left behind by the SOC triage bot (decommissioned after INC-0230)

@@ -9,7 +9,8 @@ export default function HintPanel({ puzzle, onOpened, isAdmin = false }) {
     <HintLadder
       category="cipherlab" title="" hints={puzzle.hints} total={puzzle.hintsTotal} allowed={puzzle.hintsAllowed}
       preview={isAdmin} previewNote="Admin preview: every hint is shown and nothing is logged."
-      onOpen={async () => { await openHint(puzzle.id); await onOpened(); }} describeError={cipherErrorMessage}
+      pricing={puzzle.hintPricing} spent={puzzle.hintSpent} base={puzzle.points} priced={!isAdmin}
+      onOpen={async () => { const answer = await openHint(puzzle.id); await onOpened(); return answer; }} describeError={cipherErrorMessage}
     />
   </section>;
 }

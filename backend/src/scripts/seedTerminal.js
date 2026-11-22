@@ -1,4 +1,4 @@
-// Registers one Challenge per code of the Arena Terminal game (docs/TERMINAL_GAME.md section 9).
+// Registers one Challenge per code of the Arena Terminal game (docs/ARENA_TERMINAL.md section 9).
 // Safe to repeat: rows are keyed by slug `terminal-<mode>-<n>`, updated in place, and keep solveCount and
 // `visible` (an admin may hide a code). Usage: npm run seed:terminal
 import mongoose from 'mongoose';

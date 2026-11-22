@@ -716,7 +716,6 @@ main > .hero + * { margin-top: calc(var(--page-top) + var(--hero-offset)); }
 .back-games { display: inline-block; margin-bottom: var(--space-2); }
 
 .muted { color: var(--color-muted); }
-.pf-icon-locked { opacity: 0.6; }
 
 /* ---------- Devices: touch, short screens, large screens ---------- */
 /* Tapping is not hovering: no 300 ms double-tap delay on controls (pinch zoom stays on) and range sliders keep vertical page scroll. */

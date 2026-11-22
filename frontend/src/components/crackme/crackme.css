@@ -47,6 +47,8 @@ a.cm-rung-link:focus-visible { border-color: var(--color-line); background: var(
 .cm-listing { max-height: 520px; overflow: auto; background: var(--term-bg-black); color: var(--term-fg-listing); border: var(--border); font-family: var(--font-body); font-size: 0.875rem; }
 .cm-listing ol { list-style: none; margin: 0; padding: var(--space-2) 0; }
 .cm-listing li.is-current { background: var(--term-accent-tint); }
+/* The dim address and comment (#8a8a82) are 3.95:1 on the current-row tint; --term-fg-subtle is 4.9:1 on it. */
+.cm-listing li.is-current :is(.cm-addr, .cm-comment) { color: var(--term-fg-subtle); }
 .cm-listing li.is-patched .cm-arg { color: var(--term-warn-alt); }
 .cm-row { display: grid; grid-template-columns: 1.4ch 1.6ch 4ch 7ch 11ch minmax(0, 1fr); gap: var(--space-2); align-items: center; width: 100%; min-height: 28px; padding: 2px var(--space-3); border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none; }
 @media (hover: hover) { .cm-row:hover:not(:disabled) { color: inherit; background: var(--term-bg-row); } }

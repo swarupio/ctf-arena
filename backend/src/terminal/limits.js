@@ -1,4 +1,4 @@
-// Bounded-work guards for the terminal shell. See docs/TERMINAL_GAME.md section 6.
+// Bounded-work guards for the terminal shell. See docs/ARENA_TERMINAL.md section 6.
 // Nothing here is time based: limits count units of work so every replica behaves identically.
 
 export const LIMITS = Object.freeze({

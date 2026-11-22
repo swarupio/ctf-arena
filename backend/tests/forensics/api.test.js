@@ -5,6 +5,7 @@ import { env } from '../../src/config/env.js';
 import { getCognitoVerifier } from '../../src/config/cognito.js';
 import AttemptCounter from '../../src/models/AttemptCounter.js';
 import Challenge from '../../src/models/Challenge.js';
+import HintOpen from '../../src/models/HintOpen.js';
 import Solve from '../../src/models/Solve.js';
 import Submission from '../../src/models/Submission.js';
 import Team from '../../src/models/Team.js';
@@ -15,6 +16,7 @@ import { expectedFlagFor } from '../../src/services/flagService.js';
 import { integrityService } from '../../src/services/integrityService.js';
 import { hasFirstBloodBonus } from '../../src/services/scoringService.js';
 import { FORENSICS_MAX_POINTS, TRACKS, TRACK_IDS, answerOf, makeContext, suspectsFor } from '../../src/forensics/tracks.js';
+import { installHintOpen } from '../helpers/hintOpenStore.js';
 import { NO_STATEMENTS, interviewAnswer, interviewQuestions, lieStagesFor } from '../../src/forensics/interviews.js';
 
 vi.mock('../../src/config/cognito.js', () => ({ getCognitoVerifier: vi.fn() }));
@@ -23,6 +25,7 @@ vi.mock('../../src/models/Team.js', () => ({ default: { findById: vi.fn() } }));
 vi.mock('../../src/models/Challenge.js', () => ({ default: { find: vi.fn(), findOneAndUpdate: vi.fn() } }));
 vi.mock('../../src/models/Solve.js', () => ({ default: { find: vi.fn(), create: vi.fn(), aggregate: vi.fn(), updateOne: vi.fn() } }));
 vi.mock('../../src/models/Submission.js', () => ({ default: { create: vi.fn() } }));
+vi.mock('../../src/models/HintOpen.js', () => ({ default: { updateOne: vi.fn(), find: vi.fn() } }));
 vi.mock('../../src/models/AttemptCounter.js', () => ({ default: { findOneAndUpdate: vi.fn(), create: vi.fn() } }));
 vi.mock('../../src/services/integrityService.js', async (importOriginal) => {
   const actual = await importOriginal();
@@ -37,6 +40,7 @@ let rows;
 let solves;
 let counters;
 let seeded;
+let opens;
 
 const api = (method, path, sub = 'player', body) => {
   const call = request(app)[method](`/api/forensics${path}`).set('Authorization', `Bearer ${sub}`);
@@ -56,6 +60,7 @@ beforeEach(() => {
   rows = forensicsDefinitions().map((d, i) => ({ ...d, _id: oid(5000 + i), visible: true, solveCount: 0 }));
   solves = [];
   counters = new Map();
+  opens = installHintOpen(HintOpen);
   User.findOne.mockImplementation(async ({ cognitoSub }) => users[cognitoSub] ?? null);
   Team.findById.mockImplementation(async (id) => ({ _id: String(id), name: 'T', banned: false }));
   Challenge.find.mockImplementation((filter) => ({
@@ -169,8 +174,10 @@ describe('no answer leakage', () => {
     expect(body.stages[4]).toMatchObject({ whodunit: true, locked: true, solved: false });
     expect(body.suspects.flatMap((s) => s.facts).every((f) => f.value === null)).toBe(true);
     expect(body.stages.some((s) => 'flag' in s)).toBe(false);
-    expect(body.stages.slice(0, 4).every((s) => s.hint)).toBe(true);
-    expect((await api('get', '/tracks/insane').expect(200)).body.stages.some((s) => s.hint)).toBe(false);
+    // The hint text is withheld until the team opens it (hint costs); the stage only says that a hint exists.
+    expect(body.stages.slice(0, 4).every((s) => s.hint === null && s.hasHint)).toBe(true);
+    expect(body.stages.some((s) => s.hint)).toBe(false);
+    expect((await api('get', '/tracks/insane').expect(200)).body.stages.some((s) => s.hint || s.hasHint)).toBe(false);
   });
 
   it('reveals only what the team earned, and wrong answers reveal nothing', async () => {
@@ -459,5 +466,76 @@ describe('suspect interviews', () => {
     await request(app).get('/api/forensics/tracks/easy/interviews').expect(401);
     await api('get', '/tracks/nightmare/interviews').expect(404);
     await ask('nightmare', { suspectId: 's1', questionId: 'q1' }).expect(404);
+  });
+});
+
+describe('hint costs', () => {
+  const hintPath = (track, n) => `/tracks/${track}/stages/${n}/hint`;
+  const openHint = (track, n, sub = 'player', body = {}) => api('post', hintPath(track, n), sub, body);
+
+  it('withholds the text, prices it, and reveals it only after the team opened it (idempotent, recorded once)', async () => {
+    const before = (await api('get', '/tracks/easy').expect(200)).body.stages[0];
+    expect(before).toMatchObject({ hint: null, hasHint: true, hintOpened: false, hintSpent: { points: 0, percent: 0, cap: 8 } });
+    expect(before.hintPricing).toEqual([{ index: 0, tier: 'nudge', percent: 5, points: 1 }]);
+    const first = (await openHint('easy', 1).expect(200)).body;
+    expect(first).toMatchObject({ index: 0, used: 1, total: 1, cost: { percent: 5, points: 1, tier: 'nudge' }, spent: { points: 1, percent: 5, cap: 8 } });
+    expect(first.hint).toBe(TRACKS.easy.stages[0].hint);
+    expect((await openHint('easy', 1).expect(200)).body.hint).toBe(first.hint);
+    expect(opens).toHaveLength(1);
+    expect(opens[0]).toMatchObject({ scope: 'forensics', key: 'easy:1', index: 0 });
+    const after = (await api('get', '/tracks/easy').expect(200)).body.stages;
+    expect(after[0]).toMatchObject({ hint: first.hint, hintOpened: true, hintPricing: [], hintSpent: { points: 1 } });
+    expect(after[1].hint).toBeNull();
+    // Another team sees nothing opened.
+    expect((await api('get', '/tracks/easy', 'player2').expect(200)).body.stages[0].hint).toBeNull();
+  });
+
+  it('deducts the opened hint when the stage is solved, only for that stage', async () => {
+    await openHint('easy', 1).expect(200);
+    const solved = (await answer('easy', 1, truth('easy', 1)).expect(200)).body;
+    expect(solved.pointsAwarded).toBe(19);
+    expect(solved.hintCost).toEqual({ spent: 1, openedCount: 1, base: 20, awarded: 19 });
+    const clean = (await answer('easy', 2, truth('easy', 2)).expect(200)).body;
+    expect(clean.pointsAwarded).toBe(20);
+    expect(clean.hintCost).toBeUndefined();
+    expect(scoreOf(TEAM_A)).toBe(39);
+  });
+
+  it('charges nothing for a hint opened after the solve', async () => {
+    await answer('easy', 1, truth('easy', 1)).expect(200);
+    await openHint('easy', 1).expect(200);
+    expect(scoreOf(TEAM_A)).toBe(20);
+  });
+
+  it('refuses stages without a hint, unknown stages and bad bodies', async () => {
+    expect((await openHint('easy', 5).expect(403)).body.error.code).toBe('NO_HINTS');
+    expect((await openHint('hard', 1).expect(403)).body.error.code).toBe('NO_HINTS');
+    expect((await openHint('insane', 2).expect(403)).body.error.code).toBe('NO_HINTS');
+    expect((await openHint('easy', 9).expect(404)).body.error.code).toBe('NOT_FOUND');
+    expect((await openHint('nightmare', 1).expect(404)).body.error.code).toBe('NOT_FOUND');
+    await openHint('easy', 1, 'player', { extra: 1 }).expect(400);
+    await request(app).post(`/api/forensics${hintPath('easy', 1)}`).send({}).expect(401);
+    expect(opens).toHaveLength(0);
+  });
+
+  it('keeps the admin preview free: text visible, no pricing, nothing recorded', async () => {
+    const stage = (await api('get', '/tracks/easy', 'admin').expect(200)).body.stages[0];
+    expect(stage.hint).toBe(TRACKS.easy.stages[0].hint);
+    expect(stage.hintPricing).toBeUndefined();
+    expect(stage.hintSpent).toBeUndefined();
+    const opened = (await openHint('easy', 1, 'admin').expect(200)).body;
+    expect(opened).toEqual({ index: 0, hint: TRACKS.easy.stages[0].hint, used: 1, total: 1 });
+    expect(opens).toHaveLength(0);
+  });
+
+  it('uses the same team guards as other hint opens: a banned team cannot open, nothing is recorded', async () => {
+    Team.findById.mockImplementation(async (id) => ({ _id: String(id), name: 'T', banned: true }));
+    expect((await openHint('easy', 1).expect(403)).body.error.code).toBe('TEAM_BANNED');
+    expect(opens).toHaveLength(0);
+  });
+
+  it('never leaks the hint or an answer before opening', async () => {
+    const { text } = await api('get', '/tracks/medium').expect(200);
+    for (const stage of TRACKS.medium.stages.filter((s) => s.hint)) { expect(text).not.toContain(stage.hint); }
   });
 });

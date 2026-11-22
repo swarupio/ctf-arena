@@ -16,6 +16,12 @@ export const askSuspect = (track, suspectId, questionId) => apiRequest(`${base(t
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ suspectId, questionId }),
 });
+// Opens the hint of one stage for the team (idempotent). Answer: { index, hint, used, total, cost?, spent? }.
+export const openHint = (track, stage) => apiRequest(`${base(track)}/stages/${stage}/hint`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({}),
+});
 export const submitAnswer = (track, stage, answer) => apiRequest(`${base(track)}/stages/${stage}/answer`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },

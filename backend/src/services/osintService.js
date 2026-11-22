@@ -12,9 +12,11 @@ import {
 import { sourceCounts } from '../osint/sources.js';
 import { chainProgress } from '../osint/board.js';
 import { PREVIEW_TEAM } from '../osint/world.js';
+import { getHintCosts } from './adminSettings.js';
 import { consumeAttempt } from './attemptLimiter.js';
 import { boardUnlocked } from './osintBoardService.js';
 import { expectedFlagFor, hashSubmission } from './flagService.js';
+import { costOf, firstN, percentOf, pricingFor, spentView } from './hintCost.js';
 import { integrityService } from './integrityService.js';
 import { recordSolve } from './scoringService.js';
 
@@ -104,6 +106,8 @@ export async function caseView({ track, rows, solved, team }) {
   const questionsDone = othersSolved(track, solved);
   const unlocked = questionsDone && boardOpen;
   const used = await openedHints(team, track);
+  // Prices of the hints still closed (no text) and the spend so far; players only.
+  const costs = team && track.hintsAllowed ? await getHintCosts() : null;
   const questions = track.stages.map((stage) => {
     const done = solved.has(stage.n);
     const opened = used.get(hintKey(track, stage.n)) ?? 0;
@@ -113,6 +117,7 @@ export async function caseView({ track, rows, solved, team }) {
       ...(stage.final && !unlocked && !done ? { lockedBy: questionsDone ? 'board' : 'questions' } : {}),
       hintsTotal: track.hintsAllowed ? stage.hints.length : 0,
       hints: track.hintsAllowed ? stage.hints.slice(0, opened) : [],
+      ...(costs ? { hintPricing: pricingFor(stage.points, stage.hints.length, opened, costs), hintSpent: spentView(stage.points, firstN(opened), costs) } : {}),
     };
     if (done) {
       view.pointsEarned = solved.get(stage.n).points;
@@ -162,11 +167,11 @@ export async function submitAnswer({ track, rows, team, user, stageNo, answer })
     return { correct: false, pointsAwarded: 0, firstBlood: false, message: wrongMessage(submittedHash), solved: solved.size, total };
   }
   // Fixed points straight from the definition: a stored row can never raise the documented maximum.
-  const solve = await recordSolve({ challenge: { ...row, points: stage.points, type: 'osint' }, teamId: team._id, userId: user._id });
+  const solve = await recordSolve({ challenge: { ...row, points: stage.points, type: 'osint' }, teamId: team._id, userId: user._id, hint: { scope: 'osint', key: hintKey(track, stageNo) } });
   if (!solve) { return already(solved.size + 1); }
   const closed = solved.size + 1 === total;
   return {
-    correct: true, pointsAwarded: solve.points, firstBlood: false, solved: solved.size + 1, total,
+    correct: true, pointsAwarded: solve.points, ...(solve.hintCost ? { hintCost: solve.hintCost } : {}), firstBlood: false, solved: solved.size + 1, total,
     flag: expectedFlagFor(row, { secret: env.FLAG_SECRET, teamId: team._id }),
     message: closed ? CASE_CLOSED : rightMessage(submittedHash), caseClosed: closed,
   };
@@ -184,8 +189,17 @@ export async function openHint({ track, rows, team, user, stageNo }) {
   const index = await OsintHint.countDocuments({ teamId: team._id, key });
   if (index >= stage.hints.length) { throw new AppError(409, 'NO_MORE_HINTS', 'No more hints for this question.'); }
   // Idempotent per (team, question, index): a double click or a second replica writes the row once.
-  await OsintHint.updateOne({ teamId: team._id, key, index }, { $setOnInsert: { userId: user._id } }, { upsert: true });
-  return { index, hint: stage.hints[index], used: index + 1, total: stage.hints.length };
+  // The price is fixed now and stored on the row (docs/HINTS.md "Hint costs"): a later settings change does not touch it.
+  const costs = await getHintCosts();
+  await OsintHint.updateOne(
+    { teamId: team._id, key, index },
+    { $setOnInsert: { userId: user._id, percent: percentOf(index, costs), capPercent: costs.enabled ? costs.maxPercent : 0 } },
+    { upsert: true },
+  );
+  return {
+    index, hint: stage.hints[index], used: index + 1, total: stage.hints.length,
+    cost: costOf(stage.points, index, costs), spent: spentView(stage.points, firstN(index + 1), costs),
+  };
 }
 
 export async function listHintLog(limit = 200) {

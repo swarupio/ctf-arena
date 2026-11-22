@@ -7,7 +7,7 @@ import RequestInspector from '../components/weblab/RequestInspector.jsx';
 import TargetFrame from '../components/weblab/TargetFrame.jsx';
 import { BountyBadge, FlagBox } from '../components/weblab/Widgets.jsx';
 import WebLabHints from '../components/weblab/WebLabHints.jsx';
-import { HintsUsed } from '../hints/HintLadder.jsx';
+import { HintDeduction, HintsUsed } from '../hints/HintLadder.jsx';
 import Debrief from '../debrief/Debrief.jsx';
 import { keyById } from '../debrief/levels.js';
 import {
@@ -118,6 +118,7 @@ function Play({ slug }) {
       {won && <div className="wl-win" role="status">
         <strong>{won.alreadySolved ? 'Already cashed' : 'BOUNTY PAID'}</strong>
         <span>{won.message}</span>
+        <HintDeduction result={won} />
         {lab.hintCount > 0 && <HintsUsed count={hintsUsed} />}
         <BountyBadge severity={won.severity} bountyUsd={won.bountyUsd} fresh />
         <Link className="button small" to="/weblab">Pick the next target</Link>
@@ -139,7 +140,10 @@ function Play({ slug }) {
     <div className="wl-lower">
       <section aria-labelledby="wl-hints-title">
         <h2 id="wl-hints-title">Hints</h2>
-        <WebLabHints key={slug} slug={slug} user={user} count={lab.hintCount} onCount={setHintsUsed} />
+        <WebLabHints
+          key={slug} slug={slug} user={user} count={lab.hintCount} onCount={setHintsUsed}
+          pricing={lab.hintPricing} spent={lab.hintSpent} opened={lab.hintsOpened} base={lab.points} priced={!isAdmin}
+        />
       </section>
       <section aria-labelledby="wl-flag-title">
         <h2 id="wl-flag-title">Submit the flag</h2>

@@ -26,6 +26,7 @@ vi.mock('../../src/models/ReplicaStat.js', async () => (await import('./helpers/
 vi.mock('../../src/models/AttemptCounter.js', async () => (await import('./helpers/fakeDb.js')).modelModule('AttemptCounter'));
 vi.mock('../../src/models/CheatSignal.js', async () => (await import('./helpers/fakeDb.js')).modelModule('CheatSignal'));
 vi.mock('../../src/models/TaintedFlag.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TaintedFlag'));
+vi.mock('../../src/models/HintOpen.js', async () => (await import('./helpers/fakeDb.js')).modelModule('HintOpen'));
 vi.mock('../../src/models/TerminalActivity.js', async () => (await import('./helpers/fakeDb.js')).modelModule('TerminalActivity'));
 
 afterAll(() => replicaCounter.stop());
@@ -169,7 +170,7 @@ describe('GET answers never contain secrets, other teams\' data or internals', (
     expect(Object.keys(timeline)).toEqual(['teams']);
     for (const team of timeline.teams) { expect(keys(team)).toEqual(['points', 'teamId', 'teamName']); }
     const me = (await call('get', '/api/me', 'alice')).body;
-    expect(keys(me)).toEqual(['displayName', 'email', 'id', 'role', 'team']);
+    expect(keys(me)).toEqual(['displayName', 'email', 'id', 'role', 'team', 'teamBanned']);
     expect(keys(me.team)).toEqual(['id', 'name']); // never the invite code or the member list
     const team = (await call('get', '/api/teams/me', 'alice')).body;
     expect(keys(team)).toEqual(['id', 'inviteCode', 'members', 'name', 'score']);

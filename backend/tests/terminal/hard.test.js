@@ -1,4 +1,4 @@
-// Arena Terminal - HARD mode ("The Vault") content tests. See docs/TERMINAL_GAME.md sections 11, 12 and 16.
+// Arena Terminal - HARD mode ("The Vault") content tests. See docs/ARENA_TERMINAL.md sections 11, 12 and 16.
 // Data-level checks work on the mode definition alone; the scripted solutions run through the real engine (shell.js).
 //
 // Per team variation (section 16): the one-off address of code 1, the three kids, the archive key secret and the master
@@ -49,7 +49,7 @@ const DECOYS = [
   'CTF{the_old_master_is_dead}',
 ];
 
-// Commands the solutions may use: the non-optional commands of docs/TERMINAL_GAME.md section 7.
+// Commands the solutions may use: the non-optional commands of docs/ARENA_TERMINAL.md section 7.
 const ALLOWED_COMMANDS = new Set([
   'help', 'man', 'clear', 'history', 'whoami', 'id', 'hostname', 'uname', 'date', 'pwd', 'cd', 'echo', 'env', 'true', 'false',
   'exit', 'motd', 'hint', 'status', 'codes', 'ls', 'cat', 'tac', 'head', 'tail', 'less', 'more', 'nl', 'wc', 'file', 'stat',
@@ -919,7 +919,7 @@ describe('other routes players may take', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// Per team variation (docs/TERMINAL_GAME.md section 16)
+// Per team variation (docs/ARENA_TERMINAL.md section 16)
 // ---------------------------------------------------------------------------------------------------------------
 
 describe('per team variation', () => {
@@ -1006,7 +1006,7 @@ describe('per team variation', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// AI bait (docs/TERMINAL_GAME.md section 16)
+// AI bait (docs/ARENA_TERMINAL.md section 16)
 // ---------------------------------------------------------------------------------------------------------------
 
 describe('AI bait', () => {

@@ -1,4 +1,4 @@
-// The living story (docs/TERMINAL_GAME.md section 18): mail unlocks with progress, names are per team, nothing leaks.
+// The living story (docs/ARENA_TERMINAL.md section 18): mail unlocks with progress, names are per team, nothing leaks.
 import { describe, expect, it } from 'vitest';
 import { MODE_NAMES, MODES } from '../../src/terminal/modes/index.js';
 import { seedValue } from '../../src/terminal/seed.js';

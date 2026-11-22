@@ -129,6 +129,13 @@ async function hint(c) {
   const tiers = Array.isArray(next.hints) ? next.hints : [];
   if (tiers.length === 0) { c.out(`No hints are available for code ${next.n}. Look around with ls -la and read everything.\n`); return 0; }
   const tier = Math.min(Math.max(requested, 1), tiers.length);
+  // Hint costs: record the open server-side BEFORE the text is shown (idempotent per code and tier). Absent for admin previews.
+  if (typeof c.ctx.recordHint === 'function') {
+    try { await c.ctx.recordHint({ code: next.n, index: tier - 1 }); } catch {
+      c.err('hint: could not record this hint, try again in a moment\n');
+      return 1;
+    }
+  }
   c.out(`[hint ${tier}/${tiers.length} for code ${next.n}] ${tiers[tier - 1]}\n`);
   return 0;
 }

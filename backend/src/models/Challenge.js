@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 export const TERMINAL_MODES = ['easy', 'medium', 'hard'];
 
-// Terminal game codes only (docs/TERMINAL_GAME.md section 9): which mode and which code of that mode.
+// Terminal game codes only (docs/ARENA_TERMINAL.md section 9): which mode and which code of that mode.
 const terminalSchema = new mongoose.Schema({
   mode: { type: String, required: true, enum: TERMINAL_MODES },
   code: { type: Number, required: true, min: 1 },

@@ -9,11 +9,15 @@ const profileSchema = z.object({ displayName: z.string().trim().min(3).max(30) }
 
 async function profile(user) {
   let team = null;
+  let teamBanned = false;
   // Missing or invalid legacy references are represented as no team.
   if (user.teamId && /^[a-f\d]{24}$/i.test(String(user.teamId))) {
     const { default: Team } = await import('../models/Team.js');
-    const currentTeam = await Team.findById(user.teamId, 'name', { lean: true });
-    if (currentTeam) { team = { id: String(currentTeam._id), name: currentTeam.name }; }
+    const currentTeam = await Team.findById(user.teamId, 'name banned', { lean: true });
+    if (currentTeam) {
+      team = { id: String(currentTeam._id), name: currentTeam.name };
+      teamBanned = currentTeam.banned === true;
+    }
   }
   return {
     id: user._id.toString(),
@@ -21,6 +25,8 @@ async function profile(user) {
     displayName: user.displayName,
     role: user.role,
     team,
+    // Additive: true when the user's team is banned (read with the team lookup above), so the UI can say so up front.
+    teamBanned,
     // Additive: lets the UI show the ban message (the account can still sign in and read /api/me).
     ...(user.banned ? { banned: true } : {}),
   };

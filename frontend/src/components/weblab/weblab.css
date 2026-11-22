@@ -10,10 +10,10 @@
 .wl-crumbs { font-size: 0.875rem; color: var(--color-muted); }
 
 /* themes: --t-bg page, --t-ink text, --t-accent highlight, --t-head header band, --t-font */
-[data-theme='retro-bank'] { --t-bg: #07140b; --t-ink: #8dffa8; --t-accent: #39ff6a; --t-head: #0d2a16; --t-line: #1f6b38; --t-on-accent: #04110a; --t-font: var(--font-body); }
+[data-theme='retro-bank'] { --t-bg: #07140b; --t-ink: #8dffa8; --t-accent: #39ff6a; --t-head: #0d2a16; --t-line: #2f8f4e; --t-on-accent: #04110a; --t-font: var(--font-body); }
 [data-theme='pizza'] { --t-bg: #fff6e0; --t-ink: #3b1a0a; --t-accent: #d62828; --t-head: #ffd166; --t-line: #8c2f1b; --t-on-accent: #ffffff; --t-font: Georgia, 'Times New Roman', serif; }
-[data-theme='hospital'] { --t-bg: #f2fbfb; --t-ink: #0b3b44; --t-accent: #0a8a9a; --t-head: #d7f1f3; --t-line: #7cc4cc; --t-on-accent: #ffffff; --t-font: system-ui, -apple-system, 'Segoe UI', sans-serif; }
-[data-theme='vault'] { --t-bg: #0a0a12; --t-ink: #e6e6ff; --t-accent: #b388ff; --t-head: #17172b; --t-line: #4b3a8f; --t-on-accent: #0a0a12; --t-font: var(--font-body); }
+[data-theme='hospital'] { --t-bg: #f2fbfb; --t-ink: #0b3b44; --t-accent: #087a89; --t-head: #d7f1f3; --t-line: #3b919d; --t-on-accent: #ffffff; --t-font: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+[data-theme='vault'] { --t-bg: #0a0a12; --t-ink: #e6e6ff; --t-accent: #b388ff; --t-head: #17172b; --t-line: #6d5bc0; --t-on-accent: #0a0a12; --t-font: var(--font-body); }
 
 /* overview */
 /* The summary strip, its stats and the bar use the shared overview.css classes. */

@@ -3,7 +3,7 @@ import { openHint, submitAnswer } from '../../api/osint.js';
 import { useDesk } from './DeskContext.jsx';
 import { describeOsintError } from '../../osint/helpers.js';
 import PreviewNote from '../PreviewNote.jsx';
-import HintLadder, { HintsUsed } from '../../hints/HintLadder.jsx';
+import HintLadder, { HintDeduction, HintsUsed } from '../../hints/HintLadder.jsx';
 import Debrief from '../../debrief/Debrief.jsx';
 
 // One question: the prompt, free hints (when the case has them), the answer form and playful feedback.
@@ -32,6 +32,7 @@ function Question({ trackId, q, hintsAllowed, canAnswer, onSolved }) {
   async function hint() {
     const result = await openHint(trackId, q.n);
     setHints((current) => (current.length > result.index ? current : [...current, result.hint]));
+    return result;
   }
 
   const status = q.solved ? 'Captured' : q.locked ? 'Locked' : 'Open';
@@ -54,6 +55,7 @@ function Question({ trackId, q, hintsAllowed, canAnswer, onSolved }) {
       {hintsAllowed && q.hintsTotal > 0 && <div className="os-hints">
         <HintLadder
           category="osint" hints={hints} total={q.hintsTotal} allowed={hintsAllowed} canOpen={canAnswer}
+          pricing={q.hintPricing} spent={q.hintSpent} base={q.points} priced={canAnswer}
           preview={!canAnswer} previewNote="Admin preview: only players can open hints." onOpen={hint} describeError={describeOsintError}
         />
       </div>}
@@ -72,6 +74,7 @@ function Question({ trackId, q, hintsAllowed, canAnswer, onSolved }) {
     <div aria-live="polite" className="os-feedback">
       {feedback?.kind === 'wrong' && <p className="os-wrong">{'✗'} {feedback.result.message}</p>}
       {feedback?.kind === 'right' && <p className="os-right">{'✓'} {feedback.result.message} +{feedback.result.pointsAwarded} pts{feedback.result.flag ? <> · flag <code>{feedback.result.flag}</code></> : null}</p>}
+      {feedback?.kind === 'right' && <HintDeduction result={feedback.result} />}
       {feedback?.kind === 'right' && hintsAllowed && q.hintsTotal > 0 && <HintsUsed count={hints.length} />}
       {feedback?.kind === 'error' && <p role="alert" className="error">{feedback.message}</p>}
     </div>

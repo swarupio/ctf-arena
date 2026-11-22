@@ -12,6 +12,8 @@
 .cm-xref, .cm-xtarget { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-2); padding: 1px var(--space-3) 1px calc(var(--space-3) + 3ch); font-size: 0.8125rem; color: var(--term-addr); overflow-wrap: anywhere; }
 .cm-xref { padding-top: 4px; }
 .cm-xlabel { color: var(--term-info-alt); font-weight: 700; }
+/* "xrefs from" sits on the always-dark listing: the themed muted colour is dark grey in light mode (2.6:1). Use the line's own colour. */
+.cm-xref .cm-dim, .cm-xtarget .cm-dim { color: inherit; }
 .cm-xrefs { display: inline-flex; flex-wrap: wrap; gap: 2px var(--space-2); align-items: center; }
 .cm-xtarget { padding-left: calc(var(--space-3) + 12ch); }
 .cm-xlink { display: inline-block; min-height: 24px; padding: 0 4px; border: 0; border-bottom: 1px dotted currentColor; background: transparent; color: var(--term-info-alt); font: inherit; cursor: pointer; box-shadow: none; text-align: left; }

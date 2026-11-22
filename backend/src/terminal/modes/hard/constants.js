@@ -1,8 +1,8 @@
 // Shared static facts for Hard mode ("The Vault"). Nothing in this file is a real code:
-// real codes only ever appear through {{flag:N}} tokens (docs/TERMINAL_GAME.md section 4).
+// real codes only ever appear through {{flag:N}} tokens (docs/ARENA_TERMINAL.md section 4).
 import { createHash } from 'node:crypto';
 
-// Per-team values (docs/TERMINAL_GAME.md section 16): every team gets its own key ids, archive passphrase and
+// Per-team values (docs/ARENA_TERMINAL.md section 16): every team gets its own key ids, archive passphrase and
 // anomalous address. They are seed tokens, rendered by the engine when a file is read or a vault is opened.
 // The static noise below never uses 198.51.100.0/24 or 203.0.113.0/24, so a seed address can never collide with it.
 

@@ -86,6 +86,7 @@ function ChallengeView({ id }) {
     role: user?.role, type: challenge.type, dockerAvailable: challenge.dockerAvailable, solved, hasInstance: Boolean(instance),
     hasTeam: teamIssue === 'no-team' ? false : profile ? Boolean(profile.team) : undefined,
     banned: teamIssue === 'banned' || profile?.banned === true,
+    teamBanned: profile?.teamBanned === true,
     eventPhase: event ? phaseAt(event, nowMs) : 'none',
   });
 

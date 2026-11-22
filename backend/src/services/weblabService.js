@@ -9,8 +9,11 @@ import {
 } from '../games/weblab/index.js';
 import { AppError } from '../utils/AppError.js';
 import { achievementService } from './achievementService.js';
+import { getHintCosts } from './adminSettings.js';
 import { consumeAttempt } from './attemptLimiter.js';
 import { expectedFlagFor, hashSubmission, verifyFlag } from './flagService.js';
+import { chargeOf, pricingClosed, spentView } from './hintCost.js';
+import { openedEntries, recordHintOpen } from './hintLedger.js';
 import { recordSolve } from './scoringService.js';
 
 // Admins explore with flags derived for this fixed id. No team has it, so those flags never validate on submit.
@@ -152,6 +155,33 @@ export function hintFor(lab, level) {
   return { level, count: lab.hints.length, text };
 }
 
+// Hint costs (docs/HINTS.md "Hint costs"): scope 'weblab', key = lab slug, index = hint level - 1. Players only: an admin
+// preview (no team) reads the hint for free and nothing is recorded.
+const ledgerKey = (lab, team) => ({ teamId: team._id, scope: 'weblab', key: labSlug(lab.id) });
+
+export async function openHint({ lab, level, team, user }) {
+  const hint = hintFor(lab, level);
+  if (!team || !user) { return hint; }
+  const index = level - 1;
+  // Priced now (cumulative tiers) and stored on the ledger row; a repeat open answers with the price stored the first time.
+  const { percent, costs } = await recordHintOpen({ ...ledgerKey(lab, team), userId: user._id, index });
+  return {
+    ...hint, cost: chargeOf(lab.points, percent, index), spent: spentView(lab.points, await openedEntries(ledgerKey(lab, team)), costs),
+  };
+}
+
+// Extra fields of the lab view for a player with a team: which hints are open (1-based levels, never their text), the price of
+// the closed ones and the spend so far. Admins and team-less players get none.
+export async function hintView(lab, team) {
+  if (!team) { return {}; }
+  const [opened, costs] = await Promise.all([openedEntries(ledgerKey(lab, team)), getHintCosts()]);
+  return {
+    hintsOpened: opened.filter((entry) => entry.index < lab.hints.length).map((entry) => entry.index + 1),
+    hintPricing: pricingClosed(lab.points, lab.hints.length, opened, costs),
+    hintSpent: spentView(lab.points, opened, costs),
+  };
+}
+
 const quipFor = (submitted) => WRONG_QUIPS[parseInt(hashSubmission(submitted).slice(0, 6), 16) % WRONG_QUIPS.length];
 
 export async function submitFlag({ lab, row, team, user, submitted }) {
@@ -165,7 +195,9 @@ export async function submitFlag({ lab, row, team, user, submitted }) {
   if (!correct) {
     return { correct: false, pointsAwarded: 0, firstBlood: false, message: quipFor(submitted) };
   }
-  const solve = await recordSolve({ challenge: { ...row, points: lab.points }, teamId: team._id, userId: user._id });
+  const solve = await recordSolve({
+    challenge: { ...row, points: lab.points }, teamId: team._id, userId: user._id, hint: { scope: 'weblab', key: labSlug(lab.id) },
+  });
   // null: the team already had this lab (double click or another replica). Not an error, and worth no points.
   if (!solve) {
     return { correct: true, alreadySolved: true, pointsAwarded: 0, firstBlood: false, message: 'Your team already cashed this bounty.', ...cosmetics(lab) };
@@ -173,7 +205,7 @@ export async function submitFlag({ lab, row, team, user, submitted }) {
   const badges = await achievementService.safeEvaluate({ userId: user._id, teamId: team._id, memberCount: team.memberIds?.length }); // cosmetic; never throws
   return {
     ...(badges.length ? { badges } : {}),
-    correct: true, pointsAwarded: solve.points, firstBlood: false, ...cosmetics(lab),
+    correct: true, pointsAwarded: solve.points, ...(solve.hintCost ? { hintCost: solve.hintCost } : {}), firstBlood: false, ...cosmetics(lab),
     message: `BOUNTY PAID: ${lab.severity.toUpperCase()} severity, $${lab.bountyUsd.toLocaleString('en-US')}.`,
   };
 }

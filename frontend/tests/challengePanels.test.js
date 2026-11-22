@@ -18,6 +18,16 @@ test('banned beats no team, a missing team gets the join card', () => {
   assert.equal(challengePanels({ ...stat, hasTeam: false }).gate, 'no-team');
 });
 
+test('a banned team gets the ban card from /me, before any server refusal', () => {
+  const panels = challengePanels({ ...docker, teamBanned: true });
+  assert.deepEqual(panels, { gate: 'banned', instance: null, submit: 'hidden' });
+  assert.equal(challengePanels({ ...stat, teamBanned: true }).gate, 'banned');
+  assert.equal(challengePanels({ ...docker, teamBanned: true, hasTeam: false }).gate, 'banned');
+  assert.equal(challengePanels({ ...docker, role: 'admin', teamBanned: true }).gate, 'admin-preview');
+  assert.equal(challengePanels({ ...docker, teamBanned: false }).gate, null);
+  assert.equal(challengePanels({ ...docker, teamBanned: undefined }).gate, null);
+});
+
 test('unknown team state (profile still loading) shows the normal player panels', () => {
   const panels = challengePanels({ role: 'player', type: 'docker', dockerAvailable: true });
   assert.deepEqual(panels, { gate: null, instance: 'ready', submit: 'form' });

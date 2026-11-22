@@ -72,6 +72,40 @@ describe('hint', () => {
     expect(result.exit).toBe(1);
   });
 
+  it('records the opened tier through ctx.recordHint before it prints (code of the next unsolved code, index = tier - 1)', async () => {
+    const calls = [];
+    const ctx = makeTestCtx({ solved: [1] });
+    ctx.recordHint = async (open) => { calls.push(open); };
+    expect(await out('hint 3', ctx)).toBe('[hint 3/3 for code 2] h2c');
+    await out('hint', ctx);
+    await out('hint 9', ctx);
+    expect(calls).toEqual([{ code: 2, index: 2 }, { code: 2, index: 0 }, { code: 2, index: 2 }]);
+  });
+
+  it('shows nothing when the open cannot be recorded, and records nothing for bad usage, no hints or a finished mode', async () => {
+    const ctx = makeTestCtx();
+    ctx.recordHint = async () => { throw new Error('db down'); };
+    const result = await run('hint', ctx);
+    expect(result.output).toBe('hint: could not record this hint, try again in a moment');
+    expect(result.output).not.toContain('h1a');
+    expect(result.exit).toBe(1);
+    const calls = [];
+    const quiet = makeTestCtx({ solved: [1, 2] });
+    quiet.recordHint = async (open) => { calls.push(open); };
+    await out('hint', quiet);
+    await out('hint abc', quiet);
+    const bare = makeTestCtx({ mode: { codes: [{ n: 1, title: 'First', points: 40 }] } });
+    bare.recordHint = async (open) => { calls.push(open); };
+    await out('hint', bare);
+    expect(calls).toEqual([]);
+  });
+
+  it('works without ctx.recordHint (admin preview)', async () => {
+    const ctx = makeTestCtx();
+    expect(ctx.recordHint).toBeUndefined();
+    expect(await out('hint', ctx)).toBe('[hint 1/3 for code 1] h1a');
+  });
+
   it('works inside pipes', async () => {
     expect(await out('hint | tr a-z A-Z')).toBe('[HINT 1/3 FOR CODE 1] H1A');
   });

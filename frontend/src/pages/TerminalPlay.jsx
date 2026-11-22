@@ -93,6 +93,8 @@ function PlaySession({ mode }) {
         onMailRead={markRead}
         onFirstCommand={markStarted}
         onSolved={loadProgress}
+        hintInfo={progress?.hint ?? null}
+        onHintOpened={loadProgress}
         onUnauthorized={unauthorized}
       />
       <TerminalHud

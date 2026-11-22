@@ -8,7 +8,7 @@ import { AppError } from '../utils/AppError.js';
 import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
-  askSuspect, interviewView, loadAllRows, loadRows, notSeeded, submitAnswer, summarizeTrack, teamKey, teamSolves, teamSolvesByTrack, trackView,
+  askSuspect, hintState, interviewView, loadAllRows, loadRows, notSeeded, openHint, submitAnswer, summarizeTrack, teamKey, teamSolves, teamSolvesByTrack, trackView,
 } from '../services/forensicsService.js';
 import { TRACK_IDS, TRACKS, artefactData, getTrack, makeContext } from '../forensics/tracks.js';
 import { both, validate } from './challenges.js';
@@ -21,6 +21,7 @@ const answerBody = z.object({ answer: z.string().trim().min(1).max(200) }).stric
 const trackParam = z.string().max(20);
 const trackParams = z.object({ track: trackParam }).strict();
 const stageParams = z.object({ track: trackParam, n: z.coerce.number().int().min(1).max(10) }).strict();
+const emptyBody = z.object({}).strict();
 const interviewBody = z.object({ suspectId: z.string().regex(/^s\d{1,2}$/), questionId: z.string().regex(/^q\d{1,2}$/) }).strict();
 const artefactParams = z.object({ track: trackParam, artefact: z.string().max(20) }).strict();
 const artefactQuery = z.object({
@@ -62,7 +63,8 @@ router.get('/tracks/:track', anyRole, async (req, res) => {
   if (rows.size === 0) { throw notSeeded(); }
   const solved = await teamSolves(team, rows);
   const ctx = makeContext(track.id, env.FLAG_SECRET, teamKey(team));
-  res.json(trackView({ track, ctx, rows, solved, team }));
+  const preview = req.user.role === 'admin';
+  res.json(trackView({ track, ctx, rows, solved, team, preview, hints: preview ? null : await hintState(track, team) }));
 });
 
 // One chunk of one artefact, generated lazily from the team's seed. Never contains an answer or a flag.
@@ -97,6 +99,17 @@ router.post('/tracks/:track/interviews', anyRole, async (req, res) => {
   if (rows.size === 0) { throw notSeeded(); }
   const ctx = makeContext(track.id, env.FLAG_SECRET, teamKey(team));
   res.json(await askSuspect({ track, ctx, solved: await teamSolves(team, rows), team, suspectId, questionId, preview }));
+});
+
+// Opens the hint of one stage: recorded for the team (charged when the stage is solved), idempotent. Admins read it for free.
+router.post('/tracks/:track/stages/:n/hint', anyRole, async (req, res) => {
+  const track = trackFrom(req.params);
+  const { n } = validate(stageParams, req.params);
+  validate(emptyBody, req.body ?? {});
+  const preview = req.user.role === 'admin';
+  const { user, team } = preview ? { user: null, team: null } : await getTeamContext(req.user);
+  const rows = await loadRows(track.id);
+  res.json(await openHint({ track, rows, stageNo: n, team, user, preview }));
 });
 
 router.post('/tracks/:track/stages/:n/answer', playerOnly, async (req, res) => {

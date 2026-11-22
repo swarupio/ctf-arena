@@ -1,4 +1,4 @@
-// Arena Terminal fun commands (cowsay, fortune, neofetch, ...). Contract: docs/TERMINAL_GAME.md section 13.
+// Arena Terminal fun commands (cowsay, fortune, neofetch, ...). Contract: docs/ARENA_TERMINAL.md section 13.
 //
 // Every handler is a pure text generator: no VFS, no host access, no randomness, no ctx.flag.
 // Output is ASCII plus SGR colour codes only, capped at ~3 KB. User text (args / stdin) is

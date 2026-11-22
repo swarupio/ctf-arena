@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FREE_LINE, HINT_COSTS, costLine, hintCost } from '../src/hints/config.js';
 import {
   NO_HINTS_LEVEL, NO_HINTS_TRACK, announcement, buildLadder, needsConfirm, readOpened, storageKey, tierLabel, usedLabel, userKey, writeOpened,
 } from '../src/hints/helpers.js';
@@ -10,23 +9,6 @@ const memory = (initial = {}) => {
   return { getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => { data.set(k, String(v)); }, data };
 };
 const alice = { email: 'Alice@Example.com' };
-
-test('every category ships free and the line says so', () => {
-  for (const category of ['cipherlab', 'crackme', 'osint', 'weblab', 'forensics', 'terminal']) {
-    assert.equal(HINT_COSTS[category], 0);
-    assert.equal(costLine(category), 'Free: no points deducted');
-  }
-  assert.equal(FREE_LINE, 'Free: no points deducted');
-  assert.ok(Object.isFrozen(HINT_COSTS));
-});
-
-test('the cost line is driven by one config object', () => {
-  assert.equal(costLine('osint', { osint: 5 }), 'Costs 5 points per hint');
-  assert.equal(costLine('osint', { osint: 1 }), 'Costs 1 point per hint');
-  assert.equal(costLine('osint', { osint: -3 }), 'Free: no points deducted');
-  assert.equal(costLine('osint', { osint: 2.5 }), 'Free: no points deducted');
-  assert.equal(hintCost('unknown'), 0);
-});
 
 test('tiers are labelled by position and use what the content has', () => {
   assert.deepEqual([1, 2, 3].map((n) => tierLabel(n, 3)), ['Nudge', 'Approach', 'Walkthrough-lite']);
@@ -48,11 +30,11 @@ test('only the Walkthrough-lite tier needs a confirmation', () => {
 });
 
 test('the ladder opens one hint at a time and counts them', () => {
-  const start = buildLadder({ total: 3, shown: [], category: 'cipherlab' });
+  const start = buildLadder({ total: 3, shown: [] });
   assert.equal(start.kind, 'ladder');
   assert.equal(start.used, 0);
   assert.deepEqual(start.tiers.map((t) => t.state), ['next', 'locked', 'locked']);
-  assert.deepEqual(start.next, { position: 1, label: 'Nudge', confirm: false, button: 'Open hint 1 of 3' });
+  assert.deepEqual(start.next, { position: 1, label: 'Nudge', confirm: false, button: 'Open hint 1 of 3', price: null, priceText: '' });
   const mid = buildLadder({ total: 3, shown: ['a', 'b'] });
   assert.equal(mid.used, 2);
   assert.equal(mid.next.button, 'Open hint 3 of 3');

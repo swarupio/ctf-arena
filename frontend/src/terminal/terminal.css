@@ -75,14 +75,9 @@
 .tm-card.is-done { box-shadow: 6px 6px 0 var(--term-white); }
 
 /* ---------- Challenge list promo card ---------- */
-.challenge-card.tm-promo { color: var(--term-fg); background: var(--term-bg-black); box-shadow: 5px 5px 0 var(--color-accent); }
-@media (hover: hover) { .challenge-card.tm-promo:hover { color: var(--term-fg); background: var(--term-bg-black); box-shadow: 8px 8px 0 var(--color-accent); } }
-.challenge-card.tm-promo:focus-visible { outline: 3px solid var(--color-ink); outline-offset: 3px; }
-.tm-promo-prompt { font-size: 0.8125rem; font-weight: 700; color: var(--color-accent); }
-.challenge-card.tm-promo .challenge-title { color: var(--term-white); }
-.tm-promo-text { font-size: 0.875rem; color: var(--term-fg-soft); }
-.tm-promo-meta { font-size: 0.8125rem; color: var(--term-fg-subtle); }
-.tm-promo-go { font-size: 0.875rem; font-weight: 700; color: var(--color-accent); }
+/* Colours, edge, prompt chip and hover live in overview.css (.ov-page .tm-promo*); only the type sizes are set here. */
+.tm-promo-text { font-size: 0.875rem; }
+.tm-promo-meta { font-size: 0.8125rem; }
 
 /* ---------- Play page layout ---------- */
 .tm-play { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: var(--space-5); align-items: start; }

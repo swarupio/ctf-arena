@@ -74,7 +74,6 @@ export function chainProgress(chain, links) {
 //   none      fewer than half hold, including zero
 // "started" starts at HALF, not at one link, so that none -> started is not a "does this set contain any chain link" test.
 // The exact count only comes from the rate limited explicit check (POST .../board/check).
-export const PROGRESS_LEVELS = Object.freeze(['none', 'started', 'close', 'complete']);
 export function progressLevel({ found, total, unlocked = false }) {
   if (unlocked || (total > 0 && found >= total)) { return 'complete'; }
   if (total >= 3 && found >= total - 1) { return 'close'; }

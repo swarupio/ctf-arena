@@ -38,7 +38,7 @@ export default function DataTable({
 
   return <div className="adm-table-block">
     {error && hasRows && <p role="alert" className="error adm-inline-error">{error} <button type="button" className="secondary small" onClick={onRetry}>Retry</button></p>}
-    <div className={`adm-scroll${dim ? ' adm-dim' : ''}`} role="region" aria-label={caption} tabIndex={0}>
+    <div className={`adm-scroll${dim ? ' adm-dim' : ''}`} role="region" aria-label={`${caption}, table`} tabIndex={0}>
       <table className="adm-table" aria-busy={loading}>
         <caption className="adm-sr">{caption}</caption>
         <thead>

@@ -3,7 +3,7 @@
 export const MODES = ['easy', 'medium', 'hard'];
 export const isMode = (mode) => MODES.includes(mode);
 
-// Commands the engine understands (docs/TERMINAL_GAME.md section 7) plus the four the browser handles itself.
+// Commands the engine understands (docs/ARENA_TERMINAL.md section 7) plus the four the browser handles itself.
 // Tab completion offers these without a network call; the server fills in paths (and any extra commands).
 export const CLIENT_COMMANDS = ['clear', 'history', 'submit', 'exit'];
 export const COMMANDS = [...new Set([
