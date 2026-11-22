@@ -38,6 +38,7 @@ export function lineTime(seed, level, index) {
 const access = (date, ip, path, status, bytes, agent, user = '-') => (
   `${ip} - ${user} [${clf(date)}] "GET ${path} HTTP/1.1" ${status} ${bytes} "-" "${agent}"`);
 const sshd = (date, pid, text) => `${isoText(date)} srv01 sshd[${pid}]: ${text}`;
+const vpnLine = (date, pid, user, pool, what) => `${isoText(date)} vpn01 openvpn[${pid}]: ${user}/${pool} session ${what}`;
 
 // Per-line draws for planned events: seeded by the final line index, so the page that shows the line decides nothing.
 const eventDraws = (seed, index) => {
@@ -93,7 +94,22 @@ export function logPlan(seed, level, scn) {
   }
   const bytes = int(r, 40e6, 90e6);
   put(0.68, (d) => access(d, atk, `/download?file=${scn.exfilFile}`, 200, bytes, 'curl/8.4.0'), 0.02);
-  return { events, breachIndex: breach, breachTime: clockText(lineTime(seed, level, breach)) };
+
+  // Session-overlap clue for the timeline board (drawn last, so no earlier draw or answer moves). Two staff members come in
+  // over the VPN pool. For the first one the VPN gateway records the session around the SSH login; for the second the
+  // SSH login is logged BEFORE the gateway saw the session open, so the two lines cannot both be true (clock skew).
+  // Neither pair involves the attacker, the victim or any answer.
+  const sessions = {};
+  const sessionTrio = (key, user, [openAt, loginAt, closeAt]) => {
+    const pool = `10.8.0.${int(r, 10, 240)}`;
+    const opened = put(openAt, (d, q) => vpnLine(d, q.pid(), user, pool, 'opened'), 0.005);
+    const login = put(loginAt, (d, q) => sshd(d, q.pid(), `Accepted publickey for ${user} from ${pool} port ${q.port()} ssh2`), 0.005);
+    const closed = put(closeAt, (d, q) => vpnLine(d, q.pid(), user, pool, 'closed'), 0.005);
+    sessions[key] = { user, pool, open: opened, login, close: closed };
+  };
+  sessionTrio('consistent', scn.users[4], [0.1, 0.12, 0.16]);
+  sessionTrio('skewed', scn.users[5], [0.38, 0.33, 0.44]);
+  return { events, breachIndex: breach, breachTime: clockText(lineTime(seed, level, breach)), sessions };
 }
 
 // Background chatter for line i. Pure function of (seed, i).

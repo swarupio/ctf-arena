@@ -117,6 +117,16 @@ describe('the whodunit', () => {
     expect(new Set(suspects.map((s) => s.name)).size).toBe(8);
     expect(answerOf(ctx, 5)).toBe(culprit.name);
   });
+
+  it.each(TRACK_IDS)('%s never lets a decoy collide with an answer, for many teams', (id) => {
+    for (let i = 0; i < 300; i += 1) {
+      const ctx = ctxFor(id, `seed-${i}`);
+      const { suspects, culprit } = suspectsFor(ctx);
+      const truth = ctx.track.clues.map(([, n, kind]) => normalizeAnswer(kind, answerOf(ctx, n)));
+      const full = suspects.filter((s) => s.facts.every((f, k) => normalizeAnswer(ctx.track.clues[k][2], f.value) === truth[k]));
+      expect(full.map((s) => s.id)).toEqual([culprit.id]);
+    }
+  });
 });
 
 describe('points and limits', () => {

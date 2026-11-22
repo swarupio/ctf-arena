@@ -210,6 +210,16 @@ function decoyValue(kind, r) {
     default: return `${int(r, 0x1000, 0xffff).toString(16)}-${int(r, 0x1000, 0xffff).toString(16)}`;
   }
 }
+// A decoy that equals the real answer would make the suspect match that clue after all (and could leave two culprits),
+// so redraw until it differs. The redraws consume the same seeded rng, so the board stays deterministic per team.
+function distinctDecoy(kind, r, answer) {
+  const normal = normalizeAnswer(kind, answer);
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const value = decoyValue(kind, r);
+    if (normalizeAnswer(kind, value) !== normal) { return value; }
+  }
+  return `${decoyValue(kind, r)}x`;
+}
 const ROLES = ['Accountant', 'Sysadmin', 'Intern', 'Courier', 'Photographer', 'Night guard', 'Contractor', 'Analyst'];
 export const SUSPECT_COUNT = 8;
 
@@ -234,7 +244,7 @@ export function suspectsFor(ctx) {
       role: roles[index],
       facts: clues.map(([label, stageNo, kind], k) => ({
         label, stage: stageNo,
-        value: matches[k] ? answerOf(ctx, stageNo) : decoyValue(kind, r),
+        value: matches[k] ? answerOf(ctx, stageNo) : distinctDecoy(kind, r, answerOf(ctx, stageNo)),
       })),
     };
   });

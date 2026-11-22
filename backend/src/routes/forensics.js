@@ -8,10 +8,10 @@ import { AppError } from '../utils/AppError.js';
 import { assertSubmissionsOpen } from '../services/adminSettings.js';
 import { getTeamContext } from '../services/teamContext.js';
 import {
-  loadAllRows, loadRows, notSeeded, submitAnswer, summarizeTrack, teamKey, teamSolves, trackView,
+  askSuspect, interviewView, loadAllRows, loadRows, notSeeded, submitAnswer, summarizeTrack, teamKey, teamSolves, teamSolvesByTrack, trackView,
 } from '../services/forensicsService.js';
 import { TRACK_IDS, TRACKS, artefactData, getTrack, makeContext } from '../forensics/tracks.js';
-import { validate } from './challenges.js';
+import { both, validate } from './challenges.js';
 
 const router = Router();
 const anyRole = requireRole('player', 'admin');
@@ -21,6 +21,7 @@ const answerBody = z.object({ answer: z.string().trim().min(1).max(200) }).stric
 const trackParam = z.string().max(20);
 const trackParams = z.object({ track: trackParam }).strict();
 const stageParams = z.object({ track: trackParam, n: z.coerce.number().int().min(1).max(10) }).strict();
+const interviewBody = z.object({ suspectId: z.string().regex(/^s\d{1,2}$/), questionId: z.string().regex(/^q\d{1,2}$/) }).strict();
 const artefactParams = z.object({ track: trackParam, artefact: z.string().max(20) }).strict();
 const artefactQuery = z.object({
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
@@ -50,11 +51,8 @@ router.use(auth);
 router.get('/tracks', anyRole, async (req, res) => {
   const team = await viewingTeam(req);
   const byTrack = await loadAllRows();
-  const out = [];
-  for (const id of TRACK_IDS) {
-    out.push(summarizeTrack(TRACKS[id], byTrack.get(id), await teamSolves(team, byTrack.get(id))));
-  }
-  res.json(out);
+  const solvedBy = await teamSolvesByTrack(team, byTrack);
+  res.json(TRACK_IDS.map((id) => summarizeTrack(TRACKS[id], byTrack.get(id), solvedBy.get(id))));
 });
 
 router.get('/tracks/:track', anyRole, async (req, res) => {
@@ -72,6 +70,8 @@ router.get('/tracks/:track/artefacts/:artefact', anyRole, async (req, res) => {
   const track = trackFrom(req.params);
   const query = validate(artefactQuery, req.query);
   const team = await viewingTeam(req);
+  // Same rule as the case view: a track with no visible seeded rows serves nothing.
+  if ((await loadRows(track.id)).size === 0) { throw notSeeded(); }
   const ctx = makeContext(track.id, env.FLAG_SECRET, teamKey(team));
   const { artefact } = validate(artefactParams, req.params);
   const data = artefactData(ctx, artefact, query);
@@ -79,13 +79,32 @@ router.get('/tracks/:track/artefacts/:artefact', anyRole, async (req, res) => {
   res.json(data);
 });
 
+router.get('/tracks/:track/interviews', anyRole, async (req, res) => {
+  const track = trackFrom(req.params);
+  const team = await viewingTeam(req);
+  const rows = await loadRows(track.id);
+  if (rows.size === 0) { throw notSeeded(); }
+  const ctx = makeContext(track.id, env.FLAG_SECRET, teamKey(team));
+  res.json(interviewView({ track, ctx, solved: await teamSolves(team, rows), preview: req.user.role === 'admin' }));
+});
+
+router.post('/tracks/:track/interviews', anyRole, async (req, res) => {
+  const track = trackFrom(req.params);
+  const { suspectId, questionId } = validate(interviewBody, req.body);
+  const preview = req.user.role === 'admin';
+  const { team } = preview ? { team: null } : await getTeamContext(req.user);
+  const rows = await loadRows(track.id);
+  if (rows.size === 0) { throw notSeeded(); }
+  const ctx = makeContext(track.id, env.FLAG_SECRET, teamKey(team));
+  res.json(await askSuspect({ track, ctx, solved: await teamSolves(team, rows), team, suspectId, questionId, preview }));
+});
+
 router.post('/tracks/:track/stages/:n/answer', playerOnly, async (req, res) => {
   const track = trackFrom(req.params);
   const { n } = validate(stageParams, req.params);
   const { answer } = validate(answerBody, req.body);
   await assertSubmissionsOpen();
-  const { user, team } = await getTeamContext(req.user);
-  const rows = await loadRows(track.id);
+  const [{ user, team }, rows] = await both(getTeamContext(req.user), loadRows(track.id)); // independent reads, one round trip
   res.json(await submitAnswer({ track, rows, team, user, stageNo: n, answer }));
 });
 
