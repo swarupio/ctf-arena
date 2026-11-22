@@ -195,6 +195,10 @@
   --shadow-hard: 5px 5px 0 var(--color-shadow);
   --shadow-accent: 8px 8px 0 var(--color-accent);
   --content-width: 72.5rem;
+  /* Space between the header and the first content of every page; the Home hero keeps the same gap below its panel. */
+  --page-top: var(--space-6);
+  --header-h: 4.875rem;
+  --hero-offset: 8px;
   --gutter: var(--space-5);
 
   font-family: var(--font-body);
@@ -462,14 +466,14 @@ main:focus { outline: none; }
 .site-menu { display: flex; flex: 1 1 0; align-items: center; gap: var(--space-4) var(--space-5); min-width: 0; }
 .menu-toggle { display: none; margin-left: auto; }
 .brand { display: inline-flex; align-items: center; gap: var(--space-3); font-family: var(--font-display); font-size: 1.75rem; font-weight: 400; letter-spacing: 0.02em; text-decoration: none; }
-@media (hover: hover) { .brand:hover { background: transparent; } }
+@media (hover: hover) { .brand:hover { color: inherit; background: transparent; } }
 .brand-flag { width: 28px; height: 32px; flex: none; }
 @media (hover: hover) { .brand:hover .brand-flag { transform: translateY(-2px); } }
 .brand-flag, .hero-flag { transition: transform 0.15s; }
 
 .site-header nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; }
 .site-header nav a { max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 10px; border: 1px solid transparent; text-decoration: none; font-size: 0.875rem; }
-@media (hover: hover) { .site-header nav a:hover { border-color: var(--color-ink); background: var(--color-surface); } }
+@media (hover: hover) { .site-header nav a:hover { color: var(--color-ink); border-color: var(--color-ink); background: var(--color-surface); } }
 .site-header nav a.active { background: var(--color-accent); color: var(--color-on-accent); border-color: var(--color-line); font-weight: 700; }
 
 .account { display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: var(--space-3); margin-left: auto; min-width: 0; flex: none; }
@@ -478,7 +482,7 @@ main:focus { outline: none; }
 .email::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: var(--space-2); background: var(--color-accent); border: var(--border); }
 
 /* Page shell */
-main { flex: 1; width: min(100%, var(--content-width)); margin: 0 auto; padding: var(--space-7) max(var(--gutter), var(--safe-r)) var(--space-8) max(var(--gutter), var(--safe-l)); }
+main { flex: 1; width: min(100%, var(--content-width)); margin: 0 auto; padding: var(--page-top) max(var(--gutter), var(--safe-r)) var(--space-8) max(var(--gutter), var(--safe-l)); }
 main > p[role='status']:not(.notice) { color: var(--color-muted); }
 main > p[role='status']:not(.notice)::before { content: '> '; content: '> ' / ''; color: var(--color-ink); }
 
@@ -502,7 +506,7 @@ button, .button {
 @media (hover: hover) { button:hover:not(:disabled), .button:hover { background: var(--color-accent); color: var(--color-on-accent); } }
 button:active:not(:disabled), .button:active { transform: translate(1px, 1px); }
 button.secondary, .button.secondary { color: var(--color-ink); background: var(--color-surface); }
-@media (hover: hover) { button.secondary:hover:not(:disabled), .button.secondary:hover { background: var(--color-accent); } }
+@media (hover: hover) { button.secondary:hover:not(:disabled), .button.secondary:hover { color: var(--color-on-accent); background: var(--color-accent); } }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 .small { min-height: 36px; padding: 4px var(--space-4); font-size: 0.875rem; }
 
@@ -562,7 +566,7 @@ dt:first-of-type, dt:first-of-type + dd { border-top: 0; }
 .auth-panel, .home-account, .placeholder { background: var(--color-surface); border: var(--border); padding: var(--space-6); }
 
 /* Auth pages */
-.auth-panel { width: min(100%, 32.5rem); margin: var(--space-5) auto var(--space-6); box-shadow: var(--shadow-accent); }
+.auth-panel { width: min(100%, 32.5rem); margin: 0 auto var(--space-6); box-shadow: var(--shadow-accent); }
 .auth-panel h1 { font-size: clamp(2.25rem, 1.6rem + 2.2vw, 3rem); }
 .auth-panel > p:not([role]) { color: var(--color-muted); }
 .auth-links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--color-line-soft); font-size: 0.9375rem; }
@@ -575,15 +579,22 @@ dt:first-of-type, dt:first-of-type + dd { border-top: 0; }
 /* Home */
 .hero {
   position: relative; display: grid; place-items: center; overflow: clip;
-  min-height: clamp(400px, 58vh, 560px); padding: var(--space-7) var(--space-5);
-  text-align: center; background: var(--color-surface); border: var(--border); box-shadow: var(--shadow-accent);
+  /* First screen: header + gap + panel + offset shadow + gap fill the viewport exactly, so the next section starts at the
+     fold (nothing peeks in cut off at the bottom). vh first, svh where supported. Short windows (under 21rem of hero) scroll. */
+  min-height: clamp(21rem, calc(100vh - var(--header-h) - 2 * var(--page-top) - var(--hero-offset)), 52rem);
+  min-height: clamp(21rem, calc(100svh - var(--header-h) - 2 * var(--page-top) - var(--hero-offset)), 52rem);
+  padding: clamp(var(--space-3), 4vh, var(--space-7)) var(--space-5);
+  padding-block: clamp(var(--space-3), 4svh, var(--space-7));
+  text-align: center; background: var(--color-surface); border: var(--border); box-shadow: var(--hero-offset) var(--hero-offset) 0 var(--color-accent);
 }
+main > .hero + * { margin-top: calc(var(--page-top) + var(--hero-offset)); }
 .hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; max-width: 100%; }
-.hero-flag { width: 56px; height: 64px; margin-bottom: var(--space-4); }
+.hero-flag { height: clamp(2.25rem, 8vh, 4rem); height: clamp(2.25rem, 8svh, 4rem); width: auto; aspect-ratio: 14 / 16; margin-bottom: clamp(var(--space-2), 1.5svh, var(--space-4)); }
 @media (hover: hover) { .hero:hover .hero-flag { transform: translateY(-4px); } }
 .hero-title {
-  margin: 0 0 0; padding: var(--space-4) var(--space-6); max-width: 100%; overflow-wrap: anywhere;
-  font-size: clamp(4rem, 1.5rem + 12vw, 9rem); line-height: 0.95; letter-spacing: 0.03em;
+  margin: 0 0 0; padding: clamp(var(--space-2), 2vh, var(--space-4)) var(--space-6); max-width: 100%; overflow-wrap: anywhere;
+  padding-block: clamp(var(--space-2), 2svh, var(--space-4));
+  font-size: clamp(2.75rem, min(1.5rem + 12vw, 16vh), 9rem); font-size: clamp(2.75rem, min(1.5rem + 12vw, 16svh), 9rem); line-height: 0.95; letter-spacing: 0.03em;
   background:
     linear-gradient(var(--color-line), var(--color-line)) top left / 36px 2px no-repeat,
     linear-gradient(var(--color-line), var(--color-line)) top left / 2px 36px no-repeat,
@@ -591,13 +602,13 @@ dt:first-of-type, dt:first-of-type + dd { border-top: 0; }
     linear-gradient(var(--color-line), var(--color-line)) bottom right / 2px 36px no-repeat;
 }
 .hero-title::after { content: none; }
-.hero-tagline { margin: var(--space-5) 0 var(--space-6); max-width: 36ch; font-size: 1.125rem; }
+.hero-tagline { margin: clamp(var(--space-3), 2.5vh, var(--space-5)) 0 clamp(var(--space-4), 3.5vh, var(--space-6)); margin-block: clamp(var(--space-3), 2.5svh, var(--space-5)) clamp(var(--space-4), 3.5svh, var(--space-6)); max-width: 36ch; font-size: 1.125rem; text-wrap: balance; }
 .hero-status { color: var(--color-muted); }
 .hero-actions { display: flex; flex-wrap: wrap; justify-content: center; }
 .hero-actions .button { min-width: 160px; min-height: 52px; }
 .hero-actions .button + .button { margin-left: -1px; }
 
-.pixel-blocks { position: absolute; display: grid; grid-template-columns: repeat(4, var(--px)); grid-auto-rows: var(--px); --px: 36px; pointer-events: none; }
+.pixel-blocks { position: absolute; display: grid; grid-template-columns: repeat(4, var(--px)); grid-auto-rows: var(--px); --px: clamp(1rem, 5vh, 2.25rem); --px: clamp(1rem, 5svh, 2.25rem); pointer-events: none; }
 .hero-art-start { top: var(--space-5); left: var(--space-5); }
 .hero-art-end { right: var(--space-5); bottom: var(--space-5); }
 .pixel-blocks .px-b { background: var(--color-ink); }
@@ -662,14 +673,14 @@ dt:first-of-type, dt:first-of-type + dd { border-top: 0; }
 
 @media (max-width: 900px) {
   .step-list { grid-template-columns: minmax(0, 1fr); }
-  .pixel-blocks { --px: 24px; }
+  .pixel-blocks { --px: clamp(1rem, 4svh, 1.5rem); }
   .hero-art-start { top: var(--space-3); left: var(--space-3); }
   .hero-art-end { right: var(--space-3); bottom: var(--space-3); }
 }
 
 @media (max-width: 640px) {
-  :root { --gutter: var(--space-4); }
-  main { padding-top: var(--space-5); padding-bottom: var(--space-7); }
+  :root { --gutter: var(--space-4); --page-top: var(--space-5); --hero-offset: 5px; }
+  main { padding-bottom: var(--space-7); }
   .site-header { gap: var(--space-3); }
   .brand { font-size: 1.5rem; }
   .account { gap: var(--space-2); }
@@ -678,7 +689,6 @@ dt:first-of-type, dt:first-of-type + dd { border-top: 0; }
   .category-list { grid-template-columns: minmax(0, 1fr); }
   .category-card:last-child:nth-child(odd) { grid-column: auto; }
   .home-cta { padding: var(--space-5) var(--space-4); box-shadow: 5px 5px 0 var(--color-shadow); }
-  .hero { box-shadow: 5px 5px 0 var(--color-accent); }
   .site-footer { flex-direction: column; align-items: flex-start; }
   .auth-panel, .home-account, .placeholder { padding: var(--space-5) var(--space-4); }
   .auth-panel { box-shadow: 5px 5px 0 var(--color-accent); }
@@ -735,7 +745,8 @@ input[type='range'] { touch-action: pan-y; }
   html .adm-sidebar, html .cl-toolbox, html .os-questions, html .fx-tools, html .cm-grid > :first-child, html .tm-play > :first-child, html .wl-grid > .wl-frame { position: static; max-height: none; overflow: visible; }
   html .tm-window { height: max(15rem, calc(100vh - 1.5rem)); height: max(15rem, calc(100dvh - 1.5rem)); }
   html .hero { min-height: 0; padding-block: var(--space-6); }
-  main { padding-top: var(--space-5); padding-bottom: var(--space-6); }
+  :root { --page-top: var(--space-5); }
+  main { padding-bottom: var(--space-6); }
   h1 { margin-bottom: var(--space-4); }
 }
 

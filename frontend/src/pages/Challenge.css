@@ -26,7 +26,7 @@
 @media (hover: hover) { .challenge-card:hover { color: var(--color-ink); background: var(--color-surface); box-shadow: 4px 4px 0 var(--color-shadow); } }
 .challenge-card:focus-visible { box-shadow: var(--shadow-hard); }
 .challenge-card.solved { background: var(--color-accent-tint); }
-@media (hover: hover) { .challenge-card.solved:hover { background: var(--color-accent-tint); } }
+@media (hover: hover) { .challenge-card.solved:hover { color: var(--color-ink); background: var(--color-accent-tint); } }
 .challenge-title { font-family: var(--font-display); font-size: 1.75rem; font-weight: 400; letter-spacing: 0.02em; line-height: 1.1; overflow-wrap: anywhere; }
 .challenge-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: auto; min-height: 28px; }
 .challenge-meta { color: var(--color-muted); font-size: 0.875rem; }
@@ -101,3 +101,6 @@
 .instance-panel code { padding: 2px var(--space-2); overflow-wrap: anywhere; background: var(--color-surface-2); border: var(--border); }
 .preview-links { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-2); }
 .preview-links a { font-weight: 700; }
+
+/* The Range link card reuses .tm-promo-go, which is lime for the always-dark terminal promo; on a themed card it needs the readable accent text colour (lime on white was 1.33:1). */
+.challenge-card:not(.tm-promo) .tm-promo-go { color: var(--color-accent-text); }

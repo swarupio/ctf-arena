@@ -34,7 +34,7 @@
 .wl-card { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; min-width: 0; }
 .wl-card-link { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; row-gap: var(--space-2); align-content: start; width: 100%; padding: var(--space-3); color: var(--t-ink); background: var(--t-head); border: 2px solid var(--t-line); text-decoration: none; }
 @media (hover: hover) { a.wl-card-link:hover { background: var(--t-accent); color: var(--t-on-accent); border-color: var(--t-ink); } }
-@media (hover: hover) { a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go { color: var(--t-on-accent); } }
+@media (hover: hover) { a.wl-card-link:hover .wl-muted, a.wl-card-link:hover .wl-go, a.wl-card-link:hover h3 { color: var(--t-on-accent); } }
 .wl-card.is-locked .wl-card-link, .wl-card.is-offline .wl-card-link { opacity: 0.6; border-style: dashed; }
 .wl-card.is-solved .wl-card-link { border-color: var(--t-accent); }
 .wl-card.is-boss .wl-card-link { border-width: 3px; }
