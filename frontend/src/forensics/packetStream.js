@@ -38,7 +38,6 @@ const synSender = (packets) => packets.find((p) => /\[SYN\]/.test(p.info ?? ''))
 
 // Orders a conversation: 'capture' keeps the packet number order, 'time' sorts by the time stamp (ties by packet number).
 // Time stamps are what the capture recorded and may disagree with capture order; the viewer never decides which one is right.
-export const STREAM_ORDERS = ['capture', 'time'];
 export const sortConversation = (list, order) => (order === 'time'
   ? [...list].sort((x, y) => (Number(x.t) - Number(y.t)) || (x.n - y.n))
   : list);

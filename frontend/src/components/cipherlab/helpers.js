@@ -1,7 +1,6 @@
 // Pure view helpers for the Cipher Lab pages (tested in tests/cipherlab.test.js).
 import { eventMessage } from '../../event/messages.js';
 
-export const TRACK_ORDER = ['easy', 'medium', 'hard', 'insane'];
 export const TRACK_BLURB = { easy: 'Warm up', medium: 'Keys and maths', hard: 'Stacked puzzles', insane: 'No hints' };
 
 export const percent = (done, total) => (total > 0 ? Math.round((Math.min(done, total) * 100) / total) : 0);

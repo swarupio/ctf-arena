@@ -14,6 +14,9 @@ export function formatDate(iso) {
   return time === null ? '–' : `${new Date(time).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
+// "2026-11-22 10:00" (UTC, no suffix) for narrow table cells whose header already says UTC.
+export const formatDateCompact = (iso) => formatDate(iso).replace(/ UTC$/, '');
+
 // '2026-11-22' -> 'Nov 22' (UTC, so every admin sees the same day).
 export function formatDay(day) {
   const time = timeOf(`${day}T00:00:00Z`);

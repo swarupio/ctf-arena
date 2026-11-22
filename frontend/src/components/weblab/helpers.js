@@ -218,8 +218,6 @@ export function describeError(error) {
 export const THEMES = ['retro-bank', 'pizza', 'hospital', 'vault'];
 export const themeOf = (theme) => (THEMES.includes(theme) ? theme : 'retro-bank');
 
-export const TRACK_ICONS = { easy: '1', medium: '2', hard: '3', insane: '4' };
-
 // Pretty URL shown in the fake browser bar.
 export function displayUrl(site, path) {
   const host = String(site?.path ?? 'target.lab').split('/')[0];

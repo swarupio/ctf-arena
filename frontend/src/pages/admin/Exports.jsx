@@ -18,7 +18,7 @@ export default function Exports() {
 
   return <>
     <PageHeader title="Exports" intro={`CSV downloads, at most ${CSV_MAX_ROWS.toLocaleString('en-US')} rows each. Every export is recorded in the audit log.`} />
-    <p className="notice" role="note">Users and submissions exports contain personal data (email addresses). Store and share them with care. The file is fetched with your sign-in token and saved by the browser; the token is never part of a link.</p>
+    <p className="notice adm-notice-warn" role="note">Users and submissions exports contain personal data (email addresses). Store and share them with care. The file is fetched with your sign-in token and saved by the browser; the token is never part of a link.</p>
     <div className="adm-grid-2">
       {CSV_EXPORTS.map((item) => {
         const values = filters[item.name] ?? {};

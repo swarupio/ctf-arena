@@ -99,18 +99,8 @@ export function keyMove(pin, key, shift = false) {
   return delta ? { x: clampPos(pin.x + delta[0]), y: clampPos(pin.y + delta[1]) } : null;
 }
 
-// A pointer position inside the board's bounding box, in board units.
-export function pointerToBoard(rect, clientX, clientY) {
-  if (!rect || rect.width <= 0 || rect.height <= 0) { return null; }
-  return {
-    x: clampPos(((clientX - rect.left) / rect.width) * BOARD_SIZE),
-    y: clampPos(((clientY - rect.top) / rect.height) * BOARD_SIZE),
-  };
-}
-
 // Distance in pixels before a press counts as a drag (below it, it is a click that selects the pin).
 export const DRAG_THRESHOLD = 4;
-export const isDrag = (from, to) => Math.hypot(to.x - from.x, to.y - from.y) > DRAG_THRESHOLD;
 
 // ---- text ------------------------------------------------------------------------------------------------
 // After a save the server only tells a coarse level (never how many links hold): none | started | close | complete.

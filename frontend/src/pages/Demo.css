@@ -134,8 +134,13 @@
 .demo-fulllog[open] > summary { border-bottom: var(--border); }
 .demo-fulllog > .demo-pnl { border: 0; }
 
+/* Before Play: one short instruction instead of three empty panels */
+.demo-idle { margin: 0; padding: var(--space-3) var(--space-4); color: var(--color-muted); background: var(--color-surface); border: 1px dashed var(--color-line); }
+/* The diagram gets the full row so its labels render at their real size (about 11 px and up); the terminal sits under it */
+.demo-stage { grid-template-columns: minmax(0, 1fr); }
+
 @media (min-width: 1000px) {
-  .demo-stage, .demo-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+  .demo-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
   .demo-narration { min-height: 9rem; }
 }
 @media (min-width: 1000px) and (min-height: 600px) {

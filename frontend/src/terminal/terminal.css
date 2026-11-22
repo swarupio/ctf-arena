@@ -90,13 +90,14 @@
 /* ---------- Terminal window ---------- */
 .tm-window {
   position: relative; display: flex; flex-direction: column; min-width: 0;
-  height: clamp(440px, calc(100vh - 290px), 780px);
-  height: clamp(440px, calc(100dvh - 290px), 780px);
+  height: clamp(360px, calc(100vh - 270px), 780px);
+  height: clamp(360px, calc(100svh - 270px), 780px);
+  height: clamp(360px, calc(100dvh - 270px), 780px);
   color: var(--term-fg); background: var(--term-bg-black); border: var(--border); box-shadow: var(--shadow-accent);
   font-family: var(--font-body); font-size: 0.875rem; line-height: 1.5;
 }
 .tm-window { scroll-margin-top: var(--space-2); }
-.tm-window:focus-within { outline: 3px solid var(--color-ink); outline-offset: 3px; }
+.tm-window:focus-within { outline: 3px solid var(--color-focus); outline-offset: 3px; box-shadow: none; }
 
 .tm-window .tm-bar { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 4px var(--space-3); min-width: 0; padding: 6px var(--space-3); background: var(--term-bg); border-bottom: 1px solid var(--term-line); }
 .tm-window .tm-title { flex: 1 1 10ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }

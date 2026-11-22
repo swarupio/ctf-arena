@@ -70,7 +70,7 @@ export function SvgLineChart({ rows, xKey = 'date', series, height = 220, format
 }
 
 // Horizontal bars. items: [{ key, label, value, text? }]; `text` overrides the printed value.
-export function SvgBarChart({ items, label, className = '', labelWidth = 120, rowHeight = 26 }) {
+export function SvgBarChart({ items, label, className = '', labelWidth = 150, rowHeight = 26 }) {
   const wrapRef = useRef(null);
   const width = useWidth(wrapRef, 480);
   const barSpace = Math.max(40, width - labelWidth - 56);
@@ -81,7 +81,7 @@ export function SvgBarChart({ items, label, className = '', labelWidth = 120, ro
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
         {items.map((item, row) => <g key={item.key} transform={`translate(0 ${row * rowHeight})`}>
           <text className="adm-chart-axis-text" x={labelWidth - 8} y={rowHeight / 2} textAnchor="end" dominantBaseline="middle">
-            {item.label.length > 16 ? `${item.label.slice(0, 15)}…` : item.label}
+            {item.label.length > 20 ? `${item.label.slice(0, 19)}…` : item.label}
             <title>{item.label}</title>
           </text>
           <rect className={`adm-bar-rect ${className}`} x={labelWidth} y={4} width={widths[row]} height={rowHeight - 8} />

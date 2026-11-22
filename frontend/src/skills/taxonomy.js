@@ -110,7 +110,6 @@ export const SKILLS = [
 ];
 
 export const SKILL_BY_ID = new Map(SKILLS.map((skill) => [skill.id, skill]));
-export const FRAMEWORK_BY_ID = new Map(FRAMEWORKS.map((framework) => [framework.id, framework]));
 
 /** Display label such as "A03:2021 Injection" or "T1078 Valid Accounts"; areas have no code. */
 export const skillLabel = (skill) => (skill.code ? `${skill.code} ${skill.name}` : skill.name);

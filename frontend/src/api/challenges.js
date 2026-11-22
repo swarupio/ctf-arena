@@ -12,7 +12,3 @@ export const stopInstance = (instanceId) => send(`/instances/${instanceId}`, 'DE
 export const extendInstance = (instanceId) => send(`/instances/${instanceId}/extend`, 'POST');
 export const submitFlag = (id, flag) => send(`/challenges/${id}/submit`, 'POST', { flag });
 
-export const adminList = () => apiRequest('/admin/challenges');
-export const adminCreate = (body) => send('/admin/challenges', 'POST', body);
-export const adminUpdate = (id, body) => send(`/admin/challenges/${id}`, 'PUT', body);
-export const adminDelete = (id) => send(`/admin/challenges/${id}`, 'DELETE');

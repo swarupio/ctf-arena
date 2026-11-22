@@ -1,5 +1,5 @@
 /* Activity ticker, daily spotlight and celebrations. Prefix fx-; every colour and space comes from styles.css tokens. */
-.fx-home { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); margin: var(--space-5) 0; align-items: start; }
+.fx-home { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); margin: var(--space-5) 0; align-items: stretch; }
 @media (max-width: 760px) { .fx-home { grid-template-columns: minmax(0, 1fr); } }
 .fx-ticker, .fx-daily { min-width: 0; padding: var(--space-4); background: var(--color-surface); border: var(--border); }
 .fx-ticker h2, .fx-daily h2 { margin: 0 0 var(--space-3); font-size: 1.375rem; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
@@ -20,9 +20,12 @@
   .fx-tag { grid-column: 1 / -1; justify-self: start; }
 }
 
-.fx-daily { border-left: 8px solid var(--color-accent); }
+.fx-daily { display: flex; flex-direction: column; align-items: flex-start; border-left: 8px solid var(--color-accent); }
+.fx-daily .fx-note { margin-bottom: var(--space-4); }
+.fx-daily-play { margin-top: auto; }
+.fx-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .fx-bonus { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; color: var(--color-on-accent); background: var(--color-accent); border: var(--border); }
-.fx-daily-name { margin: 0 0 var(--space-2); font-size: 1.25rem; font-weight: 700; overflow-wrap: anywhere; }
+.fx-daily-name { margin: 0 0 var(--space-3); font-family: var(--font-display); font-size: 2rem; font-weight: 400; line-height: 1.1; overflow-wrap: anywhere; }
 .fx-daily-meta { margin: 0 0 var(--space-3); }
 
 .fx-toast {

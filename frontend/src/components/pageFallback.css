@@ -1,0 +1,7 @@
+/* The footer would jump while the page fills in: it sits at the bottom of the screen under an almost empty page, then moves
+   out of view when the page (or its data) arrives. Lighthouse scores that as about 0.08 to 0.28 CLS on every page. So the
+   footer stays invisible (it keeps its space, nothing else moves) while a page chunk loads and for the first 2.5 s after
+   the app starts, which covers a typical API answer; it appears after that (not under prefers-reduced-motion, which turns the delay off). */
+.app:has(.page-fallback) .site-footer { visibility: hidden; }
+.site-footer { animation: footer-settle 0s linear 2.5s backwards; }
+@keyframes footer-settle { from, to { visibility: hidden; } }

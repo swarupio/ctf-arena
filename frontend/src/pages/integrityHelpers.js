@@ -1,8 +1,6 @@
 // Pure helpers for the admin "Fair play" panel (no React, no auth stack) so they can be unit tested.
 export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 100;
-export const INTEGRITY_REFRESH_MS = 30_000;
-
 // ASSUMPTIONS about the backend payload (adjust here if the API contract differs):
 //  - risk is a number on a 0..RISK_MAX scale, shown as RISK_PIPS pips;
 //  - severity is 'low' | 'medium' | 'high' (or a number: 1 low, 2 medium, 3 and above high).

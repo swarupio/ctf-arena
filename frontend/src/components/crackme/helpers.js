@@ -3,7 +3,6 @@
 import { OPCODES, currentProgram, stepMachine } from './vm.js';
 import { eventMessage } from '../../event/messages.js';
 
-export const TRACK_ORDER = ['easy', 'medium', 'hard', 'insane'];
 export const TRACK_BLURB = { easy: 'Plain compares', medium: 'Checksums and hashes', hard: 'Serials and traps', insane: 'No hints' };
 export const STATUS_LABEL = { solved: 'Captured', open: 'Open', locked: 'Locked' };
 
@@ -129,8 +128,6 @@ export function verdictText(machine) {
   const base = VERDICTS[machine.status] ?? machine.status;
   return machine.status === 'fault' && machine.reason ? `${base} (${FAULTS[machine.reason] ?? machine.reason})` : base;
 }
-
-export const isStopped = (machine) => machine.status !== 'running';
 
 // Memory cells as rows of 8 for the panel; `changed` marks the cell written by the last step.
 export function memoryRows(mem, lastWrite = null, width = 8) {

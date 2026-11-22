@@ -114,7 +114,7 @@ function ListingTools({ kit, machine }) {
           aria-describedby="cm-an-find-help"
         />
       </label>
-      <button type="button" className="secondary" onClick={() => jumpToMatch(position - 1)} disabled={hits.length === 0} aria-label="Previous match">Prev</button>
+      <button type="button" className="secondary" onClick={() => jumpToMatch(position - 1)} disabled={hits.length === 0} aria-label="Prev: go to the previous match">Prev</button>
       <button type="button" className="secondary" onClick={() => jumpToMatch(position + 1)} disabled={hits.length === 0} aria-label="Next match">Next</button>
     </div>
     <p id="cm-an-find-help" className="cm-note" role="status">

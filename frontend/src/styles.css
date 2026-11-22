@@ -194,6 +194,7 @@
   --border: 1px solid var(--color-line);
   --shadow-hard: 5px 5px 0 var(--color-shadow);
   --shadow-accent: 8px 8px 0 var(--color-accent);
+  --shadow-hover: 4px 4px 0 var(--color-shadow); /* the one hover shadow for every card */
   --content-width: 72.5rem;
   /* Space between the header and the first content of every page; the Home hero keeps the same gap below its panel. */
   --page-top: var(--space-6);
@@ -507,7 +508,8 @@ button, .button {
 button:active:not(:disabled), .button:active { transform: translate(1px, 1px); }
 button.secondary, .button.secondary { color: var(--color-ink); background: var(--color-surface); }
 @media (hover: hover) { button.secondary:hover:not(:disabled), .button.secondary:hover { color: var(--color-on-accent); background: var(--color-accent); } }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+/* One disabled look for primary and secondary buttons: no fill, hatched, dashed border, muted label (4.5:1 or better in both themes) */
+button:disabled, button.secondary:disabled { opacity: 1; cursor: not-allowed; color: var(--color-muted); background: repeating-linear-gradient(135deg, var(--color-surface-2) 0 6px, var(--color-surface) 6px 12px); border-style: dashed; }
 .small { min-height: 36px; padding: 4px var(--space-4); font-size: 0.875rem; }
 
 /* Forms */
@@ -545,8 +547,11 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; padding: 0; a
 /* Small shared pieces */
 .tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .tag { display: inline-flex; align-items: center; padding: 0 var(--space-2); font-size: 0.8125rem; line-height: 1.7; white-space: nowrap; background: var(--color-surface); border: var(--border); }
-.tag-easy { background: var(--color-accent); color: var(--color-on-accent); }
-.tag-hard { background: var(--color-ink); color: var(--color-ink-contrast); }
+/* Difficulty tags stay outlined like every other tag; the difficulty colour is a left accent bar (the text label is always there). */
+.tag-easy { border-left: 6px solid var(--color-diff-easy); }
+.tag-medium { border-left: 6px solid var(--color-diff-medium); }
+.tag-hard { border-left: 6px solid var(--color-diff-hard); }
+.tag-insane { border-left: 6px solid var(--color-diff-insane); }
 .tag-points { font-weight: 700; }
 .badge {
   display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; vertical-align: middle;
@@ -642,7 +647,7 @@ main > .hero + * { margin-top: calc(var(--page-top) + var(--hero-offset)); }
 @media (hover: hover) { .category-card:hover { background: var(--color-accent-tint); } }
 .category-card .tag { justify-self: start; font-weight: 700; }
 .category-card p { margin: 0; color: var(--color-muted); font-size: 0.9375rem; }
-.home-cta { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); margin-top: var(--space-7); padding: var(--space-6) var(--space-5); text-align: center; background: var(--color-surface); border: var(--border); box-shadow: var(--shadow-hard); }
+.home-cta { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); margin-top: var(--space-7); padding: var(--space-6) var(--space-5); text-align: center; background: var(--color-surface); border: var(--border); box-shadow: var(--shadow-accent); }
 .home-cta-flag { width: 40px; height: 46px; }
 .home-cta .hero-actions { width: 100%; }
 
@@ -688,7 +693,7 @@ main > .hero + * { margin-top: calc(var(--page-top) + var(--hero-offset)); }
   .play-now .button:last-child { grid-column: 1 / -1; }
   .category-list { grid-template-columns: minmax(0, 1fr); }
   .category-card:last-child:nth-child(odd) { grid-column: auto; }
-  .home-cta { padding: var(--space-5) var(--space-4); box-shadow: 5px 5px 0 var(--color-shadow); }
+  .home-cta { padding: var(--space-5) var(--space-4); box-shadow: 5px 5px 0 var(--color-accent); }
   .site-footer { flex-direction: column; align-items: flex-start; }
   .auth-panel, .home-account, .placeholder { padding: var(--space-5) var(--space-4); }
   .auth-panel { box-shadow: 5px 5px 0 var(--color-accent); }

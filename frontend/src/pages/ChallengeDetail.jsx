@@ -10,6 +10,7 @@ import { EventClosedPanel, GateCard, NoDockerPanel } from './ChallengePanels.jsx
 import { phaseAt } from '../event/logic.js';
 import { useEventClock } from '../event/useEventClock.js';
 import { announce } from './socialHelpers.js';
+import { parseInlineCode } from './inlineCode.js';
 import Debrief from '../debrief/Debrief.jsx';
 import './Challenge.css';
 
@@ -99,7 +100,7 @@ function ChallengeView({ id }) {
     </div>
     <div className="challenge-body">
       <div className="challenge-main">
-        <div className="challenge-description">{challenge.description}</div>
+        <div className="challenge-description">{parseInlineCode(challenge.description).map((part, index) => (part.type === 'code' ? <code key={index}>{part.value}</code> : part.value))}</div>
         {challenge.attachments.length > 0 && <ul className="attachments">
           {challenge.attachments.map((file) => <li key={file.url}>{safeLink(file.url) ? <a href={safeLink(file.url)} download>{file.name}</a> : file.name}</li>)}
         </ul>}

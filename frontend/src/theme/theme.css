@@ -34,6 +34,10 @@
 .theme-option input:focus-visible + span { outline: 3px solid var(--color-focus, var(--color-ink)); outline-offset: 2px; position: relative; z-index: 1; }
 @media (hover: hover) { .theme-option input:not(:checked):hover + span { background: var(--color-accent); color: var(--color-on-accent); } }
 .theme-hint { flex: 1 1 100%; margin: 0; }
+/* Footer: legend, segments and the short hint share one line. */
+.theme-select-footer { flex-wrap: nowrap; white-space: nowrap; }
+.theme-select-footer .theme-hint { flex: none; }
+@media (max-width: 640px) { .theme-select-footer { flex-wrap: wrap; } }
 @media (pointer: coarse) { .theme-option span { min-height: 44px; } }
 /* The menu copy only exists for the mobile panel; the footer copy serves the wide header. */
 .theme-select-menu { display: none; }
@@ -49,3 +53,16 @@
    teal ones, so in dark the focus ring takes the skin's own ink. Light is untouched (rule only matches in dark). */
 :root[data-theme-enabled][data-theme='dark'] :is(.wl-track, .wl-frame) :focus-visible { outline-color: var(--t-ink); }
 @media (prefers-color-scheme: dark) { :root[data-theme-enabled]:not([data-theme='light']) :is(.wl-track, .wl-frame) :focus-visible { outline-color: var(--t-ink); } }
+
+/* Visual fixes C (kept here, not in styles.css, so the shared stylesheet stays untouched by this change). */
+/* Signed-out status in the header: neutral and muted, not an error. */
+.account .session-status { color: var(--color-muted); }
+.account .session-status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: var(--space-2); border: 1px solid var(--color-muted); }
+/* Footer: copyright, link, theme and replica on one line where there is room. */
+.site-footer { column-gap: var(--space-6); }
+.site-footer .replica { white-space: nowrap; }
+/* 404: centred card with two ways back. */
+main .not-found { max-width: 520px; margin: var(--space-8) auto; text-align: center; }
+main .not-found p::before { content: none; }
+main .not-found h1::after { margin-inline: auto; }
+.not-found-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-5); }

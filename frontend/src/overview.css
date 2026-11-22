@@ -86,9 +86,9 @@
   background: var(--color-surface); border: var(--border); border-top: 8px solid var(--ov-accent, var(--color-ink));
   transition: background-color 0.12s;
 }
-.ov-page .ov-card.is-done { background: var(--color-accent-tint); }
-.ov-page .ov-card:focus-within { box-shadow: 4px 4px 0 var(--color-ink); }
-@media (hover: hover) { .ov-page .ov-card:hover { box-shadow: 4px 4px 0 var(--color-ink); } }
+.ov-page .ov-card.is-done { background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); }
+.ov-page .ov-card:focus-within { box-shadow: var(--shadow-hover); }
+@media (hover: hover) { .ov-page .ov-card:hover { box-shadow: var(--shadow-hover); } }
 .ov-page .ov-card h2 { margin: 0; font-size: 1.75rem; overflow-wrap: anywhere; }
 .ov-page .ov-card p { margin: 0; }
 .ov-page .ov-card-head, .ov-page .ov-card-mid, .ov-page .ov-card-low, .ov-page .ov-card-foot {
@@ -125,6 +125,64 @@
   .ov-page .ov-card-head { padding-top: var(--space-4); }
   .ov-page .ov-card h2 { font-size: 1.5rem; }
 }
+
+/* ---------- Converged pieces (Visual fixes A) ---------- */
+.ov-page { --ov-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5'%3E%3Crect x='5' y='11' width='14' height='10'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E"); }
+/* One eyebrow on every overview header (the category's own kicker class looks the same) */
+.ov-page .cl-kicker, .ov-page .cm-kicker { margin: 0; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+
+/* Locked rows (Cipher Lab and Crackme): dashed border and a lock icon, text stays at full muted contrast (no opacity) */
+.ov-page .is-locked .cl-rung-link, .ov-page .is-locked .cm-rung-link { position: relative; padding-right: calc(var(--space-3) + 28px); border: 1px dashed var(--color-subtle); color: var(--color-muted); background: var(--color-surface-2); }
+.ov-page .is-locked .cl-rung-link::after, .ov-page .is-locked .cm-rung-link::after {
+  content: ''; position: absolute; top: 50%; right: var(--space-3); width: 16px; height: 16px; margin-top: -8px;
+  background: currentColor; -webkit-mask: var(--ov-lock) center / contain no-repeat; mask: var(--ov-lock) center / contain no-repeat;
+}
+
+/* Case stamp: out of the flow (top right of the card), so rows and heights stay equal and it never touches the bar or the button */
+.ov-page .ov-card .fx-stamp, .ov-page .ov-card .os-stamp {
+  position: absolute; top: var(--space-4); right: var(--space-4); z-index: 1; margin: 0; padding: 0 var(--space-2);
+  font-size: 0.875rem; line-height: 1.5; transform: rotate(3deg); pointer-events: none;
+}
+
+/* Web Exploit Lab: the company panels follow the theme. The brand colour only paints the top strip, the kicker square, the chip and the card borders. */
+.ov-page .wl-track {
+  --wl-brand: var(--t-accent);
+  color: var(--color-ink); font-family: var(--font-body); background: var(--color-surface);
+  border: var(--border); border-top: 8px solid var(--wl-brand);
+}
+.ov-page .wl-track h2, .ov-page .wl-track h3, .ov-page .wl-track .wl-go, .ov-page .wl-track .wl-pts { color: var(--color-ink); }
+.ov-page .wl-track .wl-muted { color: var(--color-muted); opacity: 1; }
+.ov-page .wl-track .wl-kicker { color: var(--color-muted); }
+.ov-page .wl-track .wl-kicker::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: var(--space-2); vertical-align: -1px; background: var(--wl-brand); border: 1px solid var(--color-line); }
+.ov-page .wl-track .wl-card-link {
+  color: var(--color-ink); background: color-mix(in srgb, var(--wl-brand) 8%, var(--color-surface));
+  border: 2px solid color-mix(in srgb, var(--wl-brand) 55%, var(--color-ink));
+}
+.ov-page .wl-track .wl-chip { color: var(--color-ink); background: color-mix(in srgb, var(--wl-brand) 30%, var(--color-surface)); border: 1px solid var(--color-line); }
+.ov-page .wl-track .wl-card.is-boss .wl-chip { outline: 0; border-width: 2px; }
+.ov-page .wl-track .wl-card.is-solved .wl-card-link { background: color-mix(in srgb, var(--wl-brand) 16%, var(--color-surface)); border-color: var(--color-ink); }
+@media (hover: hover) {
+  .ov-page .wl-track a.wl-card-link:hover { background: color-mix(in srgb, var(--wl-brand) 24%, var(--color-surface)); color: var(--color-ink); border-color: var(--color-ink); box-shadow: var(--shadow-hover); }
+  .ov-page .wl-track a.wl-card-link:hover .wl-muted, .ov-page .wl-track a.wl-card-link:hover .wl-go, .ov-page .wl-track a.wl-card-link:hover h3 { color: var(--color-ink); }
+}
+.ov-page .wl-track .wl-card.is-locked .wl-card-link, .ov-page .wl-track .wl-card.is-offline .wl-card-link {
+  position: relative; opacity: 1; border: 2px dashed var(--color-subtle); background: var(--color-surface-2); color: var(--color-muted);
+}
+.ov-page .wl-track .wl-card.is-locked h3, .ov-page .wl-track .wl-card.is-offline h3, .ov-page .wl-track .wl-card.is-locked .wl-pts, .ov-page .wl-track .wl-card.is-offline .wl-pts { color: var(--color-muted); }
+.ov-page .wl-track .wl-card.is-locked .wl-chip, .ov-page .wl-track .wl-card.is-offline .wl-chip { background: var(--color-surface); border-color: var(--color-subtle); color: var(--color-muted); }
+.ov-page .wl-track .wl-card.is-locked .wl-card-foot .wl-muted::before {
+  content: ''; display: inline-block; width: 14px; height: 14px; margin-right: var(--space-2); vertical-align: -2px;
+  background: currentColor; -webkit-mask: var(--ov-lock) center / contain no-repeat; mask: var(--ov-lock) center / contain no-repeat;
+}
+
+/* Challenges page: every card ends in the same "Open" call to action, the Terminal promo is a normal card with a lime edge and a terminal prompt chip */
+.challenge-go { margin-left: auto; font-size: 0.875rem; font-weight: 700; color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; }
+.ov-page .challenge-card.tm-promo { color: var(--color-ink); background: var(--color-surface); border-left: 8px solid var(--color-accent); box-shadow: none; }
+@media (hover: hover) { .ov-page .challenge-card.tm-promo:hover { color: var(--color-ink); background: var(--color-surface); box-shadow: var(--shadow-hover); } }
+.ov-page .challenge-card.tm-promo:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+.ov-page .tm-promo-prompt { align-self: flex-start; padding: 1px var(--space-2); font-size: 0.8125rem; font-weight: 700; color: var(--term-accent); background: var(--term-bg); border: 1px solid var(--term-line-strong); }
+.ov-page .challenge-card.tm-promo .challenge-title { color: var(--color-ink); }
+.ov-page .tm-promo-text, .ov-page .tm-promo-meta { color: var(--color-muted); }
 
 @media (prefers-reduced-motion: reduce) {
   .ov-page .ov-bar > span, .ov-page .ov-card { transition: none; }

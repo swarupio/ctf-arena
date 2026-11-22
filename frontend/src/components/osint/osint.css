@@ -259,3 +259,16 @@
   }
   :root[data-theme-enabled]:not([data-theme='light']) .os-board-empty.os-muted { color: var(--paper-ink); }
 }
+
+/* Visual fixes B: paper panels are framed on the desk, and the questions column shows when it scrolls (fade at the cut edge) */
+.os-desk .os-panel { border-color: var(--paper-line); box-shadow: 4px 4px 0 var(--color-shadow-soft); }
+.os-questions {
+  background:
+    linear-gradient(var(--color-surface-2) 30%, transparent) top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--color-surface-2) 70%) bottom / 100% 24px no-repeat local,
+    linear-gradient(var(--color-scrim), transparent) top / 100% 10px no-repeat scroll,
+    linear-gradient(transparent, var(--color-scrim)) bottom / 100% 10px no-repeat scroll,
+    var(--color-surface-2);
+}
+.os-questions:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+@media (max-width: 1000px) { .os-questions { background: var(--color-surface-2); } }

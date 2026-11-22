@@ -23,7 +23,8 @@ export function timeAgo(at, now = Date.now()) {
   if (seconds < 45) return 'just now';
   if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))} min ago`;
   if (seconds < 86_400) return `${Math.round(seconds / 3600)} h ago`;
-  return `${Math.round(seconds / 86_400)} d ago`;
+  const days = Math.round(seconds / 86_400);
+  return `${days} ${days === 1 ? 'day' : 'days'} ago`;
 }
 
 export function eventKey(event, index) { return `${event.type}-${event.at}-${event.team}-${index}`; }

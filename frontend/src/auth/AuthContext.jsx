@@ -1,14 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import * as auth from 'aws-amplify/auth';
-import { Hub } from 'aws-amplify/utils';
-import { configurationError } from './amplify.js';
+import { configurationError } from './config.js';
+import { hasStoredSession, loadAuth } from './session.js';
 import { userFromSession } from './logic.js';
 import { apiGet } from '../api/client.js';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [loading, setLoading] = useState(true);
+  // Nothing stored means signed out: no wait, and the amplify chunk is not downloaded (see session.js).
+  const [loading, setLoading] = useState(() => !configurationError && hasStoredSession());
+  const [amplifyReady, setAmplifyReady] = useState(false);
   const [user, setUser] = useState(null);
   const [step, setStep] = useState(null);
   const [email, setEmail] = useState('');
@@ -30,34 +31,52 @@ export function AuthProvider({ children }) {
     return () => { active = false; };
   }, [user, profileAttempt]);
 
+  // Loads amplify on first use (shared download) and starts the auth-event listener below.
+  const getAuth = useCallback(async () => {
+    const auth = await loadAuth();
+    setAmplifyReady(true);
+    return auth;
+  }, []);
+
+  const restore = useCallback(async (isActive = () => true) => {
+    try {
+      const session = configurationError || !hasStoredSession() ? null : await (await getAuth()).fetchAuthSession();
+      if (isActive()) setUser(userFromSession(session));
+    } catch {
+      if (isActive()) setUser(null);
+    } finally {
+      if (isActive()) setLoading(false);
+    }
+  }, [getAuth]);
+
   useEffect(() => {
     let active = true;
-    const restore = async () => {
-      try {
-        const session = configurationError ? null : await auth.fetchAuthSession();
-        if (active) setUser(userFromSession(session));
-      } catch {
-        if (active) setUser(null);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    void restore();
-    const unsubscribe = Hub.listen('auth', ({ payload }) => {
-      if (payload.event === 'signedOut' || payload.event === 'tokenRefresh_failure') {
-        setUser(null);
-        setStep(null);
-        setEmail('');
-      } else if (payload.event === 'tokenRefresh') {
-        void restore();
-      }
+    void restore(() => active);
+    return () => { active = false; };
+  }, [restore]);
+
+  useEffect(() => {
+    if (!amplifyReady) return undefined;
+    let unsubscribe = () => {};
+    let stopped = false;
+    void loadAuth().then(({ Hub }) => {
+      if (stopped) return;
+      unsubscribe = Hub.listen('auth', ({ payload }) => {
+        if (payload.event === 'signedOut' || payload.event === 'tokenRefresh_failure') {
+          setUser(null);
+          setStep(null);
+          setEmail('');
+        } else if (payload.event === 'tokenRefresh') {
+          void restore();
+        }
+      });
     });
-    return () => { active = false; unsubscribe(); };
-  }, []);
+    return () => { stopped = true; unsubscribe(); };
+  }, [amplifyReady, restore]);
 
   const acceptSignIn = useCallback(async (result) => {
     if (result.isSignedIn) {
-      const nextUser = userFromSession(await auth.fetchAuthSession());
+      const nextUser = userFromSession(await (await getAuth()).fetchAuthSession());
       if (!nextUser) throw new Error('Missing ID token');
       setUser(nextUser);
       setStep(null);
@@ -71,34 +90,38 @@ export function AuthProvider({ children }) {
       }
     }
     return result;
-  }, []);
+  }, [getAuth]);
 
   const confirmTotp = useCallback(async (code) => {
     if (!/^\d{6}$/.test(code)) throw Object.assign(new Error(), { name: 'CodeMismatchException' });
-    return acceptSignIn(await auth.confirmSignIn({ challengeResponse: code }));
-  }, [acceptSignIn]);
+    return acceptSignIn(await (await getAuth()).confirmSignIn({ challengeResponse: code }));
+  }, [acceptSignIn, getAuth]);
+
+  // Sign-in pages call this so the first submit does not wait for the amplify download.
+  const preload = useCallback(() => { void loadAuth().catch(() => {}); }, []);
 
   const value = useMemo(() => ({
     loading, user, step, email, configurationError, profile, profileError,
+    preload,
     retryProfile() { setProfileAttempt((attempt) => attempt + 1); },
     async signUp(email, password) {
       const username = email.trim();
-      const result = await auth.signUp({ username, password, options: { userAttributes: { email: username } } });
+      const result = await (await getAuth()).signUp({ username, password, options: { userAttributes: { email: username } } });
       setEmail(username);
       return result;
     },
     async confirmSignUp(email, code) {
-      return auth.confirmSignUp({ username: email.trim(), confirmationCode: code.trim() });
+      return (await getAuth()).confirmSignUp({ username: email.trim(), confirmationCode: code.trim() });
     },
     async resendCode(email) {
-      return auth.resendSignUpCode({ username: email.trim() });
+      return (await getAuth()).resendSignUpCode({ username: email.trim() });
     },
     async signIn(email, password) {
       const username = email.trim();
       setEmail(username);
       setStep(null);
       try {
-        return await acceptSignIn(await auth.signIn({ username, password, options: { authFlowType: 'USER_SRP_AUTH' } }));
+        return await acceptSignIn(await (await getAuth()).signIn({ username, password, options: { authFlowType: 'USER_SRP_AUTH' } }));
       } catch (error) {
         if (error.name === 'UserNotConfirmedException') setStep({ signInStep: 'CONFIRM_SIGN_UP' });
         throw error;
@@ -106,13 +129,19 @@ export function AuthProvider({ children }) {
     },
     confirmTotpSetup: confirmTotp,
     confirmTotpCode: confirmTotp,
+    async resetPassword(email) {
+      return (await getAuth()).resetPassword({ username: email });
+    },
+    async confirmResetPassword(email, code, newPassword) {
+      return (await getAuth()).confirmResetPassword({ username: email, confirmationCode: code, newPassword });
+    },
     async signOut() {
-      await auth.signOut();
+      await (await getAuth()).signOut();
       setUser(null);
       setStep(null);
       setEmail('');
     },
-  }), [loading, user, step, email, profile, profileError, acceptSignIn, confirmTotp]);
+  }), [loading, user, step, email, profile, profileError, acceptSignIn, confirmTotp, getAuth, preload]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -19,7 +19,7 @@ function GameCard({ game, state, recommended, onRetry }) {
   const done = state?.tracks ? sumTracks(state.tracks) : null;
   return <article className={`ov-card gm-card${recommended ? ' is-next' : ''}`} aria-labelledby={`gm-${game.id}`}>
     <div className="ov-card-head">
-      {recommended ? <p className="gm-badge">Recommended next</p> : <span className="gm-badge-slot" aria-hidden="true" />}
+      {recommended ? <p className="gm-badge">Recommended next</p> : null}
       <h2 id={`gm-${game.id}`}>{game.title}</h2>
       <p className="gm-pitch">{game.pitch}</p>
     </div>
