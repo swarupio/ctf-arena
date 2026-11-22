@@ -5,7 +5,8 @@
 // Asserts for screens at least 560 px high and 700 px wide: hero panel incl. offset shadow inside the first viewport,
 // gap above and gap below within 8 px of each other, and (unless the hero is capped at 52rem) the next section starts at the fold. Always: no horizontal overflow, shadow inside the right edge.
 // Exit code 1 when an assertion fails.
-const puppeteer = require(process.env.PUPPETEER_CORE || 'puppeteer-core');
+const { launchBrowser, loadPuppeteer } = require('./env.cjs');
+const puppeteer = loadPuppeteer();
 const fs = require('fs');
 const path = require('path');
 const { route } = require('./data.cjs');
@@ -62,7 +63,7 @@ function measureTop() {
     if (gamePrefix.test(p)) { return play(req); }
     return json(req, 200, route(p, Object.fromEntries(u.searchParams)));
   };
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   const rows = []; const fails = [];
   async function open(w, h, dsf, mobile, url, theme) {
     const page = await browser.newPage();

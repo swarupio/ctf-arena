@@ -1,0 +1,29 @@
+{
+  "url": "http://nginx/api/health",
+  "label": "?",
+  "connections": 100,
+  "durationSeconds": 30.07,
+  "requests": 82516,
+  "requestsPerSecond": 2744.130362487529,
+  "latencyMs": {
+    "p50": 25.473296,
+    "p95": 96.181409,
+    "p99": 113.310706,
+    "max": 159.378598
+  },
+  "non2xx": 0,
+  "statusCodes": {
+    "200": 82516
+  },
+  "ok2xx": 82516,
+  "limited429": 0,
+  "otherNon2xx": 0,
+  "errors": 0,
+  "errorRatePercent": 0,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "575ac13c56dd": 27555,
+    "79ef888fb4fc": 27700,
+    "0f0dbd204f1f": 27261
+  }
+}

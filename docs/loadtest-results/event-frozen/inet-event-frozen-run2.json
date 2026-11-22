@@ -1,0 +1,29 @@
+{
+  "url": "http://nginx/api/event",
+  "label": "?",
+  "connections": 100,
+  "durationSeconds": 30.08,
+  "requests": 29932,
+  "requestsPerSecond": 995.0797872340426,
+  "latencyMs": {
+    "p50": 84.795797,
+    "p95": 244.167022,
+    "p99": 293.003692,
+    "max": 532.153116
+  },
+  "non2xx": 0,
+  "statusCodes": {
+    "200": 29932
+  },
+  "ok2xx": 29932,
+  "limited429": 0,
+  "otherNon2xx": 0,
+  "errors": 0,
+  "errorRatePercent": 0,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "79ef888fb4fc": 10135,
+    "575ac13c56dd": 9815,
+    "0f0dbd204f1f": 9982
+  }
+}

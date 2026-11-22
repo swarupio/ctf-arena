@@ -1,13 +1,16 @@
 // Hover audit (dark by default): hovers (or STATE=active presses) every link/button/tab/summary on every harness page and lists elements whose text contrast is below THRESH (default 3).
-// Usage: PPTR=<puppeteer-core path> HARNESS=<this dir> BASE=http://127.0.0.1:<port> THEME=dark|light THRESH=4.5 [STATE=active] [ONLY=home,challenges] node hover.cjs
-const puppeteer = require(process.env.PPTR);
+// Usage (the harness dev server from vite.config.js must run): PORT=5480 THEME=dark|light THRESH=4.5 [STATE=active] [ONLY=home,challenges] [OUT=<dir for the JSON of offenders>] node hover.cjs
+// BASE (default http://127.0.0.1:$PORT), HARNESS (default this folder), PERF_TOOLS / PUPPETEER_CORE / CHROME: see env.cjs.
+// Exit code 1 when any element is below THRESH.
+const { launchBrowser, loadPuppeteer } = require('./env.cjs');
+const puppeteer = loadPuppeteer();
 const fs = require('fs');
-const H = process.env.HARNESS;
+const H = process.env.HARNESS || __dirname;
 const { route } = require(H + '/data.cjs');
 const ov = require(H + '/ovdata.cjs');
 const { makeHandler } = require(H + '/playhandler.cjs');
 const PAGES = require(H + '/pages.cjs');
-const BASE = process.env.BASE, THEME = process.env.THEME || 'dark';
+const BASE = process.env.BASE || 'http://127.0.0.1:' + (process.env.PORT || 5480), THEME = process.env.THEME || 'dark';
 const only = (process.env.ONLY || '').split(',').filter(Boolean);
 const STATE = process.env.STATE || 'hover', THRESH = Number(process.env.THRESH || 3);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -39,7 +42,7 @@ async function measureEl(page, handle) {
   const play = await makeHandler((req, p) => json(req, 200, route(p, Object.fromEntries(new URL(req.url()).searchParams))));
   const gamePrefix = /^\/(cipherlab|crackme|forensics|osint|terminal|weblab)(\/|$)/;
   const handler = (req) => { const u = new URL(req.url()); if (!u.pathname.startsWith('/api/')) return req.continue(); const p = u.pathname.slice(4); if (ov[p]) return json(req, 200, ov[p]); if (p === '/challenges' || /^\/challenges\//.test(p)) return json(req, 200, route(p, {})); if (gamePrefix.test(p)) return play(req); return json(req, 200, route(p, Object.fromEntries(u.searchParams))); };
-  const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   const bad = []; let checked = 0;
   const list = PAGES.filter(([name]) => !['mfa-setup', 'mfa'].includes(name)).filter(([name]) => !only.length || only.includes(name));
   for (const [name, path, as] of list) {
@@ -73,4 +76,7 @@ async function measureEl(page, handle) {
   const uniq = new Map(); for (const b of bad) { const k = b.el.replace(/ ".*"$/, ''); if (!uniq.has(k)) uniq.set(k, { ...b, pages: new Set([b.page]) }); else uniq.get(k).pages.add(b.page); }
   console.log('hovered elements checked:', checked, '| low-contrast hover cases:', bad.length, '| distinct selectors:', uniq.size);
   for (const [k, v] of uniq) console.log(' -', k, '| ratio', v.worst.ratio, 'on', v.worst.tag, '"' + v.worst.text + '" | pages:', [...v.pages].slice(0, 5).join(','));
+  if (process.env.OUT && bad.length) { fs.mkdirSync(process.env.OUT, { recursive: true }); fs.writeFileSync(`${process.env.OUT}/hover-${THEME}-${STATE}.json`, JSON.stringify(bad, null, 1)); }
+  console.log(bad.length ? `FAIL (${THEME}, ${STATE}, threshold ${THRESH}): ${uniq.size} selector(s) below the threshold` : `OK (${THEME}, ${STATE}, threshold ${THRESH}): ${checked} elements`);
+  process.exit(bad.length ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

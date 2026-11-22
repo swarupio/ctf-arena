@@ -1,0 +1,29 @@
+{
+  "url": "http://localhost:18080/api/internal/config",
+  "label": "honeypot-c50",
+  "connections": 50,
+  "durationSeconds": 30.63,
+  "requests": 12714,
+  "requestsPerSecond": 415.0832517140059,
+  "latencyMs": {
+    "p50": 102.0089,
+    "p95": 262.5555,
+    "p99": 547.5697,
+    "max": 728.9861
+  },
+  "non2xx": 0,
+  "statusCodes": {
+    "200": 12714
+  },
+  "ok2xx": 12714,
+  "limited429": 0,
+  "otherNon2xx": 0,
+  "errors": 0,
+  "errorRatePercent": 0,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "0f0dbd204f1f": 4258,
+    "575ac13c56dd": 4217,
+    "79ef888fb4fc": 4239
+  }
+}

@@ -1,0 +1,5 @@
+Requests/sec:  2,415
+Latency (ms):  p50 38.6   p95 150.5   p99 198.7   max 10,049.8
+Status mix:    145068 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=57094, 79ef888fb4fc=57069, 575ac13c56dd=30905
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |

@@ -1,18 +1,183 @@
-# Pull request checks: lint and tests for both packages, the frontend build and bundle budget, and a non-blocking npm audit.
+# CI: lint and tests for both packages, the frontend build and bundle budget, a non-blocking npm audit (all in tests.yml),
+# plus the browser regression checks (accessibility, hover contrast, layout, terminal on phones, Lighthouse report).
+# Runs on every push to main, on pull requests and by hand (gh workflow run CI --ref main).
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# A new push to the same PR cancels the older, now pointless run.
+# A new push to the same PR cancels the older, now pointless run. Runs on main and manual runs are never cancelled
+# (the group is unique per run, and cancel-in-progress is only on for pull requests).
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   tests:
     uses: ./.github/workflows/tests.yml
+
+  # One matrix leg per check, so the slow ones (hover walks about 1500 elements per theme) run in parallel and every leg
+  # reports on its own. Each leg builds what it needs: axe and Lighthouse use the production build of the harness, the others
+  # the harness dev server. fail-fast is off so one failing leg does not hide the others.
+  browser-checks:
+    name: Browser checks (${{ matrix.check }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [axe, hover-dark, hover-light, layout, lighthouse]
+    defaults:
+      run:
+        shell: bash # bash with pipefail, so `cmd | tee log` fails when cmd fails
+    env:
+      # Harness dev server (docs/harness/vite.config.js) used by hover, hero, header and terminal.
+      PORT: '5480'
+      # Everything the checks write lands here and is uploaded as an artifact when the leg fails.
+      OUT_DIR: ${{ github.workspace }}/harness-out
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Node 24: Lighthouse 13 needs Node >= 22.19 and puppeteer-core 25 needs >= 22.12. This job only builds the harness
+      # and runs the browser tools; the backend and frontend unit tests stay on Node 20 in tests.yml.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies (the harness uses its vite and React)
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      # The audit tools are not project dependencies: they go into a temp folder outside the repo, so frontend/package.json
+      # and the lockfile never change. Versions are the ones docs/LIGHTHOUSE.md was measured with.
+      - name: Install audit tools (puppeteer-core, lighthouse, axe-core) outside the repo
+        run: |
+          mkdir -p "$RUNNER_TEMP/tools" "$OUT_DIR"
+          cd "$RUNNER_TEMP/tools"
+          npm init -y > /dev/null
+          npm i --no-save --no-audit --no-fund puppeteer-core@25.18.1 lighthouse@13.6.0 axe-core@4.14.1
+          echo "PERF_TOOLS=$RUNNER_TEMP/tools" >> "$GITHUB_ENV"
+      # ubuntu-latest ships Google Chrome. If a runner image ever drops it, the next step installs one.
+      - name: Find Chrome
+        id: chrome
+        run: |
+          path="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "Chrome: ${path:-not found}"
+      - name: Install Chrome (fallback)
+        if: steps.chrome.outputs.path == ''
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - name: Select Chrome
+        run: |
+          chrome="${{ steps.chrome.outputs.path }}"
+          if [ -z "$chrome" ]; then chrome="${{ steps.setup-chrome.outputs.chrome-path }}"; fi
+          test -x "$chrome" || { echo "No usable Chrome found"; exit 1; }
+          echo "CHROME=$chrome" >> "$GITHUB_ENV"
+          "$chrome" --version
+      - name: Build the harness (real frontend, stubbed auth)
+        if: matrix.check == 'axe' || matrix.check == 'lighthouse'
+        working-directory: docs/harness
+        run: |
+          node ../../frontend/node_modules/vite/bin/vite.js build --config vite.perf.config.js --outDir "$RUNNER_TEMP/dist-harness" --emptyOutDir
+          echo "DIST=$RUNNER_TEMP/dist-harness" >> "$GITHUB_ENV"
+      - name: Start the harness dev server
+        if: matrix.check == 'hover-dark' || matrix.check == 'hover-light' || matrix.check == 'layout'
+        working-directory: docs/harness
+        run: |
+          nohup node ../../frontend/node_modules/vite/bin/vite.js --config vite.config.js > "$OUT_DIR/devserver.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:$PORT/" > /dev/null; then echo "dev server up after ${i}s"; break; fi
+            if [ "$i" = 60 ]; then echo "dev server did not start"; cat "$OUT_DIR/devserver.log"; exit 1; fi
+            sleep 1
+          done
+          node warmup.cjs
+
+      # Each check prints a compact summary, exits 1 on failure, and keeps its log in OUT_DIR.
+      - name: axe (WCAG A/AA and best practices; fails on serious or critical outside the allowlist)
+        if: matrix.check == 'axe'
+        working-directory: docs/harness
+        env:
+          SUMMARY: '1'
+          OUT: ${{ github.workspace }}/harness-out/axe
+        run: node axe.cjs 2>&1 | tee "$OUT_DIR/axe.log"
+      - name: Hover contrast, dark (threshold 4.5, fails on any offender)
+        if: matrix.check == 'hover-dark'
+        working-directory: docs/harness
+        env:
+          THEME: dark
+          THRESH: '4.5'
+          OUT: ${{ github.workspace }}/harness-out/hover
+        run: node hover.cjs 2>&1 | tee "$OUT_DIR/hover-dark.log"
+      - name: Hover contrast, light (threshold 4.5, fails on any offender)
+        if: matrix.check == 'hover-light'
+        working-directory: docs/harness
+        env:
+          THEME: light
+          THRESH: '4.5'
+          OUT: ${{ github.workspace }}/harness-out/hover
+        run: node hover.cjs 2>&1 | tee "$OUT_DIR/hover-light.log"
+      # hero, header and terminal all run even if one fails (!cancelled()); the leg fails if any did.
+      - name: Home hero layout (fails on an assertion)
+        if: matrix.check == 'layout'
+        working-directory: docs/harness
+        env:
+          OUT: ${{ github.workspace }}/harness-out/hero
+          TAG: ci
+        run: node hero.cjs 2>&1 | tee "$OUT_DIR/hero.log"
+      - name: Header account area (fails on an assertion)
+        if: ${{ !cancelled() && matrix.check == 'layout' }}
+        working-directory: docs/harness
+        env:
+          OUT: ${{ github.workspace }}/harness-out/header
+        run: node header.cjs 2>&1 | tee "$OUT_DIR/header.log"
+      - name: Arena Terminal on phones (overflow and keyboard checks)
+        if: ${{ !cancelled() && matrix.check == 'layout' }}
+        working-directory: docs/harness
+        timeout-minutes: 8
+        run: node terminal.cjs 2>&1 | tee "$OUT_DIR/terminal.log"
+      # Report only: scores move with the runner's CPU, so this never fails the job. Mobile, five pages, simulated
+      # throttling (the full 10 pages x mobile and desktop takes about 8 minutes; run it locally, see docs/LIGHTHOUSE.md).
+      - name: Lighthouse (report only)
+        if: matrix.check == 'lighthouse'
+        continue-on-error: true
+        working-directory: docs/harness
+        timeout-minutes: 10
+        env:
+          PRESETS: mobile
+          ONLY: /,/login,/challenges,/range,/admin
+          OUT: ${{ github.workspace }}/harness-out/lighthouse.json
+        run: |
+          node lighthouse.cjs > "$OUT_DIR/lighthouse.md"
+          { echo '### Lighthouse (mobile, simulated Slow 4G, CI runner; not a gate)'; echo; cat "$OUT_DIR/lighthouse.md"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Job summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo "### Browser checks: ${{ matrix.check }}"
+            for log in axe hover-dark hover-light hero header terminal; do
+              if [ -f "$OUT_DIR/$log.log" ]; then
+                echo; echo "**$log**"; echo '```'; tail -n 6 "$OUT_DIR/$log.log"; echo '```'
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop the dev server
+        if: ${{ always() }}
+        run: pkill -f "vite.js --config vite.config.js" || true
+      - name: Upload screenshots and reports of the failed check
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-checks-failure-${{ matrix.check }}
+          path: harness-out/
+          retention-days: 7
+          if-no-files-found: ignore

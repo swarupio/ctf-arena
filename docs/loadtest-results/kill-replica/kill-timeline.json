@@ -1,0 +1,696 @@
+{
+  "url": "http://nginx/api/health",
+  "connections": 100,
+  "rows": [
+    {
+      "second": 0,
+      "ok": 2821,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 939,
+        "0f0dbd204f1f": 978,
+        "575ac13c56dd": 904
+      }
+    },
+    {
+      "second": 1,
+      "ok": 2844,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 970,
+        "0f0dbd204f1f": 894,
+        "575ac13c56dd": 980
+      }
+    },
+    {
+      "second": 2,
+      "ok": 2707,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 915,
+        "0f0dbd204f1f": 871,
+        "79ef888fb4fc": 921
+      }
+    },
+    {
+      "second": 3,
+      "ok": 3071,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 995,
+        "575ac13c56dd": 1022,
+        "79ef888fb4fc": 1054
+      }
+    },
+    {
+      "second": 4,
+      "ok": 2948,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 1009,
+        "79ef888fb4fc": 980,
+        "0f0dbd204f1f": 959
+      }
+    },
+    {
+      "second": 5,
+      "ok": 2956,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 980,
+        "0f0dbd204f1f": 994,
+        "79ef888fb4fc": 982
+      }
+    },
+    {
+      "second": 6,
+      "ok": 3347,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1097,
+        "575ac13c56dd": 1103,
+        "79ef888fb4fc": 1147
+      }
+    },
+    {
+      "second": 7,
+      "ok": 3140,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 1086,
+        "0f0dbd204f1f": 1032,
+        "79ef888fb4fc": 1022
+      }
+    },
+    {
+      "second": 8,
+      "ok": 3206,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1060,
+        "79ef888fb4fc": 1055,
+        "575ac13c56dd": 1091
+      }
+    },
+    {
+      "second": 9,
+      "ok": 2996,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1011,
+        "575ac13c56dd": 1044,
+        "79ef888fb4fc": 941
+      }
+    },
+    {
+      "second": 10,
+      "ok": 3372,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1148,
+        "0f0dbd204f1f": 1137,
+        "575ac13c56dd": 1087
+      }
+    },
+    {
+      "second": 11,
+      "ok": 2922,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1000,
+        "79ef888fb4fc": 998,
+        "575ac13c56dd": 924
+      }
+    },
+    {
+      "second": 12,
+      "ok": 2773,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 964,
+        "79ef888fb4fc": 915,
+        "575ac13c56dd": 894
+      }
+    },
+    {
+      "second": 13,
+      "ok": 2962,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 972,
+        "79ef888fb4fc": 1014,
+        "0f0dbd204f1f": 976
+      }
+    },
+    {
+      "second": 14,
+      "ok": 3084,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 987,
+        "575ac13c56dd": 1076,
+        "0f0dbd204f1f": 1021
+      }
+    },
+    {
+      "second": 15,
+      "ok": 2994,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1005,
+        "0f0dbd204f1f": 999,
+        "575ac13c56dd": 990
+      }
+    },
+    {
+      "second": 16,
+      "ok": 3013,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 980,
+        "575ac13c56dd": 1038,
+        "0f0dbd204f1f": 995
+      }
+    },
+    {
+      "second": 17,
+      "ok": 2798,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 940,
+        "0f0dbd204f1f": 897,
+        "575ac13c56dd": 961
+      }
+    },
+    {
+      "second": 18,
+      "ok": 3412,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1086,
+        "575ac13c56dd": 1154,
+        "79ef888fb4fc": 1172
+      }
+    },
+    {
+      "second": 19,
+      "ok": 3115,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 991,
+        "0f0dbd204f1f": 1096,
+        "79ef888fb4fc": 1028
+      }
+    },
+    {
+      "second": 20,
+      "ok": 3385,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1176,
+        "0f0dbd204f1f": 1117,
+        "575ac13c56dd": 1092
+      }
+    },
+    {
+      "second": 21,
+      "ok": 3055,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 1035,
+        "79ef888fb4fc": 975,
+        "0f0dbd204f1f": 1045
+      }
+    },
+    {
+      "second": 22,
+      "ok": 3175,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1070,
+        "575ac13c56dd": 1066,
+        "79ef888fb4fc": 1039
+      }
+    },
+    {
+      "second": 23,
+      "ok": 2903,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 932,
+        "79ef888fb4fc": 955,
+        "0f0dbd204f1f": 1016
+      }
+    },
+    {
+      "second": 24,
+      "ok": 3165,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 1108,
+        "0f0dbd204f1f": 1016,
+        "79ef888fb4fc": 1041
+      }
+    },
+    {
+      "second": 25,
+      "ok": 3260,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1095,
+        "575ac13c56dd": 1069,
+        "79ef888fb4fc": 1096
+      }
+    },
+    {
+      "second": 26,
+      "ok": 3002,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1018,
+        "575ac13c56dd": 1000,
+        "79ef888fb4fc": 984
+      }
+    },
+    {
+      "second": 27,
+      "ok": 3090,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1014,
+        "575ac13c56dd": 1011,
+        "0f0dbd204f1f": 1065
+      }
+    },
+    {
+      "second": 28,
+      "ok": 2712,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 902,
+        "0f0dbd204f1f": 916,
+        "79ef888fb4fc": 894
+      }
+    },
+    {
+      "second": 29,
+      "ok": 2849,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 925,
+        "79ef888fb4fc": 937,
+        "0f0dbd204f1f": 987
+      }
+    },
+    {
+      "second": 30,
+      "ok": 2829,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "575ac13c56dd": 544,
+        "79ef888fb4fc": 1145,
+        "0f0dbd204f1f": 1140
+      }
+    },
+    {
+      "second": 31,
+      "ok": 1539,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 751,
+        "0f0dbd204f1f": 788
+      }
+    },
+    {
+      "second": 32,
+      "ok": 0,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {}
+    },
+    {
+      "second": 33,
+      "ok": 0,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {}
+    },
+    {
+      "second": 34,
+      "ok": 0,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {}
+    },
+    {
+      "second": 35,
+      "ok": 0,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {}
+    },
+    {
+      "second": 36,
+      "ok": 1029,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 504,
+        "79ef888fb4fc": 525
+      }
+    },
+    {
+      "second": 37,
+      "ok": 2237,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1084,
+        "0f0dbd204f1f": 1153
+      }
+    },
+    {
+      "second": 38,
+      "ok": 2185,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1084,
+        "0f0dbd204f1f": 1101
+      }
+    },
+    {
+      "second": 39,
+      "ok": 2055,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1052,
+        "79ef888fb4fc": 1003
+      }
+    },
+    {
+      "second": 40,
+      "ok": 2038,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1003,
+        "0f0dbd204f1f": 1035
+      }
+    },
+    {
+      "second": 41,
+      "ok": 2112,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1087,
+        "0f0dbd204f1f": 1025
+      }
+    },
+    {
+      "second": 42,
+      "ok": 2328,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1195,
+        "0f0dbd204f1f": 1133
+      }
+    },
+    {
+      "second": 43,
+      "ok": 2225,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1078,
+        "79ef888fb4fc": 1147
+      }
+    },
+    {
+      "second": 44,
+      "ok": 2214,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1077,
+        "79ef888fb4fc": 1137
+      }
+    },
+    {
+      "second": 45,
+      "ok": 1919,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 958,
+        "0f0dbd204f1f": 961
+      }
+    },
+    {
+      "second": 46,
+      "ok": 1912,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 971,
+        "79ef888fb4fc": 941
+      }
+    },
+    {
+      "second": 47,
+      "ok": 2108,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1051,
+        "0f0dbd204f1f": 1057
+      }
+    },
+    {
+      "second": 48,
+      "ok": 2211,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1117,
+        "0f0dbd204f1f": 1094
+      }
+    },
+    {
+      "second": 49,
+      "ok": 1947,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 942,
+        "79ef888fb4fc": 1005
+      }
+    },
+    {
+      "second": 50,
+      "ok": 1993,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 980,
+        "0f0dbd204f1f": 1013
+      }
+    },
+    {
+      "second": 51,
+      "ok": 1900,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 971,
+        "79ef888fb4fc": 929
+      }
+    },
+    {
+      "second": 52,
+      "ok": 2188,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1105,
+        "79ef888fb4fc": 1083
+      }
+    },
+    {
+      "second": 53,
+      "ok": 2136,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1062,
+        "79ef888fb4fc": 1074
+      }
+    },
+    {
+      "second": 54,
+      "ok": 2110,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1063,
+        "79ef888fb4fc": 1047
+      }
+    },
+    {
+      "second": 55,
+      "ok": 2094,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1064,
+        "79ef888fb4fc": 1030
+      }
+    },
+    {
+      "second": 56,
+      "ok": 2109,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1034,
+        "79ef888fb4fc": 1075
+      }
+    },
+    {
+      "second": 57,
+      "ok": 2174,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1118,
+        "0f0dbd204f1f": 1056
+      }
+    },
+    {
+      "second": 58,
+      "ok": 2041,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 1008,
+        "0f0dbd204f1f": 1033
+      }
+    },
+    {
+      "second": 59,
+      "ok": 2145,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "0f0dbd204f1f": 1076,
+        "79ef888fb4fc": 1069
+      }
+    },
+    {
+      "second": 60,
+      "ok": 213,
+      "limited": 0,
+      "failed": 0,
+      "connErrors": 0,
+      "servedBy": {
+        "79ef888fb4fc": 114,
+        "0f0dbd204f1f": 99
+      }
+    }
+  ]
+}

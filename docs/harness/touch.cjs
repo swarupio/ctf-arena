@@ -1,4 +1,4 @@
-const puppeteer = require(process.env.PUPPETEER_CORE || 'puppeteer-core');
+const { launchBrowser, loadPuppeteer } = require('./env.cjs'); const puppeteer = loadPuppeteer();
 const { route } = require('./data.cjs'); const ov = require('./ovdata.cjs'); const { makeHandler } = require('./playhandler.cjs');
 const K = puppeteer.KnownDevices; const PORT = process.env.PORT || 5480; const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
@@ -6,7 +6,7 @@ const K = puppeteer.KnownDevices; const PORT = process.env.PORT || 5480; const w
   const play = await makeHandler((req, p) => json(req, 200, route(p, {})));
   const gp = /^\/(cipherlab|crackme|forensics|osint|terminal|weblab)(\/|$)/;
   const handler = (req) => { const u = new URL(req.url()); if (!u.pathname.startsWith('/api/')) { return req.continue(); } const p = u.pathname.slice(4); if (ov[p]) { return json(req, 200, ov[p]); } if (gp.test(p)) { return play(req); } return json(req, 200, route(p, {})); };
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   async function open(path, dev) {
     const page = await browser.newPage(); await page.emulate(K[dev]); await page.setRequestInterception(true); page.on('request', handler);
     await page.goto(`http://127.0.0.1:${PORT}${path}${path.includes('?') ? '&' : '?'}as=player`, { waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {}); await wait(800); return page;

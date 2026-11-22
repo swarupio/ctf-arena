@@ -1,0 +1,28 @@
+## sample 1 during load, 18:56:04
+ctf-loadtest-nginx-1 cpu=30.71% mem=17.06MiB / 128MiB pids=13
+ctf-loadtest-backend-1 cpu=52.08% mem=46.62MiB / 512MiB pids=12
+ctf-loadtest-backend-2 cpu=49.28% mem=46.42MiB / 512MiB pids=12
+ctf-loadtest-backend-3 cpu=44.10% mem=46.84MiB / 512MiB pids=12
+ctf-loadtest-mongo-1 cpu=70.04% mem=147MiB / 7.62GiB pids=73
+mongo connections current=14 active=4 totalCreated=1055
+## sample 2 during load, 18:56:10
+ctf-loadtest-nginx-1 cpu=15.41% mem=16.82MiB / 128MiB pids=13
+ctf-loadtest-backend-1 cpu=11.32% mem=46.32MiB / 512MiB pids=12
+ctf-loadtest-backend-2 cpu=47.45% mem=46.09MiB / 512MiB pids=12
+ctf-loadtest-backend-3 cpu=9.08% mem=47.55MiB / 512MiB pids=12
+ctf-loadtest-mongo-1 cpu=0.86% mem=147MiB / 7.62GiB pids=73
+mongo connections current=14 active=4 totalCreated=1070
+## sample 3 during load, 18:56:19
+ctf-loadtest-nginx-1 cpu=21.73% mem=16.48MiB / 128MiB pids=13
+ctf-loadtest-backend-1 cpu=29.27% mem=47.2MiB / 512MiB pids=12
+ctf-loadtest-backend-2 cpu=25.92% mem=47.05MiB / 512MiB pids=12
+ctf-loadtest-backend-3 cpu=16.37% mem=47.22MiB / 512MiB pids=12
+ctf-loadtest-mongo-1 cpu=0.72% mem=146.4MiB / 7.62GiB pids=73
+mongo connections current=14 active=4 totalCreated=1080
+## sample 4 during load, 18:56:30
+ctf-loadtest-nginx-1 cpu=0.00% mem=15.75MiB / 128MiB pids=13
+ctf-loadtest-backend-1 cpu=0.15% mem=47.26MiB / 512MiB pids=12
+ctf-loadtest-backend-2 cpu=0.16% mem=46.91MiB / 512MiB pids=12
+ctf-loadtest-backend-3 cpu=0.16% mem=47.43MiB / 512MiB pids=12
+ctf-loadtest-mongo-1 cpu=0.84% mem=147.3MiB / 7.62GiB pids=73
+mongo connections current=18 active=4 totalCreated=1097

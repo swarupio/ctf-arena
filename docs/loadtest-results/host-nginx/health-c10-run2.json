@@ -1,0 +1,29 @@
+{
+  "url": "http://localhost:18080/api/health",
+  "label": "health-c10",
+  "connections": 10,
+  "durationSeconds": 30.4,
+  "requests": 8931,
+  "requestsPerSecond": 293.78289473684214,
+  "latencyMs": {
+    "p50": 19.6467,
+    "p95": 109.876,
+    "p99": 158.4971,
+    "max": 250.3778
+  },
+  "non2xx": 0,
+  "statusCodes": {
+    "200": 8931
+  },
+  "ok2xx": 8931,
+  "limited429": 0,
+  "otherNon2xx": 0,
+  "errors": 0,
+  "errorRatePercent": 0,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "0f0dbd204f1f": 2994,
+    "79ef888fb4fc": 2932,
+    "575ac13c56dd": 3005
+  }
+}

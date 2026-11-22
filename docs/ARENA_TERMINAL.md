@@ -28,7 +28,7 @@ This file is the contract between the people (and agents) building it. Change it
 
 | Path | Owner | Notes |
 |---|---|---|
-| `docs/TERMINAL_GAME.md` | lead | this contract |
+| `docs/ARENA_TERMINAL.md` | lead | this contract |
 | `backend/src/terminal/vfs.js` | lead (constructors) + engine agent (traversal helpers appended) | constructor shapes are frozen |
 | `backend/src/terminal/gen.js` | lead | seeded random helpers |
 | `backend/src/terminal/shell.js`, `parser.js`, `commands/*.js`, `limits.js` | engine agent | `execute`, `complete` |

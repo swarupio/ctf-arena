@@ -1,0 +1,96 @@
+== health c=10 run 1
+Requests/sec:  292
+Latency (ms):  p50 20.9   p95 104.5   p99 152.3   max 467.6
+Status mix:    9013 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 1 connection errors
+X-Served-By during the run: 575ac13c56dd=3037, 0f0dbd204f1f=3009, 79ef888fb4fc=2967
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== health c=10 run 2
+Requests/sec:  294
+Latency (ms):  p50 19.6   p95 109.9   p99 158.5   max 250.4
+Status mix:    8931 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 575ac13c56dd=3005, 0f0dbd204f1f=2994, 79ef888fb4fc=2932
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== health c=50 run 1
+Requests/sec:  272
+Latency (ms):  p50 157.6   p95 377.3   p99 546.0   max 2,005.3
+Status mix:    8513 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 79ef888fb4fc=2894, 0f0dbd204f1f=2873, 575ac13c56dd=2746
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== health c=50 run 2
+Requests/sec:  356
+Latency (ms):  p50 132.6   p95 270.2   p99 357.7   max 509.8
+Status mix:    10948 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 79ef888fb4fc=3733, 575ac13c56dd=3622, 0f0dbd204f1f=3593
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== health c=100 run 1
+Requests/sec:  342
+Latency (ms):  p50 269.4   p95 500.7   p99 767.5   max 1,472.9
+Status mix:    10486 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 79ef888fb4fc=3550, 575ac13c56dd=3500, 0f0dbd204f1f=3436
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== health c=100 run 2
+Requests/sec:  412
+Latency (ms):  p50 211.1   p95 488.8   p99 701.3   max 1,422.0
+Status mix:    12740 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 79ef888fb4fc=4307, 575ac13c56dd=4251, 0f0dbd204f1f=4182
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== health c=200 run 1
+Requests/sec:  286
+Latency (ms):  p50 622.8   p95 1,033.4   p99 2,993.3   max 3,590.0
+Status mix:    8804 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 575ac13c56dd=2988, 0f0dbd204f1f=2928, 79ef888fb4fc=2888
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== health c=200 run 2
+Requests/sec:  410
+Latency (ms):  p50 368.4   p95 878.8   p99 5,209.8   max 5,483.0
+Status mix:    12954 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 575ac13c56dd=4361, 0f0dbd204f1f=4337, 79ef888fb4fc=4256
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== event c=100 run 1
+Requests/sec:  437
+Latency (ms):  p50 188.6   p95 489.8   p99 706.3   max 1,568.4
+Status mix:    13639 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=4575, 575ac13c56dd=4562, 79ef888fb4fc=4502
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== event c=100 run 2
+Requests/sec:  309
+Latency (ms):  p50 274.2   p95 642.0   p99 1,590.1   max 2,514.9
+Status mix:    9635 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 79ef888fb4fc=3269, 0f0dbd204f1f=3197, 575ac13c56dd=3169
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== announcement c=100 run 1
+Requests/sec:  396
+Latency (ms):  p50 220.4   p95 463.0   p99 911.8   max 2,085.8
+Status mix:    12567 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=4248, 79ef888fb4fc=4169, 575ac13c56dd=4150
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== announcement c=100 run 2
+Requests/sec:  702
+Latency (ms):  p50 121.2   p95 303.5   p99 458.7   max 1,054.2
+Status mix:    21533 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=7241, 79ef888fb4fc=7167, 575ac13c56dd=7125
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== honeypot c=50 run 1
+Requests/sec:  274
+Latency (ms):  p50 155.3   p95 377.6   p99 511.5   max 641.8
+Status mix:    8400 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=2829, 79ef888fb4fc=2791, 575ac13c56dd=2780
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== honeypot c=50 run 2
+Requests/sec:  415
+Latency (ms):  p50 102.0   p95 262.6   p99 547.6   max 729.0
+Status mix:    12714 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=4258, 79ef888fb4fc=4239, 575ac13c56dd=4217
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== noauth401 c=100 run 1
+Requests/sec:  496
+Latency (ms):  p50 182.3   p95 385.8   p99 634.3   max 1,144.0
+Status mix:    0 2xx, 0 x 429 (Nginx limiter, not a failure), 15218 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=5120, 575ac13c56dd=5113, 79ef888fb4fc=4985
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+== noauth401 c=100 run 2
+Requests/sec:  475
+Latency (ms):  p50 185.0   p95 437.5   p99 600.2   max 819.6
+Status mix:    0 2xx, 0 x 429 (Nginx limiter, not a failure), 14962 other non-2xx, 0 connection errors
+X-Served-By during the run: 0f0dbd204f1f=5034, 575ac13c56dd=4985, 79ef888fb4fc=4943
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |

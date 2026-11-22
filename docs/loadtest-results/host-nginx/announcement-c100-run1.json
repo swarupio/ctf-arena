@@ -1,0 +1,29 @@
+{
+  "url": "http://localhost:18080/api/announcement",
+  "label": "announcement-c100",
+  "connections": 100,
+  "durationSeconds": 31.72,
+  "requests": 12567,
+  "requestsPerSecond": 396.18537200504414,
+  "latencyMs": {
+    "p50": 220.3664,
+    "p95": 463.0083,
+    "p99": 911.8106,
+    "max": 2085.8338
+  },
+  "non2xx": 0,
+  "statusCodes": {
+    "200": 12567
+  },
+  "ok2xx": 12567,
+  "limited429": 0,
+  "otherNon2xx": 0,
+  "errors": 0,
+  "errorRatePercent": 0,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "79ef888fb4fc": 4169,
+    "575ac13c56dd": 4150,
+    "0f0dbd204f1f": 4248
+  }
+}

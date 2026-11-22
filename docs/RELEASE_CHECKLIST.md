@@ -5,9 +5,41 @@ deploy has happened yet, P4-05). Details for each step: `docs/DEPLOY_VERCEL.md`.
 
 ## 0. Before you merge
 - [ ] The CI run on the PR is green: backend lint and tests, frontend lint and tests (with `CHECK_DEBRIEF_COMPLETE=1`),
-      frontend build, bundle budget (`deploy/bundle-size.mjs`). The `Dependency audit` job is report only: read it, do not block on it.
+      frontend build, bundle budget (`deploy/bundle-size.mjs`), and the `Browser checks` job (axe, hover, hero, header, terminal; the Lighthouse
+      step and the `Dependency audit` job are report only: read them, do not block on them). Every check and its local command: see below.
 - [ ] Locally, if you changed content: `cd frontend && CHECK_DEBRIEF_COMPLETE=1 npm test`.
 - [ ] No secrets in the diff (`git diff --cached | grep -i secret`), only `.env.example` changed.
+
+### CI checks and how to run each one locally
+`.github/workflows/ci.yml` runs on every push to `main`, on pull requests and by hand (`gh workflow run CI --ref main`, then
+`gh run watch`). Runs on `main` are never cancelled; a new push to a PR cancels that PR's older run.
+
+| Check (job) | Fails the run | Run it locally |
+|---|---|---|
+| Backend lint and tests (`tests.yml`, Node 20, `--maxWorkers=3`) | yes | `cd backend && npm ci && npm run lint && npm test` (the CI placeholder variables are in `tests.yml`; a copy of `.env.example` as `.env` also works) |
+| Frontend lint, tests, build (`tests.yml`, Node 20) | yes | `cd frontend && npm ci && npm run lint && CHECK_DEBRIEF_COMPLETE=1 npm test && npm run build` |
+| Bundle budget (`tests.yml`) | yes | `node deploy/bundle-size.mjs frontend/dist` |
+| Dependency audit (`tests.yml`) | no, report only | `cd backend && npm audit --omit=dev` (and `frontend`) |
+| axe, WCAG A/AA + best practices, 41 page states, light and dark (`browser-checks`) | yes, on serious or critical outside the allowlist in `docs/harness/axe.cjs` | harness build, then `DIST=<dist> PERF_TOOLS=<tools> SUMMARY=1 node docs/harness/axe.cjs` |
+| Hover contrast, dark and light, threshold 4.5 (`browser-checks`) | yes, on any offender | harness dev server, then `THEME=dark THRESH=4.5 node docs/harness/hover.cjs` (and `THEME=light`) |
+| Home hero layout (`browser-checks`) | yes, on an assertion | harness dev server, then `OUT=<dir> node docs/harness/hero.cjs` |
+| Header account area (`browser-checks`) | yes, on an assertion | harness dev server, then `OUT=<dir> node docs/harness/header.cjs` |
+| Arena Terminal on phones (`browser-checks`) | yes, on overflow | harness dev server, then `node docs/harness/terminal.cjs` |
+| Lighthouse, mobile, 5 pages (`browser-checks`) | no, report only (table in the job summary) | harness build, then `DIST=<dist> PERF_TOOLS=<tools> PRESETS=mobile ONLY=/,/login node docs/harness/lighthouse.cjs` |
+
+The browser checks need three things outside the repo's package files (`docs/LIGHTHOUSE.md` has the full recipe):
+```bash
+# 1. tools (puppeteer-core, lighthouse, axe-core; Lighthouse 13 needs Node >= 22.19)
+mkdir -p /tmp/tools && cd /tmp/tools && npm init -y && npm i --no-save puppeteer-core lighthouse axe-core
+# 2. production build of the real frontend with stubbed auth (frontend/node_modules must exist: cd frontend && npm ci)
+cd docs/harness && node ../../frontend/node_modules/vite/bin/vite.js build --config vite.perf.config.js --outDir /tmp/dist-harness --emptyOutDir
+# 3. the harness dev server, for hover, hero, header and terminal (stop it with Ctrl+C when done)
+cd docs/harness && PORT=5480 node ../../frontend/node_modules/vite/bin/vite.js --config vite.config.js
+```
+The scripts find Chrome by themselves (Windows, Linux and macOS locations); set `CHROME=<path>` to override. `PERF_TOOLS` is the
+folder from step 1 (or set `PUPPETEER_CORE` to the puppeteer-core path), `PORT` the dev server port (default 5480). On failure the job
+uploads `harness-out/` (screenshots, `axe.json`, hover JSON, logs) as the artifact `browser-checks-failure-<check>` for 7 days. The browser checks are a matrix (axe, hover-dark, hover-light, layout = hero + header + terminal, lighthouse) so they run in parallel.
+Line endings: `.gitattributes` keeps shell scripts, workflows and `.cjs`/`.mjs` files LF so the Linux runner can run them.
 
 ## 1. Environment variables (Vercel > Project Settings > Environment Variables)
 Names only; values never go in git. `VITE_*` are compiled into the bundle, so changing them needs a redeploy.

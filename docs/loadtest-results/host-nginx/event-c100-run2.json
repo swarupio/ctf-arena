@@ -1,0 +1,29 @@
+{
+  "url": "http://localhost:18080/api/event",
+  "label": "event-c100",
+  "connections": 100,
+  "durationSeconds": 31.16,
+  "requests": 9635,
+  "requestsPerSecond": 309.2105263157895,
+  "latencyMs": {
+    "p50": 274.1816,
+    "p95": 641.9978,
+    "p99": 1590.0902999999998,
+    "max": 2514.9312
+  },
+  "non2xx": 0,
+  "statusCodes": {
+    "200": 9635
+  },
+  "ok2xx": 9635,
+  "limited429": 0,
+  "otherNon2xx": 0,
+  "errors": 0,
+  "errorRatePercent": 0,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "575ac13c56dd": 3169,
+    "0f0dbd204f1f": 3197,
+    "79ef888fb4fc": 3269
+  }
+}

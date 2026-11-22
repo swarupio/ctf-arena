@@ -1,6 +1,6 @@
-const puppeteer = require(process.env.PUPPETEER_CORE || 'puppeteer-core'); const { route } = require('./data.cjs'); const K = puppeteer.KnownDevices; const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const { launchBrowser, loadPuppeteer } = require('./env.cjs'); const puppeteer = loadPuppeteer(); const { route } = require('./data.cjs'); const K = puppeteer.KnownDevices; const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   const cases = [['iPhone SE', {}], ['iPhone SE landscape', {}], ['iPhone SE', { f20: true }], ['iPad Mini', { f20: true }], ['iPad Mini', { zoom: true }], ['desktop', { w: 1366, h: 768, zoom: true }], ['desktop', { w: 1366, h: 768, f20: true }], ['desktop', { w: 1100, h: 700 }]];
   for (const [dev, o] of cases) {
     const page = await browser.newPage();

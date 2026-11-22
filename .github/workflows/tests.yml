@@ -1,4 +1,4 @@
-# Reusable test workflow. ci.yml calls it for pull requests. Vercel builds and deploys from Git on its own,
+# Reusable test workflow. ci.yml calls it for pushes to main, pull requests and manual runs. Vercel builds and deploys from Git on its own,
 # so these tests are the gate to check before merging.
 name: Tests
 

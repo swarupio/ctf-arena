@@ -1,0 +1,29 @@
+{
+  "url": "http://localhost:18080/api/leaderboard",
+  "label": "noauth401-c100",
+  "connections": 100,
+  "durationSeconds": 30.68,
+  "requests": 15218,
+  "requestsPerSecond": 496.02346805736636,
+  "latencyMs": {
+    "p50": 182.3026,
+    "p95": 385.784,
+    "p99": 634.3344,
+    "max": 1144.0224
+  },
+  "non2xx": 15218,
+  "statusCodes": {
+    "401": 15218
+  },
+  "ok2xx": 0,
+  "limited429": 0,
+  "otherNon2xx": 15218,
+  "errors": 0,
+  "errorRatePercent": 100,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "79ef888fb4fc": 4985,
+    "575ac13c56dd": 5113,
+    "0f0dbd204f1f": 5120
+  }
+}

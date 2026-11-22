@@ -1,0 +1,7 @@
+trial 1 started=2026-11-22T13:43:08.332486419Z first_ok_after_ms=4449
+trial 2 started=2026-11-22T13:43:18.562787002Z first_ok_after_ms=3785
+trial 3 started=2026-11-22T13:43:28.702104159Z first_ok_after_ms=5101
+restarted replica-2 reached through nginx after_ms=8829
+      8 X-Served-By: 0f0dbd204f1f
+      7 X-Served-By: 575ac13c56dd
+     15 X-Served-By: 79ef888fb4fc

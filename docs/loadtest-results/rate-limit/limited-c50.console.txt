@@ -1,0 +1,17 @@
+Target: http://localhost:18081/api/health
+Connections: 50, warm-up 0s, measured 15s
+
+Measuring...
+
+Requests:      28,026 in 16.7s
+Requests/sec:  1,679
+Latency (ms):  p50 5.9   p95 165.6   p99 224.8   max 658.9
+Status mix:    377 2xx, 27649 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+Failures:      0 -> error rate 0.00 % (429 excluded)
+Status codes:  200: 377, 429: 27649
+Note: 429 means the Nginx per-IP rate limit engaged. Run the test from the host itself (loopback and Docker ranges are exempt).
+X-Served-By during the run: 0f0dbd204f1f=134, 575ac13c56dd=127, 79ef888fb4fc=116
+
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+|----------|--------------|------------------|------------------|------------|
+| ? | 1,679 | 165.6 | 224.8 | 0.00 % |

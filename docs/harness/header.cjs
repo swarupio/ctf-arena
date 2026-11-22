@@ -1,10 +1,16 @@
-// Header account area check (usage: PPTR=<puppeteer-core path> BASE=http://127.0.0.1:<port> OUT=<dir> node header.cjs; the harness dev server from vite.config.js must run).
+// Header account area check (usage: PORT=5480 [BASE=http://127.0.0.1:<port>] [OUT=<dir for screenshots>] node header.cjs; the harness dev server from vite.config.js must run; PERF_TOOLS / PUPPETEER_CORE / CHROME: see env.cjs).
 // Roles owner (24 character address, single-word display name), admin and player (two-word name) at 1101 to 1920 px in light and dark: one nav row, the account box, Logout and the theme button share one height and top,
 // the address text is hidden in the wide header, no horizontal overflow, and the footer 'Use device setting' line appears only after the header switch was used and disappears when it is clicked.
-const puppeteer = require(process.env.PPTR);
+const fs = require('fs');
+const path = require('path');
+const { launchBrowser, loadPuppeteer } = require('./env.cjs');
+const puppeteer = loadPuppeteer();
+const BASE = process.env.BASE || 'http://127.0.0.1:' + (process.env.PORT || 5480);
+const OUT = process.env.OUT || path.join(__dirname, 'out', 'header');
+fs.mkdirSync(OUT, { recursive: true });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   const rows = []; const fails = [];
   for (const role of ['owner', 'admin', 'player']) for (const theme of ['light', 'dark']) for (const w of [1101, 1200, 1273, 1366, 1440, 1920]) {
     const page = await browser.newPage();
@@ -12,7 +18,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }]);
     await page.setRequestInterception(true);
     page.on('request', (req) => { const u = new URL(req.url()); if (!u.pathname.startsWith('/api/')) return req.continue(); req.respond({ status: 200, contentType: 'application/json', body: u.pathname === '/api/me' ? JSON.stringify({ displayName: role === 'player' ? 'Ada Lovelace' : 'zer0cool', team: null }) : '[]' }); });
-    await page.goto(process.env.BASE + '/?as=' + role, { waitUntil: 'networkidle2', timeout: 9000 }).catch(() => {});
+    await page.goto(BASE + '/?as=' + role, { waitUntil: 'networkidle2', timeout: 9000 }).catch(() => {});
     await wait(600);
     const m = await page.evaluate(() => {
       const r = (el) => el && el.getBoundingClientRect();
@@ -41,12 +47,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     if (m.footerAuto) bad.push('footer shows the device-setting line before any choice');
     if (m.overflowX) bad.push('horizontal overflow');
     if (bad.length) fails.push(role + ' ' + theme + ' ' + w + ': ' + bad.join('; '));
-    if (theme === 'light' && w === 1273) await page.screenshot({ path: process.env.OUT + '/hdr2_' + role + '_1273.png', clip: { x: 573, y: 0, width: 700, height: 90 } });
+    if (bad.length) await page.screenshot({ path: OUT + '/FAIL_' + role + '_' + theme + '_' + w + '.png', clip: { x: 0, y: 0, width: w, height: 700 } }).catch(() => {});
+    if (theme === 'light' && w === 1273) await page.screenshot({ path: OUT + '/hdr2_' + role + '_1273.png', clip: { x: 573, y: 0, width: 700, height: 90 } });
     // footer after the first click on the header switch
     if (theme === 'light' && w === 1273) {
       await page.click('.theme-btn'); await wait(300);
       const after = await page.evaluate(() => ({ line: document.querySelector('.theme-auto-line')?.textContent ?? null, stored: localStorage.getItem('ctf.theme') }));
-      await page.screenshot({ path: process.env.OUT + '/foot2_' + role + '.png', clip: { x: 0, y: 0, width: 1273, height: 700 } });
+      await page.screenshot({ path: OUT + '/foot2_' + role + '.png', clip: { x: 0, y: 0, width: 1273, height: 700 } });
       await page.evaluate(() => document.querySelector('.theme-auto-btn')?.click()); await wait(300);
       const back = await page.evaluate(() => ({ line: document.querySelector('.theme-auto-line')?.textContent ?? null, stored: localStorage.getItem('ctf.theme') }));
       console.log(role, '1273 click ->', JSON.stringify(after), '| use device setting ->', JSON.stringify(back));

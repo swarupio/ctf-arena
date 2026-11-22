@@ -1,5 +1,6 @@
 // usage: TAG=before CFG="iPhone SE,desktop 1366" node run.cjs   (CFG = comma list of config names, default all)
-const puppeteer = require(process.env.PUPPETEER_CORE || 'puppeteer-core');
+const { launchBrowser, loadPuppeteer } = require('./env.cjs');
+const puppeteer = loadPuppeteer();
 const fs = require('fs');
 const { route } = require('./data.cjs');
 const ov = require('./ovdata.cjs');
@@ -95,7 +96,7 @@ function measure() {
     if (gamePrefix.test(p)) { return play(req); }
     return json(req, 200, route(p, Object.fromEntries(u.searchParams)));
   };
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   const outDir = `${__dirname}/out/${TAG}`; fs.mkdirSync(outDir, { recursive: true });
   const all = [];
   for (const cname of only) {

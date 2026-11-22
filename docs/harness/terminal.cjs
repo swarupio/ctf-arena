@@ -1,7 +1,8 @@
 // Arena Terminal on short landscape phones (and one portrait): run 6 commands, open the HUD and the hint bar, then simulate the
 // on-screen keyboard (viewport height x 0.55). Reports horizontal overflow, off-screen elements and whether the window and the
 // input row stay inside the viewport. usage: PORT=5480 PUPPETEER_CORE=... CHROME=... node terminal.cjs
-const puppeteer = require(process.env.PUPPETEER_CORE || 'puppeteer-core');
+const { launchBrowser, loadPuppeteer } = require('./env.cjs');
+const puppeteer = loadPuppeteer();
 const { route } = require('./data.cjs'); const ov = require('./ovdata.cjs'); const { makeHandler } = require('./playhandler.cjs');
 const PORT = process.env.PORT || 5480; const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const SIZES = [[568, 320], [667, 375], [740, 360], [844, 390], [896, 414], [932, 430], [320, 568]];
@@ -24,7 +25,7 @@ function measure() {
   const play = await makeHandler((req, p) => json(req, 200, route(p, {})));
   const gp = /^\/(cipherlab|crackme|forensics|osint|terminal|weblab)(\/|$)/;
   const handler = (req) => { const u = new URL(req.url()); if (!u.pathname.startsWith('/api/')) { return req.continue(); } const p = u.pathname.slice(4); if (ov[p]) { return json(req, 200, ov[p]); } if (gp.test(p)) { return play(req); } return json(req, 200, route(p, {})); };
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   let bad = 0;
   console.log('mode   size     stage      sw/cw    page h/vh   window bottom  input  off-screen');
   for (const mode of MODES) {

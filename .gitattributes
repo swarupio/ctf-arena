@@ -1,0 +1,15 @@
+# Line endings: the repository stores LF. Git for Windows (core.autocrlf=true) checks out CRLF locally, which is fine for
+# source files, but anything that Linux executes must be LF in the working tree too, or the shebang and `set -e` lines break
+# ("bad interpreter", "$'\r': command not found") and the CI runner fails.
+* text=auto
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cjs text eol=lf
+*.mjs text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+# Test fixtures that are compared byte for byte must not change on checkout.
+*.png binary
+*.woff2 binary
+*.ico binary

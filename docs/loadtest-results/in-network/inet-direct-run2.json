@@ -1,0 +1,29 @@
+{
+  "url": "http://backend:4000/api/health",
+  "label": "?",
+  "connections": 100,
+  "durationSeconds": 30.05,
+  "requests": 150456,
+  "requestsPerSecond": 5006.855241264559,
+  "latencyMs": {
+    "p50": 16.847825,
+    "p95": 43.631337,
+    "p99": 64.298976,
+    "max": 184.11174
+  },
+  "non2xx": 0,
+  "statusCodes": {
+    "200": 150456
+  },
+  "ok2xx": 150456,
+  "limited429": 0,
+  "otherNon2xx": 0,
+  "errors": 0,
+  "errorRatePercent": 0,
+  "replicasSeen": {},
+  "servedByDuringRun": {
+    "79ef888fb4fc": 52721,
+    "575ac13c56dd": 48784,
+    "0f0dbd204f1f": 48951
+  }
+}

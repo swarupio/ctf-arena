@@ -4,12 +4,12 @@
 // Simulated throttling (Lighthouse defaults: mobile = Slow 4G + 4x CPU, desktop = no CPU slowdown, 40 ms RTT, 10 Mbit/s).
 const path = require('path');
 const fs = require('fs');
-const { createRequire } = require('module');
+const { launchBrowser, toolsRequire, loadPuppeteer } = require('./env.cjs');
 const { pathToFileURL } = require('url');
 const { startServer } = require('./perfserver.cjs');
 
-const tools = createRequire(path.resolve(process.env.PERF_TOOLS || '.', 'package.json'));
-const puppeteer = (() => { try { return tools('puppeteer-core'); } catch { return require(process.env.PUPPETEER_CORE || 'puppeteer-core'); } })();
+const tools = toolsRequire();
+const puppeteer = loadPuppeteer();
 const PORT = Number(process.env.PORT || 5492);
 const PAGES = [['/', 'anon'], ['/login', 'anon'], ['/range', 'player'], ['/challenges', 'player'], ['/skills', 'anon'], ['/leaderboard', 'player'], ['/demo', 'anon'], ['/terminal/easy', 'player'], ['/weblab/weblab-sqli-login', 'player'], ['/admin', 'admin']];
 const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
@@ -24,7 +24,7 @@ async function main() {
   const desktopConfig = (await import(pathToFileURL(path.join(lhDir, '..', 'core', 'config', 'desktop-config.js')).href)).default;
   const server = await startServer({ dist: path.resolve(process.env.DIST), port: PORT });
   const results = [];
-  const launch = () => puppeteer.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const launch = () => launchBrowser(puppeteer);
   try {
     for (const preset of presets) {
       for (const [p, as] of PAGES) {

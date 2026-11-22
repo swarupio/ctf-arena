@@ -1,0 +1,10 @@
+idle ctf-loadtest-nginx-1 cpu=0.00% mem=13.44MiB / 128MiB
+idle ctf-loadtest-backend-3 cpu=0.17% mem=33.29MiB / 512MiB
+idle ctf-loadtest-backend-1 cpu=0.31% mem=32.86MiB / 512MiB
+idle ctf-loadtest-backend-2 cpu=0.51% mem=41.83MiB / 512MiB
+idle ctf-loadtest-mongo-1 cpu=99.58% mem=98.93MiB / 7.62GiB
+idle ctf-arena-backend-2 cpu=0.17% mem=48.59MiB / 512MiB
+idle ctf-arena-backend-1 cpu=0.21% mem=62.45MiB / 512MiB
+idle ctf-arena-backend-3 cpu=2.90% mem=84.3MiB / 512MiB
+idle ctf-arena-mongo-1 cpu=1.05% mem=311.3MiB / 7.62GiB
+idle ctf-arena-nginx-1 cpu=0.00% mem=11.92MiB / 128MiB

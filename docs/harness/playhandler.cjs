@@ -96,5 +96,5 @@ async function makeHandler(fallback) {
     return fallback(req, p);
   };
 
-  return handler; }
+  return require('./hintfix.cjs').wrap(handler); }
 module.exports = { makeHandler };

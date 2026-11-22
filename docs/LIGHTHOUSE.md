@@ -62,12 +62,12 @@ Per-route JS coverage (puppeteer coverage API, mobile viewport, after): `/` 37% 
 | Rule (impact) | Before | After | Note |
 |---|---|---|---|
 | label-content-name-mismatch (serious) | 102 | 98 (all allowlisted) | `aria-label` is a full spoken sentence on purpose (Crackme listing rows and graph nodes, Web Lab cards, terminal mail chip); the two cheap ones are fixed (terminal Hints button, Crackme Prev button) |
-| color-contrast (serious) | 33 | 3 (allowlisted) | the Web Lab locked-card chips were fixed by the parallel theme work during this pass; left: Crackme listing address text (3.9:1) and xref text (2.6:1 in light) on the dark code panel |
-| empty-table-header (minor) | 84 | 84 | stub artifact: the screen-reader chart tables get an empty day label because the stub series has no `day` field; the real API sends one |
-| landmark-unique (moderate) | 10 | 6 | admin overview Panels: three `section[aria-labelledby]` the rule reports as not distinguishable; not changed (Panel is shared) |
+| color-contrast (serious) | 33 | 0 | the Web Lab locked-card chips were fixed by the parallel theme work during the first pass; the Crackme listing (dim address on the current-row tint 3.95:1, "xrefs from" text 2.63:1 in light) is fixed in the polish pass below and its allowlist entry is gone |
+| empty-table-header (minor) | 84 | 0 | stub artifact, not a product bug: the stub series used `day`, the real API (and the chart) use `date`; `docs/harness/data.cjs` now sends `date` |
+| landmark-unique (moderate) | 10 | 0 | the admin overview Panels (`section[aria-labelledby]`) had the same name as the DataTable scroll region inside them; the region is now named "<caption>, table" (`components/admin/DataTable.jsx`) |
 | aria-allowed-role (minor) | 4 | 0 | the admin Drawer was `<aside role="dialog">`; now `<div role="dialog">` |
 | landmark-no-duplicate-banner (moderate) | 4 | 0 | the Drawer's `<header>` counted as a second banner; now a `<div>` |
-| heading-order (moderate) | 2 | 2 | the admin challenge drawer jumps from h2 to h4 (`.adm-h4`); changing the tag needs a CSS check, not changed |
+| heading-order (moderate) | 2 | 0 | the admin challenge drawer jumped from h2 to h4: the three `.adm-h4` headings keep their element and class and get `aria-level={3}`, so nothing changes visually |
 
 "After" is the raw count before the allowlist. With the allowlist at the top of `axe.cjs` (each entry has its reason), `node docs/harness/axe.cjs` reports no serious or critical violation and exits 0. The "before" colour-contrast count includes fixes by other agents made while this pass ran, so it is not all this pass's work. Distinct titles: the 41 states give 36 distinct document titles (levels and drawers share their route's title); before, every state was "CTF Arena".
 
@@ -121,7 +121,7 @@ Tools for this pass (scratch, not in the repo): a puppeteer layout-shift observe
 
 ## Not fixed, and why
 - **Announcement banner and event bar**: a first-ever visit to a page while an announcement or event is live still shifts once (the page cannot know). Every later visit reserves the remembered height from the first paint, see the second pass below. A wrong remembered height (the bar is gone) shows a blank bar for the time of the first answer (3 s at most) and collapses once.
-- Label-in-name on the designed long labels, Crackme listing contrast, `empty-table-header` (stub), admin `landmark-unique` and `heading-order`: see the tables.
+- Label-in-name on the designed long labels (allowlisted, see the table). Crackme listing contrast, `empty-table-header`, admin `landmark-unique` and `heading-order` are fixed (polish pass, `docs/FIXLOG.md` "Polish leftovers").
 - The shipped `index.html` still carries the comment `TODO(dev): remove before release. internal debug endpoints still enabled on staging: /api/internal/debug/flags (no auth), /api/internal/config`. Vite keeps HTML comments, so every visitor can read it. Remove it (and the endpoints if they are still reachable) before release; not touched here (not a performance item).
 - The harness build has no amplify chunk (auth is stubbed), so the tables are for a signed-out visitor after the deferral. A signed-in visitor still downloads amplify (about 40 KB gzip) in parallel with the first page; the real build shows it as `amplify-*.js`, reached through `amplifyAuth-*.js`.
 
@@ -137,5 +137,5 @@ DIST=<scratch>/dist-harness PERF_TOOLS=<tools> node axe.cjs              # SUMMA
 # 3. Lighthouse: 10 pages, mobile and desktop, prints the table
 DIST=<scratch>/dist-harness PERF_TOOLS=<tools> node lighthouse.cjs       # PRESETS=mobile ONLY=/,/login THROTTLING=devtools OUT=result.json
 ```
-`PERF_TOOLS` is the folder whose `node_modules` has `lighthouse`, `axe-core` and `puppeteer-core`. `CHROME` overrides the Chrome path and `PORT` the port (the scripts start their own static server, `perfserver.cjs`, which also answers `/api` from `data.cjs`, `ovdata.cjs` and `playhandler.cjs`). In Git Bash on Windows prefix the command with `MSYS_NO_PATHCONV=1` when an `ONLY` value starts with `/`. An allowlist entry in `axe.cjs` needs its reason on the same line; keep the list short.
+`PERF_TOOLS` is the folder whose `node_modules` has `lighthouse`, `axe-core` and `puppeteer-core` (`PUPPETEER_CORE` can point at puppeteer-core directly). Chrome is found by `docs/harness/env.cjs` (Windows, Linux and macOS locations), so the scripts run unchanged on a laptop and on the CI runner. The same tools run in CI (`browser-checks` in `.github/workflows/ci.yml`, see `docs/RELEASE_CHECKLIST.md` for the list of checks); `hover.cjs`, `hero.cjs`, `header.cjs` and `terminal.cjs` need the harness dev server (`PORT=5480 node ../../frontend/node_modules/vite/bin/vite.js --config vite.config.js` from `docs/harness`) instead of the built folder. `CHROME` overrides the Chrome path and `PORT` the port (the scripts start their own static server, `perfserver.cjs`, which also answers `/api` from `data.cjs`, `ovdata.cjs` and `playhandler.cjs`). In Git Bash on Windows prefix the command with `MSYS_NO_PATHCONV=1` when an `ONLY` value starts with `/`. An allowlist entry in `axe.cjs` needs its reason on the same line; keep the list short.
 Targets for a green run: Accessibility, Best practices and SEO 100, CLS under 0.1 on every page (0.01 or less after the second pass), no serious axe violation. Run it after a CSS or layout change; axe takes about 3 minutes, Lighthouse about 8.

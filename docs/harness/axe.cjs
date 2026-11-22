@@ -2,14 +2,15 @@
 // critical violation is found that is not in ALLOWLIST.
 //   DIST=<built dir> PERF_TOOLS=<dir with axe-core and puppeteer-core installed> node axe.cjs
 // Optional: THEMES=light,dark  ONLY=home,login (name prefixes)  PORT=5493  SUMMARY=1 (counts by rule only)  CHROME=<path>
+//   OUT=<dir>: also writes axe.json (every violation outside the allowlist, with samples) there
 const path = require('path');
 const fs = require('fs');
-const { createRequire } = require('module');
+const { launchBrowser, toolsRequire, loadPuppeteer } = require('./env.cjs');
 const { startServer } = require('./perfserver.cjs');
 const PAGES = require('./pages.cjs');
 
-const tools = createRequire(path.resolve(process.env.PERF_TOOLS || '.', 'package.json'));
-const puppeteer = (() => { try { return tools('puppeteer-core'); } catch { return require(process.env.PUPPETEER_CORE || 'puppeteer-core'); } })();
+const tools = toolsRequire();
+const puppeteer = loadPuppeteer();
 const axeSource = fs.readFileSync(tools.resolve('axe-core/axe.min.js'), 'utf8');
 const PORT = Number(process.env.PORT || 5493);
 const themes = (process.env.THEMES || 'light,dark').split(',');
@@ -22,13 +23,12 @@ const ALLOWLIST = [
   ['label-content-name-mismatch', /\.tm-chip--mail/, 'Terminal mail chip: the visible text carries an unread counter badge, the label is "mail, N unread messages" (asserted by tests/terminalStory.test.js)'],
   ['label-content-name-mismatch', /points"\]|a\[href\$="[a-z]+\d+"\]|\.wl-card/, 'Web Lab card link: the name is "<title>, <state>, <points>" on purpose, the card prose is not repeated'],
   ['label-content-name-mismatch', /^g\[transform=/, 'Crackme control-flow graph node (SVG group): the name summarises the block, the drawn text is its raw instructions'],
-  ['color-contrast', /\.cm-addr|\.cm-dim/, 'Crackme listing: dim address and xref text on the dark code panel and the current-row highlight (3.9:1 and 2.6:1 in light); crackme theme work, see docs/FIXLOG.md'],
 ];
 const allowed = (rule, target) => ALLOWLIST.some(([r, sel]) => r === rule && sel.test(String(target)));
 
 async function main() {
   const server = await startServer({ dist: path.resolve(process.env.DIST), port: PORT });
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await launchBrowser(puppeteer);
   const byRule = {}; const failures = []; const detail = [];
   try {
     for (const theme of themes) {
@@ -57,6 +57,7 @@ async function main() {
   console.log('| Rule (impact) | Violating nodes |\n|---|---|');
   for (const [k, n] of Object.entries(byRule).sort((a, b) => b[1] - a[1])) console.log(`| ${k} | ${n} |`);
   if (!process.env.SUMMARY) { console.log(); for (const d of detail) console.log(`${d.page} [${d.theme}] ${d.rule} (${d.impact}) x${d.count}\n   ${d.sample.join('\n   ')}`); }
+  if (process.env.OUT) { fs.mkdirSync(process.env.OUT, { recursive: true }); fs.writeFileSync(path.join(process.env.OUT, 'axe.json'), JSON.stringify({ failures, byRule, detail }, null, 1)); }
   if (failures.length) { console.error(`\nSerious/critical violations (${failures.length}):\n- ${failures.join('\n- ')}`); process.exit(1); }
   console.log('\nNo serious or critical violations.');
 }

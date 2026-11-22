@@ -1,0 +1,16 @@
+Target: http://localhost:18080/api/health
+Connections: 100, warm-up 2s, measured 30s
+
+Warming up...
+Measuring...
+
+Requests:      11,456 in 31.1s
+Requests/sec:  369
+Latency (ms):  p50 255.1   p95 546.7   p99 803.8   max 976.7
+Status mix:    11456 2xx, 0 x 429 (Nginx limiter, not a failure), 0 other non-2xx, 0 connection errors
+Failures:      0 -> error rate 0.00 % (429 excluded)
+X-Served-By during the run: 0f0dbd204f1f=3916, 79ef888fb4fc=3801, 575ac13c56dd=3739
+
+| Replicas | Requests/sec | p95 latency (ms) | p99 latency (ms) | Error rate |
+|----------|--------------|------------------|------------------|------------|
+| ? | 369 | 546.7 | 803.8 | 0.00 % |
