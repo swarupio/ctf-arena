@@ -38,8 +38,12 @@ function loadPuppeteer() {
 // Flags that keep headless Chrome stable in containers and on CI (small /dev/shm, no sandbox user namespace).
 const CHROME_ARGS = ['--no-sandbox', '--disable-dev-shm-usage'];
 
-function launchBrowser(puppeteer = loadPuppeteer()) {
-  return puppeteer.launch({ executablePath: chromePath(), headless: 'new', args: CHROME_ARGS });
+function launchBrowser(puppeteer = loadPuppeteer(), extraArgs = []) {
+  return puppeteer.launch({ executablePath: chromePath(), headless: 'new', args: [...CHROME_ARGS, ...extraArgs] });
 }
 
-module.exports = { chromePath, toolsRequire, loadPuppeteer, launchBrowser, CHROME_ARGS };
+// Headless Chrome on Linux (CI) reports no hover-capable pointer, so every `@media (hover: hover)` rule is off and a hover audit would test nothing.
+// These flags make the page see a mouse: `(hover: hover)` and `(pointer: fine)` match, as on a desktop.
+const HOVER_CAPABLE_ARGS = ['--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4'];
+
+module.exports = { chromePath, toolsRequire, loadPuppeteer, launchBrowser, CHROME_ARGS, HOVER_CAPABLE_ARGS };

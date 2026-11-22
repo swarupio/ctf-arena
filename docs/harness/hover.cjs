@@ -2,7 +2,7 @@
 // Usage (the harness dev server from vite.config.js must run): PORT=5480 THEME=dark|light THRESH=4.5 [STATE=active] [ONLY=home,challenges] [OUT=<dir for the JSON of offenders>] node hover.cjs
 // BASE (default http://127.0.0.1:$PORT), HARNESS (default this folder), PERF_TOOLS / PUPPETEER_CORE / CHROME: see env.cjs.
 // Exit code 1 when any element is below THRESH.
-const { launchBrowser, loadPuppeteer } = require('./env.cjs');
+const { launchBrowser, loadPuppeteer, HOVER_CAPABLE_ARGS } = require('./env.cjs');
 const puppeteer = loadPuppeteer();
 const fs = require('fs');
 const H = process.env.HARNESS || __dirname;
@@ -42,7 +42,7 @@ async function measureEl(page, handle) {
   const play = await makeHandler((req, p) => json(req, 200, route(p, Object.fromEntries(new URL(req.url()).searchParams))));
   const gamePrefix = /^\/(cipherlab|crackme|forensics|osint|terminal|weblab)(\/|$)/;
   const handler = (req) => { const u = new URL(req.url()); if (!u.pathname.startsWith('/api/')) return req.continue(); const p = u.pathname.slice(4); if (ov[p]) return json(req, 200, ov[p]); if (p === '/challenges' || /^\/challenges\//.test(p)) return json(req, 200, route(p, {})); if (gamePrefix.test(p)) return play(req); return json(req, 200, route(p, Object.fromEntries(u.searchParams))); };
-  const browser = await launchBrowser(puppeteer);
+  const browser = await launchBrowser(puppeteer, HOVER_CAPABLE_ARGS);
   const bad = []; let checked = 0;
   const list = PAGES.filter(([name]) => !['mfa-setup', 'mfa'].includes(name)).filter(([name]) => !only.length || only.includes(name));
   for (const [name, path, as] of list) {
