@@ -1,15 +1,16 @@
-# Pull request checks: backend and frontend tests plus the frontend build.
+# Pull request checks: lint and tests for both packages, the frontend build and bundle budget, and a non-blocking npm audit.
 name: CI
 
 on:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 # A new push to the same PR cancels the older, now pointless run.
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
