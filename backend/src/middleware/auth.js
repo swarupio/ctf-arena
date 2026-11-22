@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FetchError, JwksValidationError } from 'aws-jwt-verify/error';
 import { getCognitoVerifier } from '../config/cognito.js';
 import { AppError } from '../utils/AppError.js';
 
@@ -8,6 +9,10 @@ const identitySchema = z.object({
   email: z.string().email(),
   'cognito:groups': z.array(z.string()).optional(),
 });
+
+// The signing keys (JWKS) are fetched from Cognito and cached by the verifier. When that fetch fails the token may be
+// perfectly valid, so the caller gets 503 (retry) rather than 401 (sign in again). Every other failure is a bad token.
+const isKeyFetchFailure = (error) => error instanceof FetchError || error instanceof JwksValidationError;
 
 export function createAuthMiddleware(verifier) {
   return async function authenticate(req, res, next) {
@@ -21,7 +26,10 @@ export function createAuthMiddleware(verifier) {
       const token = authorization.data.slice(7);
       const payload = await (verifier ?? getCognitoVerifier()).verify(token);
       identity = identitySchema.parse(payload);
-    } catch {
+    } catch (error) {
+      if (isKeyFetchFailure(error)) {
+        return next(new AppError(503, 'SERVICE_UNAVAILABLE', 'Sign-in verification is temporarily unavailable. Try again shortly.'));
+      }
       return next(new AppError(401, 'UNAUTHENTICATED', 'Invalid or expired token.'));
     }
 

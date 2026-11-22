@@ -434,3 +434,122 @@ describe('transport headers and CORS', () => {
     }
   });
 });
+
+// ---- malformed input on every route --------------------------------------------------------------------------------
+// Whatever a client sends (broken JSON, operators in place of strings, odd path ids, hostile query strings), every route
+// must answer with a non-5xx status, and any 4xx must use the standard { error: { code, message } } shape: never HTML,
+// never a stack trace, never a driver message.
+describe('malformed input on every route keeps the standard error shape', () => {
+  const tokenFor = (access) => (access === 'none' ? null : access === 'admin' ? 'admin' : 'alice');
+  const HONEYPOT_KEYS = new Set(TABLE.filter(([, path]) => HONEYPOT_PATHS.includes(path)).map(([method, path]) => keyOf(method, path)));
+  const LEAK = /node_modules|\bat \S+ \(|MongoServerError|MongooseError|CastError|ValidationError|ObjectId|E11000|<html|<!doctype|stack/i;
+  const BAD_IDS = ['%7B%22%24gt%22%3A%22%22%7D', '..%2F..%2Fetc%2Fpasswd', 'x'.repeat(300), '%00', '507f1f77bcf86cd79943901', '-1', 'null'];
+  const QUERIES = [
+    '?q[$gt]=&limit[$ne]=1', '?page=-1&limit=1e9', '?sort=-password&q=%7B%22%24gt%22%3A%22%22%7D', '?limit=abc&page=NaN', '?limit=1&limit=2',
+    `?q=${'a'.repeat(5000)}`, '?q=(a%2B)%2B%24&track[$ne]=x',
+  ];
+  const BODIES = [
+    '{"$gt":""}', '{"flag":{"$gt":""},"name":{"$ne":null},"inviteCode":{"$ne":null},"q":{"$gt":""},"displayName":{"$regex":".*"}}',
+    '[]', '"text"', 'null', '123', '{"__proto__":{"admin":true},"constructor":{"prototype":{"x":1}}}',
+  ];
+
+  function expectSafe(response, label) {
+    // 503 is allowed only for the documented "game not seeded yet" answer of a fresh database.
+    const notSeeded = response.status === 503 && /NOT_SEEDED$/.test(response.body?.error?.code ?? '');
+    if (!notSeeded) { expect(response.status, label).toBeLessThan(500); }
+    if (response.status >= 400) {
+      expect(response.headers['content-type'], label).toMatch(/application\/json/);
+      expect(Object.keys(response.body), label).toEqual(['error']);
+      expect(typeof response.body.error.code, label).toBe('string');
+      expect(response.body.error.code, label).toMatch(/^[A-Z][A-Z0-9_]*$/);
+      expect(typeof response.body.error.message, label).toBe('string');
+      expect(response.text, label).not.toMatch(LEAK);
+    }
+  }
+
+  const send = (method, path, token, { body, contentType = 'application/json' } = {}) => {
+    let req = request(server)[method.toLowerCase()](path);
+    if (token) { req = req.set('Authorization', `Bearer ${token}`); }
+    return body === undefined ? req : req.set('Content-Type', contentType).send(body);
+  };
+  const withParams = (path, value) => path.replace(/:\w+/g, value);
+  const hasBody = (method) => ['POST', 'PUT', 'PATCH'].includes(method);
+
+  it('answers broken JSON with 400 VALIDATION_ERROR on every route that sits behind the body parser', async () => {
+    const targets = TABLE.filter(([method, path]) => hasBody(method) && !HONEYPOT_KEYS.has(keyOf(method, path)));
+    expect(targets.length).toBeGreaterThan(30);
+    for (const [method, path, access] of targets) {
+      for (const body of ['{"a":', '{bad json}', '\u0000\u0001']) {
+        const response = await send(method, sample(path), tokenFor(access), { body });
+        expect(response.status, `${method} ${path}`).toBe(400);
+        expect(response.body, `${method} ${path}`).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Request body must be valid JSON.' } });
+      }
+    }
+  });
+
+  it('survives operators, arrays and prototype keys in the body of every write route', async () => {
+    for (const [method, path, access] of TABLE.filter(([method]) => hasBody(method))) {
+      for (const body of BODIES) {
+        expectSafe(await send(method, sample(path), tokenFor(access), { body }), `${method} ${path} ${body.slice(0, 30)}`);
+      }
+      expectSafe(await send(method, sample(path), tokenFor(access), { body: 'a=1&b[$gt]=', contentType: 'application/x-www-form-urlencoded' }), `${method} ${path} form`);
+      expectSafe(await send(method, sample(path), tokenFor(access), { body: '{"a":1}', contentType: 'text/plain' }), `${method} ${path} text`);
+    }
+  });
+
+  it('survives hostile ids and slugs in every path parameter', async () => {
+    for (const [method, path, access] of TABLE.filter(([, path]) => path.includes(':'))) {
+      for (const id of BAD_IDS) {
+        const body = hasBody(method) ? { body: '{}' } : {};
+        expectSafe(await send(method, withParams(path, id), tokenFor(access), body), `${method} ${path} <- ${id.slice(0, 20)}`);
+      }
+    }
+  });
+
+  it('survives hostile query strings on every route', async () => {
+    for (const [method, path, access] of TABLE) {
+      for (const query of QUERIES) {
+        const body = hasBody(method) ? { body: '{}' } : {};
+        expectSafe(await send(method, `${sample(path)}${query}`, tokenFor(access), body), `${method} ${path}${query.slice(0, 30)}`);
+      }
+    }
+  });
+
+  it('never returns a stack trace or driver text in production mode, whatever fails underneath', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const marker = 'at secretFunction (/srv/app/node_modules/mongoose/lib/connection.js:99:9)';
+    const failure = new Error(`connect ECONNREFUSED mongodb+srv://u:hunter2@cluster/db ${marker}`);
+    failure.stack = `Error: boom\n    ${marker}`;
+    const writes = [];
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => { writes.push(String(chunk)); return true; });
+    database.failure = failure;
+    try {
+      let failures = 0;
+      for (const [method, path, access] of TABLE.filter(([, path]) => !HONEYPOT_PATHS.includes(path))) {
+        const response = await send(method, sample(path), tokenFor(access), hasBody(method) ? { body: '{}' } : {});
+        if (response.status >= 500) {
+          failures += 1;
+          expect(response.body, `${method} ${path}`).toEqual({ error: { code: 'SERVER_ERROR', message: 'An unexpected error occurred.' } });
+        }
+        expect(`${response.text} ${JSON.stringify(response.headers)}`, `${method} ${path}`).not.toMatch(/secretFunction|node_modules|hunter2|ECONNREFUSED|mongodb|\bat \S+ \(/);
+      }
+      expect(failures).toBeGreaterThan(20);
+    } finally {
+      database.failure = null;
+      spy.mockRestore();
+      vi.unstubAllEnvs();
+    }
+    expect(writes.join('')).not.toMatch(/secretFunction|node_modules|hunter2|ECONNREFUSED|mongodb/);
+  });
+
+  it('sends HSTS, CSP, no cookies and a request id on API answers, including errors', async () => {
+    for (const [path, token] of [['/api/health', null], ['/api/me', 'alice'], ['/api/nope', null], ['/api/teams/me', null]]) {
+      const response = await call('get', path, token);
+      expect(response.headers['strict-transport-security'], path).toMatch(/max-age=\d+/);
+      expect(response.headers['content-security-policy'], path).toContain("default-src 'self'");
+      expect(response.headers['x-frame-options'], path).toBeTruthy();
+      expect(response.headers['set-cookie'], path).toBeUndefined();
+      expect(response.headers['x-request-id'], path).toMatch(/^[0-9a-f-]{36}$/);
+    }
+  });
+});

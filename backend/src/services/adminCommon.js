@@ -43,8 +43,6 @@ export const envelope = (items, { page, limit }, total) => ({ items, page, limit
 export const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const searchRegex = (q) => new RegExp(escapeRegex(q), 'i');
 
-export const toId = (value) => new mongoose.Types.ObjectId(String(value));
-
 // Legacy list routes (teams, challenges, instances) return a bare array unless the caller sends any query parameter.
 export const isPaged = (query) => Object.keys(query ?? {}).length > 0;
 

@@ -427,6 +427,9 @@ export class FakeCollection {
           }
         }
         rows = [...groups.values()];
+      } else if (name === '$count') {
+        // Like MongoDB: no document at all when nothing reached this stage.
+        rows = rows.length === 0 ? [] : [{ [spec]: rows.length }];
       } else if (name === '$sort') {
         rows = sortDocs(rows, spec);
       } else if (name === '$lookup') {

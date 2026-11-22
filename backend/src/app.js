@@ -1,7 +1,10 @@
 import express from 'express';
 import helmet from 'helmet';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import './config/mongoLimits.js';
 import { servedBy } from './middleware/servedBy.js';
+import { requestId } from './middleware/requestId.js';
+import { requestTimeout } from './middleware/requestTimeout.js';
 import { requestCounter } from './middleware/requestCounter.js';
 import { mountable } from './middleware/lazyRouter.js';
 import healthRouter from './routes/health.js';
@@ -36,9 +39,11 @@ const adminV2Router = await mountable(() => import('./routes/admin/index.js'));
 const app = express();
 
 app.disable('x-powered-by');
+app.use(requestId);
 app.use(servedBy);
 app.use(requestCounter);
 app.use(helmet());
+app.use('/api', requestTimeout());
 // API answers carry per-team data (invite codes, flags printed by the terminal): never let a browser or proxy store them.
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store');

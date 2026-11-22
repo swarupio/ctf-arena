@@ -268,7 +268,6 @@ export const LEVELS = [
 ];
 
 export const levelById = (id) => LEVELS.find((level) => level.id === id) ?? null;
-export const trackById = (id) => TRACKS.find((track) => track.id === id) ?? null;
 export const levelsOfTrack = (trackId) => LEVELS.filter((level) => level.track === trackId);
 export const sumPoints = (levels) => levels.reduce((total, level) => total + level.points, 0);
 export const MAX_POINTS = sumPoints(LEVELS);
